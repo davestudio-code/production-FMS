@@ -28,14 +28,23 @@ def getDatabaseStatus():
 @productionBlueprint.route("/")
 def index():
     databaseStatusMessage = getDatabaseStatus()
+    try:
+        allOrders = ProductionOrder.getAll()
+        materials = Material.getAll()
+    except Exception as err:
+        allOrders = []
+        materials = []
+
     metricsData = {
-        "totalOrders": 0,
-        "inProgressOrders": 0,
-        "completedOrders": 0,
-        "lowStockCount": 0
+        "totalOrders": len(allOrders),
+        "inProgressOrders": sum(1 for o in allOrders if o.status == "In Progress"),
+        "completedOrders": sum(1 for o in allOrders if o.status == "Completed"),
+        "lowStockCount": sum(1 for m in materials if m.currentStock <= Decimal("0.000"))
     }
-    recentOrdersList = []
+
+    recentOrdersList = allOrders[:5]
     integrationEventsList = []
+
     return render_template(
         "production/dashboard.html",
         activeTab="dashboard",
