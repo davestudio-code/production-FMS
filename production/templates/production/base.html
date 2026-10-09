@@ -202,6 +202,36 @@
             }
         }
 
+        function openEditModal(id, name, type, price) {
+            const form = document.getElementById('editFurnitureForm');
+            if (form) {
+                form.action = '/production/furniture/edit/' + id;
+            }
+            const nameEl = document.getElementById('editFurnitureName');
+            if (nameEl) nameEl.value = name;
+            const typeEl = document.getElementById('editFurnitureType');
+            if (typeEl) typeEl.value = type;
+            const priceEl = document.getElementById('editSellingPrice');
+            if (priceEl) priceEl.value = price;
+            openModal('editFurnitureModal');
+        }
+
+        function openScheduleModal(orderID, productName, startDate, dueDate) {
+            const form = document.getElementById('scheduleForm');
+            if (form) {
+                form.action = '/production/planning/update/' + orderID;
+            }
+            const titleEl = document.getElementById('scheduleModalTitle');
+            if (titleEl) titleEl.textContent = 'Edit Schedule: Order #PO-' + orderID;
+            const prodEl = document.getElementById('scheduleOrderProduct');
+            if (prodEl) prodEl.textContent = productName;
+            const startInput = document.getElementById('scheduleStartDate');
+            if (startInput) startInput.value = startDate || '';
+            const dueInput = document.getElementById('scheduleDueDate');
+            if (dueInput) dueInput.value = dueDate || '';
+            openModal('scheduleModal');
+        }
+
         document.addEventListener('DOMContentLoaded', function() {
             const navLinks = document.querySelectorAll('nav a');
             const mainContainer = document.querySelector('main');
@@ -222,6 +252,15 @@
                     if (incomingMain && mainContainer) {
                         mainContainer.innerHTML = incomingMain.innerHTML;
                         document.title = parsedDocument.title;
+
+                        mainContainer.querySelectorAll('script').forEach(function(oldScript) {
+                            const newScript = document.createElement('script');
+                            Array.from(oldScript.attributes).forEach(function(attr) {
+                                newScript.setAttribute(attr.name, attr.value);
+                            });
+                            newScript.textContent = oldScript.textContent;
+                            oldScript.parentNode.replaceChild(newScript, oldScript);
+                        });
 
                         if (shouldPushState) {
                             history.pushState({ targetUrl: targetUrl }, '', targetUrl);

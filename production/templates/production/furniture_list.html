@@ -77,14 +77,14 @@
             </div>
             <div class="formGroup">
                 <label>Product Category / Type</label>
-                <input type="text" name="furnitureType" placeholder="e.g. Seating, Table, Storage" list="categoryDatalist" required>
-                <datalist id="categoryDatalist">
-                    <option value="Seating">
-                    <option value="Table">
-                    <option value="Storage">
-                    <option value="Bedroom">
-                    <option value="Living Room">
-                </datalist>
+                <select name="furnitureType" required>
+                    <option value="" disabled selected>Select category...</option>
+                    <option value="Seating">Seating</option>
+                    <option value="Table">Table</option>
+                    <option value="Storage">Storage</option>
+                    <option value="Bedroom">Bedroom</option>
+                    <option value="Living Room">Living Room</option>
+                </select>
             </div>
             <div class="formGroup">
                 <label>Standard Selling Price (₱)</label>
@@ -111,7 +111,13 @@
             </div>
             <div class="formGroup">
                 <label>Product Category / Type</label>
-                <input type="text" id="editFurnitureType" name="furnitureType" list="categoryDatalist" required>
+                <select id="editFurnitureType" name="furnitureType" required>
+                    <option value="Seating">Seating</option>
+                    <option value="Table">Table</option>
+                    <option value="Storage">Storage</option>
+                    <option value="Bedroom">Bedroom</option>
+                    <option value="Living Room">Living Room</option>
+                </select>
             </div>
             <div class="formGroup">
                 <label>Standard Selling Price (₱)</label>
