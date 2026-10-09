@@ -1,0 +1,42 @@
+{% extends "production/base.html" %}
+
+{% block content %}
+<div class="headerRow">
+    <div>
+        <h2>Material Issuance Log</h2>
+        <span style="color: var(--mt); font-size: 13.5px;">Authoritative record of raw materials dispatched to workshop (MaterialIssuance)</span>
+    </div>
+</div>
+
+<div class="card">
+    <!-- prod_materialIssuance -->
+    <div class="tableContainer">
+        <table>
+            <thead>
+                <tr>
+                    <th>Issuance Ref</th>
+                    <th>Associated Order</th>
+                    <th>Raw Material</th>
+                    <th>Dispatched Quantity</th>
+                    <th>Issue Date</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for iss in issuances %}
+                <tr>
+                    <td><b>#{{ iss.issuanceID }}</b></td>
+                    <td><b>Order #{{ iss.orderID }}</b> &middot; {{ iss.furnitureName }}</td>
+                    <td><b>{{ iss.materialName }}</b></td>
+                    <td>{{ iss.quantityIssued }} {{ iss.unit }}</td>
+                    <td>{{ iss.issueDate }}</td>
+                </tr>
+                {% else %}
+                <tr>
+                    <td colspan="5" style="text-align: center; color: var(--mt); padding: 24px;">No materials issued to workshop yet.</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endblock %}

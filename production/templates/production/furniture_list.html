@@ -1,0 +1,138 @@
+{% extends "production/base.html" %}
+
+{% block content %}
+<div class="headerRow">
+    <div>
+        <h2>Product Master Catalog</h2>
+        <span style="color: var(--mt); font-size: 13.5px;">Finished furniture designs, classifications, and target selling prices</span>
+    </div>
+    <button class="actionButton" onclick="openModal('addFurnitureModal')">+ Add New Product</button>
+</div>
+
+<div class="card">
+    <form method="GET" action="{{ url_for('production.furnitureList') }}" class="toolBar">
+        <input type="text" name="q" value="{{ searchQuery }}" placeholder="Search product name..." style="width: 260px;">
+        <select name="category" onchange="this.form.submit()">
+            <option value="">All Categories</option>
+            {% for cat in categories %}
+            <option value="{{ cat }}" {{ 'selected' if selectedCategory == cat else '' }}>{{ cat }}</option>
+            {% endfor %}
+        </select>
+        <button type="submit" class="actionButton secondary" style="padding: 7px 14px; font-size: 13px;">Filter</button>
+        {% if searchQuery or selectedCategory %}
+        <a href="{{ url_for('production.furnitureList') }}" class="actionButton secondary" style="padding: 7px 14px; font-size: 13px; text-decoration: none;">Reset</a>
+        {% endif %}
+    </form>
+
+    <div class="tableContainer">
+        <table>
+            <thead>
+                <tr>
+                    <th>Product ID</th>
+                    <th>Product Name</th>
+                    <th>Category</th>
+                    <th>Standard Selling Price</th>
+                    <th>BOM & Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for item in furnitureItems %}
+                <tr>
+                    <td><b>#{{ item.furnitureID }}</b></td>
+                    <td><b>{{ item.furnitureName }}</b></td>
+                    <td>
+                        <span class="statusBadge released">{{ item.furnitureType }}</span>
+                    </td>
+                    <td>₱{{ "{:,.2f}".format(item.sellingPrice) }}</td>
+                    <td>
+                        <div style="display: flex; gap: 8px; align-items: center;">
+                            <a href="{{ url_for('production.bomList') }}?furniture_id={{ item.furnitureID }}" class="actionButton secondary" style="padding: 5px 11px; font-size: 12px; text-decoration: none;">BOM Recipe</a>
+                            <button type="button" class="actionButton secondary" style="padding: 5px 11px; font-size: 12px;" onclick="openEditModal({{ item.furnitureID }}, '{{ item.furnitureName|replace('\'', '\\\'') }}', '{{ item.furnitureType|replace('\'', '\\\'') }}', '{{ item.sellingPrice }}')">Edit</button>
+                            <form method="POST" action="{{ url_for('production.deleteFurniture', furnitureID=item.furnitureID) }}" style="display: inline;" onsubmit="return confirm('Are you sure you want to delete \'{{ item.furnitureName|replace('\'', '\\\'') }}\'?');">
+                                <button type="submit" class="actionButton secondary" style="padding: 5px 11px; font-size: 12px; color: #9a4a3a; border-color: #e2bcb3;">Delete</button>
+                            </form>
+                        </div>
+                    </td>
+                </tr>
+                {% else %}
+                <tr>
+                    <td colspan="5" style="text-align: center; color: var(--mt); padding: 24px;">No products found. Click '+ Add New Product' to register one.</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<div id="addFurnitureModal" class="modalOverlay">
+    <div class="modalCard">
+        <div class="modalHeader">
+            <h3>Add Product to Master Catalog</h3>
+            <button class="modalClose" onclick="closeModal('addFurnitureModal')">&times;</button>
+        </div>
+        <form method="POST" action="{{ url_for('production.addFurniture') }}">
+            <div class="formGroup">
+                <label>Product Name</label>
+                <input type="text" name="furnitureName" placeholder="e.g. Dining Chair" required autofocus>
+            </div>
+            <div class="formGroup">
+                <label>Product Category / Type</label>
+                <input type="text" name="furnitureType" placeholder="e.g. Seating, Table, Storage" list="categoryDatalist" required>
+                <datalist id="categoryDatalist">
+                    <option value="Seating">
+                    <option value="Table">
+                    <option value="Storage">
+                    <option value="Bedroom">
+                    <option value="Living Room">
+                </datalist>
+            </div>
+            <div class="formGroup">
+                <label>Standard Selling Price (₱)</label>
+                <input type="number" name="sellingPrice" placeholder="0.00" min="0" step="0.01" required>
+            </div>
+            <div class="modalActions">
+                <button type="button" class="actionButton secondary" onclick="closeModal('addFurnitureModal')">Cancel</button>
+                <button type="submit" class="actionButton">Save Product</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<div id="editFurnitureModal" class="modalOverlay">
+    <div class="modalCard">
+        <div class="modalHeader">
+            <h3>Edit Product</h3>
+            <button class="modalClose" onclick="closeModal('editFurnitureModal')">&times;</button>
+        </div>
+        <form id="editFurnitureForm" method="POST" action="">
+            <div class="formGroup">
+                <label>Product Name</label>
+                <input type="text" id="editFurnitureName" name="furnitureName" required>
+            </div>
+            <div class="formGroup">
+                <label>Product Category / Type</label>
+                <input type="text" id="editFurnitureType" name="furnitureType" list="categoryDatalist" required>
+            </div>
+            <div class="formGroup">
+                <label>Standard Selling Price (₱)</label>
+                <input type="number" id="editSellingPrice" name="sellingPrice" min="0" step="0.01" required>
+            </div>
+            <div class="modalActions">
+                <button type="button" class="actionButton secondary" onclick="closeModal('editFurnitureModal')">Cancel</button>
+                <button type="submit" class="actionButton">Update Product</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<script>
+    function openEditModal(id, name, type, price) {
+        const form = document.getElementById('editFurnitureForm');
+        form.action = "{{ url_for('production.editFurniture', furnitureID=0) }}".replace('/0', '/' + id);
+        document.getElementById('editFurnitureName').value = name;
+        document.getElementById('editFurnitureType').value = type;
+        document.getElementById('editSellingPrice').value = price;
+        openModal('editFurnitureModal');
+    }
+</script>
+{% endblock %}

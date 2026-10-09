@@ -1,0 +1,145 @@
+{% extends "production/base.html" %}
+
+{% block content %}
+<div class="headerRow">
+    <div>
+        <h2>Production Planning</h2>
+        <span style="color: var(--mt); font-size: 13.5px;">Schedule workshop timelines and monitor milestone delivery dates</span>
+    </div>
+</div>
+
+<div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 14px; margin-bottom: 20px;">
+    <div class="card" style="padding: 14px 18px;">
+        <span style="font-size: 12px; color: var(--mt); text-transform: uppercase; font-weight: 600;">Total Orders</span>
+        <div style="font-size: 24px; font-weight: 700; color: var(--t); margin-top: 4px;">{{ summary.total }}</div>
+    </div>
+    <div class="card" style="padding: 14px 18px;">
+        <span style="font-size: 12px; color: var(--mt); text-transform: uppercase; font-weight: 600;">Scheduled</span>
+        <div style="font-size: 24px; font-weight: 700; color: #2e628e; margin-top: 4px;">{{ summary.scheduled }}</div>
+    </div>
+    <div class="card" style="padding: 14px 18px;">
+        <span style="font-size: 12px; color: var(--mt); text-transform: uppercase; font-weight: 600;">Needs Dates</span>
+        <div style="font-size: 24px; font-weight: 700; color: #8e622a; margin-top: 4px;">{{ summary.needsDates }}</div>
+    </div>
+    <div class="card" style="padding: 14px 18px;">
+        <span style="font-size: 12px; color: var(--mt); text-transform: uppercase; font-weight: 600;">Overdue</span>
+        <div style="font-size: 24px; font-weight: 700; color: #9a4a3a; margin-top: 4px;">{{ summary.overdue }}</div>
+    </div>
+</div>
+
+<div class="card">
+    <form method="GET" action="{{ url_for('production.planningList') }}" class="toolBar" style="margin-bottom: 16px;">
+        <input type="text" name="q" value="{{ searchQuery }}" placeholder="Search by product name or order ID..." style="width: 280px;">
+        <select name="status" style="width: 190px;">
+            <option value="">All Lifecycle Stages</option>
+            <option value="Draft" {% if statusFilter == 'Draft' %}selected{% endif %}>Draft</option>
+            <option value="Released" {% if statusFilter == 'Released' %}selected{% endif %}>Released</option>
+            <option value="In Progress" {% if statusFilter == 'In Progress' %}selected{% endif %}>In Progress</option>
+            <option value="Completed" {% if statusFilter == 'Completed' %}selected{% endif %}>Completed</option>
+        </select>
+        <button type="submit" class="actionButton secondary" style="padding: 8px 14px; font-size: 13px;">Filter</button>
+        {% if searchQuery or statusFilter %}
+        <a href="{{ url_for('production.planningList') }}" class="actionButton secondary" style="padding: 8px 14px; font-size: 13px; text-decoration: none;">Reset</a>
+        {% endif %}
+    </form>
+
+    <div class="tableContainer">
+        <table>
+            <thead>
+                <tr>
+                    <th>Order Ref</th>
+                    <th>Furniture Product</th>
+                    <th>Batch Quantity</th>
+                    <th>Order Stage</th>
+                    <th>Planned Start</th>
+                    <th>Target Due Date</th>
+                    <th>Schedule Health</th>
+                    <th>Action</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for ord in plannedOrders %}
+                <tr>
+                    <td><b>#PO-{{ ord.orderID }}</b></td>
+                    <td>
+                        <b>{{ ord.furnitureName }}</b>
+                        <span style="display: block; font-size: 12px; color: var(--mt);">{{ ord.furnitureType }}</span>
+                    </td>
+                    <td><b>{{ ord.plannedQuantity }} units</b></td>
+                    <td>
+                        <span class="statusBadge {{ 'completed' if ord.status == 'Completed' else ('inProgress' if ord.status == 'In Progress' else ('released' if ord.status == 'Released' else 'draft')) }}">
+                            {{ ord.status }}
+                        </span>
+                    </td>
+                    <td>{{ ord.plannedStartDate or '—' }}</td>
+                    <td><b>{{ ord.dueDate or '—' }}</b></td>
+                    <td>
+                        {% if ord.scheduleHealth == 'Overdue' %}
+                            <span class="statusBadge" style="background: rgba(154, 74, 58, 0.12); color: #9a4a3a; border: 1px solid rgba(154, 74, 58, 0.3);">Overdue</span>
+                        {% elif ord.scheduleHealth == 'On Schedule' %}
+                            <span class="statusBadge" style="background: rgba(53, 122, 88, 0.12); color: #357a58; border: 1px solid rgba(53, 122, 88, 0.3);">On Schedule</span>
+                        {% elif ord.scheduleHealth == 'Completed' %}
+                            <span class="statusBadge completed">Completed</span>
+                        {% else %}
+                            <span class="statusBadge draft">Needs Dates</span>
+                        {% endif %}
+                    </td>
+                    <td>
+                        <button type="button" class="actionButton secondary" style="padding: 4px 10px; font-size: 12px;" onclick="openScheduleModal('{{ ord.orderID }}', '{{ ord.furnitureName|replace('\'', '\\\'') }}', '{{ ord.plannedStartDate or '' }}', '{{ ord.dueDate or '' }}')">
+                            Edit Dates
+                        </button>
+                    </td>
+                </tr>
+                {% else %}
+                <tr>
+                    <td colspan="8" style="text-align: center; color: var(--mt); padding: 28px;">
+                        {% if searchQuery or statusFilter %}
+                            No planned orders match your filter criteria.
+                        {% else %}
+                            No production orders found. Create orders in 'Production Order' to schedule them here.
+                        {% endif %}
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<div id="scheduleModal" class="modalOverlay">
+    <div class="modalCard" style="max-width: 480px;">
+        <div class="modalHeader">
+            <h3 id="scheduleModalTitle">Edit Production Schedule</h3>
+            <button class="modalClose" onclick="closeModal('scheduleModal')">&times;</button>
+        </div>
+        <form id="scheduleForm" method="POST" action="">
+            <div style="margin-bottom: 14px; padding: 10px 14px; background: var(--bg); border: 1px solid var(--s); border-radius: 6px;">
+                <span id="scheduleOrderProduct" style="font-weight: 600; font-size: 14px;"></span>
+            </div>
+            <div class="formGroup">
+                <label>Planned Start Date</label>
+                <input type="date" id="scheduleStartDate" name="plannedStartDate">
+            </div>
+            <div class="formGroup">
+                <label>Target Due Date</label>
+                <input type="date" id="scheduleDueDate" name="dueDate">
+            </div>
+            <div class="modalActions" style="margin-top: 18px;">
+                <button type="button" class="actionButton secondary" onclick="closeModal('scheduleModal')">Cancel</button>
+                <button type="submit" class="actionButton">Save Schedule</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<script>
+function openScheduleModal(orderID, productName, startDate, dueDate) {
+    document.getElementById('scheduleForm').action = "/planning/update/" + orderID;
+    document.getElementById('scheduleModalTitle').textContent = "Edit Schedule: Order #PO-" + orderID;
+    document.getElementById('scheduleOrderProduct').textContent = productName;
+    document.getElementById('scheduleStartDate').value = startDate || '';
+    document.getElementById('scheduleDueDate').value = dueDate || '';
+    openModal('scheduleModal');
+}
+</script>
+{% endblock %}

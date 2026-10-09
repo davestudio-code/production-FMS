@@ -1,0 +1,11 @@
+.env
+__pycache__/
+*/__pycache__/
+venv/
+.venv/
+.pytest_cache/
+*.pyc
+misc-needed_info(ignore)/
+production_mvp_plan.md
+README.md
+production/database/

@@ -1,0 +1,174 @@
+{% extends "production/base.html" %}
+
+{% block content %}
+<div class="headerRow">
+    <div>
+        <h2>Production Orders</h2>
+        <span style="color: var(--mt); font-size: 13.5px;">Track order lifecycle: Draft &rarr; Released &rarr; In Progress &rarr; Completed</span>
+    </div>
+    <button class="actionButton" onclick="openModal('createOrderModal')">+ New Production Order</button>
+</div>
+
+<div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); gap: 14px; margin-bottom: 20px;">
+    <div class="card" style="padding: 14px 18px;">
+        <span style="font-size: 12px; color: var(--mt); text-transform: uppercase; font-weight: 600;">Total Orders</span>
+        <div style="font-size: 24px; font-weight: 700; color: var(--t); margin-top: 4px;">{{ summary.total }}</div>
+    </div>
+    <div class="card" style="padding: 14px 18px;">
+        <span style="font-size: 12px; color: var(--mt); text-transform: uppercase; font-weight: 600;">Draft</span>
+        <div style="font-size: 24px; font-weight: 700; color: #8e622a; margin-top: 4px;">{{ summary.draft }}</div>
+    </div>
+    <div class="card" style="padding: 14px 18px;">
+        <span style="font-size: 12px; color: var(--mt); text-transform: uppercase; font-weight: 600;">Released</span>
+        <div style="font-size: 24px; font-weight: 700; color: #2e628e; margin-top: 4px;">{{ summary.released }}</div>
+    </div>
+    <div class="card" style="padding: 14px 18px;">
+        <span style="font-size: 12px; color: var(--mt); text-transform: uppercase; font-weight: 600;">In Progress</span>
+        <div style="font-size: 24px; font-weight: 700; color: #a05a1e; margin-top: 4px;">{{ summary.inProgress }}</div>
+    </div>
+    <div class="card" style="padding: 14px 18px;">
+        <span style="font-size: 12px; color: var(--mt); text-transform: uppercase; font-weight: 600;">Completed</span>
+        <div style="font-size: 24px; font-weight: 700; color: #357a58; margin-top: 4px;">{{ summary.completed }}</div>
+    </div>
+</div>
+
+<div class="card">
+    <form method="GET" action="{{ url_for('production.orderList') }}" class="toolBar" style="margin-bottom: 16px;">
+        <input type="text" name="q" value="{{ searchQuery }}" placeholder="Search by product name or order ID..." style="width: 280px;">
+        <select name="status" style="width: 190px;">
+            <option value="">All Lifecycle Stages</option>
+            <option value="Draft" {% if statusFilter == 'Draft' %}selected{% endif %}>Draft</option>
+            <option value="Released" {% if statusFilter == 'Released' %}selected{% endif %}>Released</option>
+            <option value="In Progress" {% if statusFilter == 'In Progress' %}selected{% endif %}>In Progress</option>
+            <option value="Completed" {% if statusFilter == 'Completed' %}selected{% endif %}>Completed</option>
+        </select>
+        <button type="submit" class="actionButton secondary" style="padding: 8px 14px; font-size: 13px;">Filter</button>
+        {% if searchQuery or statusFilter %}
+        <a href="{{ url_for('production.orderList') }}" class="actionButton secondary" style="padding: 8px 14px; font-size: 13px; text-decoration: none;">Reset</a>
+        {% endif %}
+    </form>
+
+    <div class="tableContainer">
+        <table>
+            <thead>
+                <tr>
+                    <th>Order Ref</th>
+                    <th>Furniture Product</th>
+                    <th>Order Type</th>
+                    <th>Batch Quantity</th>
+                    <th>Order Date</th>
+                    <th>Planned Timeline</th>
+                    <th>Status</th>
+                    <th>Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for ord in orders %}
+                <tr>
+                    <td><b>#PO-{{ ord.orderID }}</b></td>
+                    <td>
+                        <b>{{ ord.furnitureName }}</b>
+                        <span style="display: block; font-size: 12px; color: var(--mt);">{{ ord.furnitureType }}</span>
+                    </td>
+                    <td>
+                        <span class="statusBadge" style="background: rgba(181, 143, 85, 0.12); color: #8e622a; border: 1px solid rgba(181, 143, 85, 0.3);">
+                            {{ ord.orderType }}
+                        </span>
+                    </td>
+                    <td><b>{{ ord.plannedQuantity }} units</b></td>
+                    <td>{{ ord.orderDate }}</td>
+                    <td>
+                        {% if ord.plannedStartDate or ord.dueDate %}
+                            {{ ord.plannedStartDate or '—' }} &rarr; {{ ord.dueDate or '—' }}
+                        {% else %}
+                            <span style="color: var(--mt); font-size: 12.5px;">Not Scheduled</span>
+                        {% endif %}
+                    </td>
+                    <td>
+                        <span class="statusBadge {{ 'completed' if ord.status == 'Completed' else ('inProgress' if ord.status == 'In Progress' else ('released' if ord.status == 'Released' else 'draft')) }}">
+                            {{ ord.status }}
+                        </span>
+                    </td>
+                    <td>
+                        <div style="display: flex; gap: 8px; align-items: center;">
+                            <a href="{{ url_for('production.orderDetail', orderID=ord.orderID) }}" class="actionButton secondary" style="padding: 4px 10px; font-size: 12px; text-decoration: none;">
+                                View Details
+                            </a>
+                            {% if ord.status == 'Draft' %}
+                            <form method="POST" action="{{ url_for('production.deleteOrder', orderID=ord.orderID) }}" onsubmit="return confirm('Delete Draft Order #PO-{{ ord.orderID }}?');" style="display: inline;">
+                                <button type="submit" class="actionButton secondary" style="padding: 4px 10px; font-size: 12px; color: #9a4a3a; border-color: #e2bcb3;">
+                                    Delete
+                                </button>
+                            </form>
+                            {% endif %}
+                        </div>
+                    </td>
+                </tr>
+                {% else %}
+                <tr>
+                    <td colspan="8" style="text-align: center; color: var(--mt); padding: 28px;">
+                        {% if searchQuery or statusFilter %}
+                            No production orders match your filter criteria.
+                        {% else %}
+                            No production orders created yet. Click '+ New Production Order' to begin.
+                        {% endif %}
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<div id="createOrderModal" class="modalOverlay">
+    <div class="modalCard" style="max-width: 520px;">
+        <div class="modalHeader">
+            <h3>New Production Order</h3>
+            <button class="modalClose" onclick="closeModal('createOrderModal')">&times;</button>
+        </div>
+        <form method="POST" action="{{ url_for('production.createOrder') }}">
+            <div class="formGroup">
+                <label>Production Order Source</label>
+                <div style="display: flex; gap: 14px; margin-top: 4px;">
+                    <label style="display: flex; align-items: center; gap: 6px; font-weight: normal; font-size: 13px; cursor: pointer;">
+                        <input type="radio" name="orderSource" value="stock" checked> Make-to-Stock (Inventory)
+                    </label>
+                    <label style="display: flex; align-items: center; gap: 6px; font-weight: normal; font-size: 13px; color: var(--mt); cursor: not-allowed;" title="Pending Team 4 Sales confirmation">
+                        <input type="radio" name="orderSource" value="sales" disabled> From Sales Order <span style="font-size: 11px;">(Pending Sales)</span>
+                    </label>
+                </div>
+            </div>
+            <div class="formGroup">
+                <label>Furniture Product (Must have configured BOM)</label>
+                <select name="furnitureID" required>
+                    <option value="">-- Select Product --</option>
+                    {% for f in furnitureItems %}
+                        <option value="{{ f.furnitureID }}">{{ f.furnitureName }} ({{ f.furnitureType }})</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="formGroup">
+                <label>Planned Batch Quantity (Whole Number)</label>
+                <input type="number" name="plannedQuantity" placeholder="e.g. 4" min="1" max="100000" step="1" required>
+            </div>
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px;">
+                <div class="formGroup">
+                    <label>Planned Start Date (Optional)</label>
+                    <input type="date" name="plannedStartDate">
+                </div>
+                <div class="formGroup">
+                    <label>Target Due Date (Optional)</label>
+                    <input type="date" name="dueDate">
+                </div>
+            </div>
+            <div class="bannerNotice" style="margin-top: 6px; font-size: 12.5px; line-height: 1.45;">
+                Orders are created in <b>Draft</b> status. Release to scheduling and shop-floor execution occurs in subsequent workflow steps.
+            </div>
+            <div class="modalActions" style="margin-top: 18px;">
+                <button type="button" class="actionButton secondary" onclick="closeModal('createOrderModal')">Cancel</button>
+                <button type="submit" class="actionButton">Create Draft Order</button>
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %}

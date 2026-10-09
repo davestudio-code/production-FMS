@@ -1,0 +1,54 @@
+{% extends "production/base.html" %}
+
+{% block content %}
+<div class="headerRow">
+    <div>
+        <h2>Quality Inspection & Finished Goods</h2>
+        <span style="color: var(--mt); font-size: 13.5px;">Authoritative quality inspection records and stock handoff (FinishedGoods)</span>
+    </div>
+</div>
+
+<div class="card">
+    <!-- prod_finishedGoods -->
+    <div class="tableContainer">
+        <table>
+            <thead>
+                <tr>
+                    <th>Inspection Ref</th>
+                    <th>Order Reference</th>
+                    <th>Furniture Product</th>
+                    <th>Quantity Inspected</th>
+                    <th>Quality Status</th>
+                    <th>Inventory Stock Effect</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for fg in finishedGoodsList %}
+                <tr>
+                    <td><b>#{{ fg.finishedGoodsID }}</b></td>
+                    <td><b>Order #{{ fg.orderID }}</b></td>
+                    <td>{{ fg.furnitureName }}</td>
+                    <td>{{ fg.quantity }} units</td>
+                    <td>
+                        <span class="statusBadge {{ 'completed' if fg.qualityStatus == 'Passed' else 'alert' }}">
+                            {{ fg.qualityStatus }}
+                        </span>
+                    </td>
+                    <td>
+                        {% if fg.qualityStatus == 'Passed' %}
+                            <b style="color: var(--p);">&check; +{{ fg.quantity }} units added to Team 2 Inventory</b>
+                        {% else %}
+                            <span style="color: var(--rd);">&cross; Scrapped (Not added to stock)</span>
+                        {% endif %}
+                    </td>
+                </tr>
+                {% else %}
+                <tr>
+                    <td colspan="6" style="text-align: center; color: var(--mt); padding: 24px;">No quality inspection records found. Complete an order to record inspection.</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endblock %}

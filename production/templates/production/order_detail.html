@@ -1,0 +1,124 @@
+{% extends "production/base.html" %}
+
+{% block content %}
+<div style="margin-bottom: 14px;">
+    <a href="{{ url_for('production.orderList') }}" style="color: var(--p); text-decoration: none; font-size: 13px; font-weight: 600; display: inline-flex; align-items: center; gap: 6px;">
+        &larr; Back to Production Orders
+    </a>
+</div>
+
+<div class="headerRow" style="align-items: flex-start; margin-bottom: 20px;">
+    <div>
+        <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 4px;">
+            <h2 style="margin: 0;">Order #PO-{{ order.orderID }}</h2>
+            <span class="statusBadge {{ 'completed' if order.status == 'Completed' else ('inProgress' if order.status == 'In Progress' else ('released' if order.status == 'Released' else 'draft')) }}">
+                {{ order.status }}
+            </span>
+            <span class="statusBadge" style="background: rgba(181, 143, 85, 0.12); color: #8e622a; border: 1px solid rgba(181, 143, 85, 0.3);">
+                {{ order.orderType }}
+            </span>
+        </div>
+        <span style="color: var(--mt); font-size: 13.5px;">{{ order.furnitureName }} ({{ order.furnitureType }}) &bull; Ordered on {{ order.orderDate }}</span>
+    </div>
+
+    {% if order.status == 'Draft' %}
+    <div style="display: flex; gap: 8px; align-items: center; flex-wrap: wrap;">
+        <a href="{{ url_for('production.requirementList', order_id=order.orderID) }}" class="actionButton" style="padding: 6px 12px; font-size: 12.5px; text-decoration: none;">Check Requirements & Release &rarr;</a>
+        <form method="POST" action="{{ url_for('production.deleteOrder', orderID=order.orderID) }}" onsubmit="return confirm('Are you sure you want to delete Draft Order #PO-{{ order.orderID }}?');" style="display: inline;">
+            <button type="submit" class="actionButton secondary" style="color: #9a4a3a; border-color: #e2bcb3;">Delete Draft Order</button>
+        </form>
+    </div>
+    {% elif order.status == 'Released' %}
+    <div style="display: flex; gap: 8px; align-items: center; flex-wrap: wrap;">
+        <a href="{{ url_for('production.issuanceList') }}" class="actionButton" style="padding: 6px 12px; font-size: 12.5px; text-decoration: none;">Issue Materials &rarr;</a>
+    </div>
+    {% endif %}
+</div>
+
+<div class="card" style="margin-bottom: 20px;">
+    <h3 style="font-size: 15px; margin: 0 0 14px; padding-bottom: 10px; border-bottom: 1px solid var(--s);">Order Specifications & Schedule</h3>
+    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 16px;">
+        <div>
+            <span style="font-size: 12px; color: var(--mt); display: block;">Furniture Product</span>
+            <b style="font-size: 14.5px;">{{ order.furnitureName }}</b>
+        </div>
+        <div>
+            <span style="font-size: 12px; color: var(--mt); display: block;">Category</span>
+            <b style="font-size: 14.5px;">{{ order.furnitureType }}</b>
+        </div>
+        <div>
+            <span style="font-size: 12px; color: var(--mt); display: block;">Planned Batch Quantity</span>
+            <b style="font-size: 14.5px; color: var(--p);">{{ order.plannedQuantity }} units</b>
+        </div>
+        <div>
+            <span style="font-size: 12px; color: var(--mt); display: block;">Order Source Type</span>
+            <b style="font-size: 14.5px;">{{ order.orderType }}</b>
+        </div>
+        <div>
+            <span style="font-size: 12px; color: var(--mt); display: block;">Planned Start Date</span>
+            <b style="font-size: 14.5px;">{{ order.plannedStartDate or 'Not Scheduled' }}</b>
+        </div>
+        <div>
+            <span style="font-size: 12px; color: var(--mt); display: block;">Target Due Date</span>
+            <b style="font-size: 14.5px;">{{ order.dueDate or 'Not Scheduled' }}</b>
+        </div>
+        <div>
+            <span style="font-size: 12px; color: var(--mt); display: block;">Estimated Material Cost per Unit</span>
+            <b style="font-size: 14.5px;">₱{{ "{:,.2f}".format(estimatedUnitMaterialCost) }}</b>
+        </div>
+        <div>
+            <span style="font-size: 12px; color: var(--mt); display: block;">Estimated Material Cost for Batch</span>
+            <b style="font-size: 14.5px; color: var(--p);">₱{{ "{:,.2f}".format(estimatedBatchMaterialCost) }}</b>
+        </div>
+        <div>
+            <span style="font-size: 12px; color: var(--mt); display: block;">Current Production Status</span>
+            <b style="font-size: 14.5px;">{{ order.status }}</b>
+        </div>
+        <div style="grid-column: 1 / -1; margin-top: 4px; padding-top: 8px; border-top: 1px dashed var(--s); font-size: 12px; color: var(--mt);">
+            <i>Based on current standard unit costs. Actual material cost is calculated at completion from issued quantities.</i>
+        </div>
+    </div>
+</div>
+
+<div class="card">
+    <div class="headerRow" style="margin-bottom: 12px;">
+        <div>
+            <h3 style="font-size: 15px; margin: 0;">Bill of Materials Requirements (Read-Only)</h3>
+            <span style="color: var(--mt); font-size: 12px;">Component material breakdown needed for batch of {{ order.plannedQuantity }} units</span>
+        </div>
+        <div>
+            <span style="font-size: 13px; color: var(--mt); margin-right: 6px;">Estimated Material Cost for Batch:</span>
+            <b style="font-size: 16px; color: var(--p);">₱{{ "{:,.2f}".format(estimatedBatchMaterialCost) }}</b>
+        </div>
+    </div>
+
+    <div class="tableContainer">
+        <table>
+            <thead>
+                <tr>
+                    <th>Material Component</th>
+                    <th>Per 1 Unit</th>
+                    <th>Required for Batch ({{ order.plannedQuantity }} units)</th>
+                    <th>Standard Unit Cost</th>
+                    <th>Estimated Component Cost</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for req in requirements %}
+                <tr>
+                    <td><b>{{ req.materialName }}</b></td>
+                    <td>{{ "{:,.3f}".format(req.quantityRequired).rstrip('0').rstrip('.') or '0' }} {{ req.unit }}</td>
+                    <td><b>{{ "{:,.3f}".format(req.batchQuantity).rstrip('0').rstrip('.') or '0' }} {{ req.unit }}</b></td>
+                    <td>₱{{ "{:,.2f}".format(req.unitCost) }}</td>
+                    <td>₱{{ "{:,.2f}".format(req.batchCost) }}</td>
+                </tr>
+                {% else %}
+                <tr>
+                    <td colspan="5" style="text-align: center; color: var(--mt); padding: 24px;">No bill of materials recipe found for this product.</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endblock %}

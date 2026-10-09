@@ -1,0 +1,199 @@
+{% extends "production/base.html" %}
+
+{% block content %}
+<div class="headerRow">
+    <div>
+        <h2>Material Requirement</h2>
+        <span style="color: var(--mt); font-size: 13.5px;">Calculate raw material demand from Bill of Materials recipes
+            against live inventory stock</span>
+    </div>
+</div>
+
+<div class="card" style="margin-bottom: 20px;">
+    <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 14px;">
+        <div style="display: flex; gap: 12px; align-items: center; flex-wrap: wrap;">
+            <label style="font-weight: 600; font-size: 13.5px;">Select Production Order:</label>
+            <select id="orderSelect"
+                onchange="window.location.href='{{ url_for('production.requirementList') }}?order_id=' + this.value"
+                style="min-width: 320px;">
+                {% for ord in activeOrders %}
+                <option value="{{ ord.orderID }}" {{ 'selected' if selectedOrder and selectedOrder.orderID==ord.orderID
+                    else '' }}>
+                    #PO-{{ ord.orderID }} &ndash; {{ ord.furnitureName }} ({{ ord.plannedQuantity }} units) &ndash; [{{
+                    ord.status }}]
+                </option>
+                {% else %}
+                <option value="">No Production Orders Registered Yet</option>
+                {% endfor %}
+            </select>
+            {% if not activeOrders %}
+            <a href="{{ url_for('production.orderList') }}" class="actionButton secondary"
+                style="padding: 6px 12px; font-size: 12.5px; text-decoration: none;">+ Create Order in Production
+                Order</a>
+            {% endif %}
+        </div>
+        {% if selectedOrder %}
+        <div style="display: flex; align-items: center; gap: 8px;">
+            <a href="{{ url_for('production.orderDetail', orderID=selectedOrder.orderID) }}"
+                class="actionButton secondary" style="padding: 6px 12px; font-size: 12.5px; text-decoration: none;">View
+                Order Details &rarr;</a>
+        </div>
+        {% endif %}
+    </div>
+</div>
+
+{% if selectedOrder %}
+<div class="card" style="margin-bottom: 20px;">
+    <div class="headerRow" style="margin-bottom: 14px; align-items: flex-start;">
+        <div>
+            <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 4px;">
+                <h3 style="font-size: 16px; margin: 0;">Order #PO-{{ selectedOrder.orderID }} &bull; {{
+                    selectedOrder.furnitureName }}</h3>
+                <span
+                    class="statusBadge {{ 'completed' if selectedOrder.status == 'Completed' else ('inProgress' if selectedOrder.status == 'In Progress' else ('released' if selectedOrder.status == 'Released' else 'draft')) }}">
+                    {{ selectedOrder.status }}
+                </span>
+            </div>
+            <span style="color: var(--mt); font-size: 12.5px;">Category: {{ selectedOrder.furnitureType }} &bull;
+                Ordered: {{ selectedOrder.orderDate }}</span>
+        </div>
+        <div>
+            {% if not hasBOM %}
+            <span class="statusBadge alert">No Recipe Defined</span>
+            {% elif hasShortage %}
+            <span class="statusBadge alert">Shortage Risk ({{ shortageCount }} Deficit)</span>
+            {% else %}
+            <span class="statusBadge passed">Ready for Production</span>
+            {% endif %}
+        </div>
+    </div>
+
+    <div
+        style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 14px; padding: 14px 0; border-top: 1px solid var(--bd); border-bottom: 1px solid var(--bd); margin-bottom: 16px;">
+        <div>
+            <span style="font-size: 11.5px; color: var(--mt); display: block; text-transform: uppercase;">Batch
+                Quantity</span>
+            <b style="font-size: 15px; color: var(--p);">{{ selectedOrder.plannedQuantity }} units</b>
+        </div>
+        <div>
+            <span style="font-size: 11.5px; color: var(--mt); display: block; text-transform: uppercase;">Target Due
+                Date</span>
+            <b style="font-size: 15px;">{{ selectedOrder.dueDate or 'Not Scheduled' }}</b>
+        </div>
+        <div>
+            <span style="font-size: 11.5px; color: var(--mt); display: block; text-transform: uppercase;">Estimated
+                Material Total</span>
+            <b style="font-size: 15px; color: var(--p);">₱{{ "{:,.2f}".format(totalEstimatedCost) }}</b>
+        </div>
+        <div>
+            <span style="font-size: 11.5px; color: var(--mt); display: block; text-transform: uppercase;">Components
+                Required</span>
+            <b style="font-size: 15px;">{{ requirementsList|length }} items</b>
+        </div>
+    </div>
+
+    <div>
+        {% if selectedOrder.status == 'Draft' %}
+        {% if not hasBOM %}
+        <div style="color: #8e622a; font-size: 13px;">
+            No BOM recipe defined for {{ selectedOrder.furnitureName }}. <a
+                href="{{ url_for('production.bomList', furniture_id=selectedOrder.furnitureID) }}"
+                style="color: var(--p); font-weight: 700;">Add materials in Bill of Materials &rarr;</a>
+        </div>
+        {% elif hasShortage %}
+        <div
+            style="display: flex; align-items: center; gap: 8px; color: #9a4a3a; font-weight: 600; font-size: 13px; background: rgba(154, 74, 58, 0.08); padding: 10px 14px; border-radius: 8px; border: 1px solid rgba(154, 74, 58, 0.25);">
+            Cannot release order to production: {{ shortageCount }} material component(s) have insufficient
+            stock. Please replenish inventory stock before releasing.
+        </div>
+        {% else %}
+        <div
+            style="display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 12px; background: rgba(102, 117, 76, 0.08); padding: 12px 16px; border-radius: 8px; border: 1px solid rgba(102, 117, 76, 0.25);">
+            <div>
+                <b style="color: var(--p); font-size: 13.5px; display: block;">All Materials In Stock</b>
+                <span style="font-size: 12px; color: var(--mt);">Sufficient raw materials are avalable in inventory
+                    to fulfill this batch.</span>
+            </div>
+            <form method="POST" action="{{ url_for('production.releaseOrder', orderID=selectedOrder.orderID) }}"
+                onsubmit="return confirm('Release Order #PO-{{ selectedOrder.orderID }} to production?');">
+                <button type="submit" class="actionButton" style="padding: 9px 20px; font-size: 13.5px;">Release Order
+                    to Production</button>
+            </form>
+        </div>
+        {% endif %}
+        {% elif selectedOrder.status == 'Released' %}
+        <div
+            style="display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 10px; background: rgba(102, 117, 76, 0.08); padding: 10px 14px; border-radius: 8px; border: 1px solid rgba(102, 117, 76, 0.25);">
+            <span style="color: var(--tx); font-size: 13px;">Order #PO-{{ selectedOrder.orderID }} is
+                <b>Released</b>. Ready for material issuance.</span>
+            <a href="{{ url_for('production.issuanceList') }}" class="actionButton"
+                style="padding: 6px 14px; font-size: 12.5px; text-decoration: none;">Proceed to Material Issuance
+                &rarr;</a>
+        </div>
+        {% else %}
+        <span style="color: var(--mt); font-size: 13px;">Order is currently <b>{{ selectedOrder.status }}</b>. Materials
+            have already been allocated.</span>
+        {% endif %}
+    </div>
+</div>
+
+<div class="card">
+    <div class="headerRow" style="margin-bottom: 14px;">
+        <div>
+            <h3 style="font-size: 15px; margin: 0;">Material Demand & Inventory Stock Comparison</h3>
+            <span style="color: var(--mt); font-size: 12.5px;">Required quantities calculated for {{
+                selectedOrder.plannedQuantity }} unit(s) against live stock in inventory</span>
+        </div>
+    </div>
+
+    <div class="tableContainer">
+        <table>
+            <thead>
+                <tr>
+                    <th>#</th>
+                    <th>Raw Material</th>
+                    <th>Unit</th>
+                    <th>Qty / Unit</th>
+                    <th>Total Required ({{ selectedOrder.plannedQuantity }} Units)</th>
+                    <th>Available On Hand</th>
+                    <th>Shortage</th>
+                    <th>Status</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for req in requirementsList %}
+                <tr>
+                    <td><b>#{{ req.materialID }}</b></td>
+                    <td><b>{{ req.materialName }}</b></td>
+                    <td>{{ req.unit }}</td>
+                    <td>{{ "{:,.3f}".format(req.quantityRequired).rstrip('0').rstrip('.') or '0' }}</td>
+                    <td><b>{{ "{:,.3f}".format(req.requiredQuantity).rstrip('0').rstrip('.') or '0' }}</b></td>
+                    <td>{{ "{:,.3f}".format(req.onHandQuantity).rstrip('0').rstrip('.') or '0' }}</td>
+                    <td>
+                        {% if req.isShort %}
+                        <b style="color: var(--rd);">+{{ "{:,.3f}".format(req.shortageQuantity).rstrip('0').rstrip('.')
+                            or '0' }}</b>
+                        {% else %}
+                        <span style="color: var(--mt);">&mdash;</span>
+                        {% endif %}
+                    </td>
+                    <td>
+                        <span class="statusBadge {{ 'alert' if req.isShort else 'passed' }}">
+                            {{ 'Shortage Risk' if req.isShort else 'Available' }}
+                        </span>
+                    </td>
+                </tr>
+                {% else %}
+                <tr>
+                    <td colspan="8" style="text-align: center; color: var(--mt); padding: 24px;">No BOM recipe
+                        components found for this product. Use the <a
+                            href="{{ url_for('production.bomList', furniture_id=selectedOrder.furnitureID) }}"
+                            style="color: var(--p); font-weight: 700;">Bill of Materials</a> tab to add components.</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endif %}
+{% endblock %}

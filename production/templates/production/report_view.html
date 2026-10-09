@@ -1,0 +1,63 @@
+{% extends "production/base.html" %}
+
+{% block content %}
+<div class="headerRow">
+    <div>
+        <h2>Production Performance Report</h2>
+        <span style="color: var(--mt); font-size: 13.5px;">Comprehensive registry of all production orders, progress, and costing</span>
+    </div>
+    <button class="actionButton secondary" onclick="window.print()">&darr; Export / Print Report</button>
+</div>
+
+<div class="card">
+    <div class="tableContainer">
+        <table>
+            <thead>
+                <tr>
+                    <th>Order Reference</th>
+                    <th>Furniture Product</th>
+                    <th>Planned Batch Size</th>
+                    <th>Order Status</th>
+                    <th>Workshop Progress</th>
+                    <th>Total Production Cost</th>
+                    <th>Completion Date</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for r in reportRows %}
+                <tr>
+                    <td><b>Order #{{ r.orderID }}</b></td>
+                    <td><b>{{ r.furnitureName }}</b></td>
+                    <td>{{ r.plannedQuantity }} units</td>
+                    <td>
+                        <span class="statusBadge {{ 'completed' if r.status == 'Completed' else ('inProgress' if r.status == 'In Progress' else ('released' if r.status == 'Released' else 'draft')) }}">
+                            {{ r.status }}
+                        </span>
+                    </td>
+                    <td>
+                        <span class="progressBar">
+                            <span class="progressBarFill" style="width: {{ r.progress }}%;"></span>
+                        </span>
+                        <b>{{ r.progress }}%</b>
+                    </td>
+                    <td>
+                        {% if r.totalCost is not none and r.totalCost > 0 %}
+                            <b style="color: var(--p);">₱{{ "{:,.2f}".format(r.totalCost) }}</b>
+                        {% else %}
+                            <span style="color: var(--mt);">&mdash;</span>
+                        {% endif %}
+                    </td>
+                    <td>
+                        {{ '2026-10-02' if r.status == 'Completed' else 'Pending' }}
+                    </td>
+                </tr>
+                {% else %}
+                <tr>
+                    <td colspan="7" style="text-align: center; color: var(--mt); padding: 24px;">No production orders recorded to generate reports.</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endblock %}

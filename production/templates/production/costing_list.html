@@ -1,0 +1,48 @@
+{% extends "production/base.html" %}
+
+{% block content %}
+<div class="headerRow">
+    <div>
+        <h2>Production Costing Rollup</h2>
+        <span style="color: var(--mt); font-size: 13.5px;">Accredited cost rollup & automatic 10% overhead calculation (ProductionCost)</span>
+    </div>
+</div>
+
+<div class="card">
+    <!-- prod_productionCost -->
+    <div class="tableContainer">
+        <table>
+            <thead>
+                <tr>
+                    <th>Cost Sheet Ref</th>
+                    <th>Order Details</th>
+                    <th>Actual Material Cost</th>
+                    <th>Workshop Labor Cost</th>
+                    <th>10% Overhead</th>
+                    <th>Total Production Cost</th>
+                    <th>Finance Journal Status</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for c in costs %}
+                <tr>
+                    <td><b>Cost #{{ c.costID }}</b></td>
+                    <td>Order #{{ c.orderID }} &middot; {{ c.furnitureName }}</td>
+                    <td>₱{{ "{:,.2f}".format(c.materialCost) }}</td>
+                    <td>₱{{ "{:,.2f}".format(c.laborCost) }}</td>
+                    <td>₱{{ "{:,.2f}".format(c.overheadCost) }}</td>
+                    <td><b style="color: var(--p); font-size: 15px;">₱{{ "{:,.2f}".format(c.totalCost) }}</b></td>
+                    <td>
+                        <span class="statusBadge released">&check; Published to Finance</span>
+                    </td>
+                </tr>
+                {% else %}
+                <tr>
+                    <td colspan="7" style="text-align: center; color: var(--mt); padding: 24px;">No production cost records generated yet. Cost sheets are generated upon order completion.</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endblock %}

@@ -1,0 +1,56 @@
+{% extends "production/base.html" %}
+
+{% block content %}
+<div class="headerRow">
+    <div>
+        <h2>Production Progress Monitoring</h2>
+        <span style="color: var(--mt); font-size: 13.5px;">Live progress tracking of workshop orders (ProductionMonitoring)</span>
+    </div>
+</div>
+
+<div class="card">
+    <!-- prod_productionMonitoring -->
+    <div class="tableContainer">
+        <table>
+            <thead>
+                <tr>
+                    <th>Monitoring ID</th>
+                    <th>Order Reference</th>
+                    <th>Date Started</th>
+                    <th>Date Finished</th>
+                    <th>Completion Progress</th>
+                    <th>Update Workshop Status</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for mon in monitorings %}
+                <tr>
+                    <td><b>#{{ mon.monitoringID }}</b></td>
+                    <td><b>Order #{{ mon.orderID }}</b> &middot; {{ mon.furnitureName }} &times; {{ mon.plannedQuantity }} units</td>
+                    <td>{{ mon.startDate }}</td>
+                    <td>{{ mon.completionDate or 'Active in Workshop' }}</td>
+                    <td>
+                        <span class="progressBar">
+                            <span class="progressBarFill" style="width: {{ mon.progress }}%;"></span>
+                        </span>
+                        <b>{{ mon.progress }}%</b>
+                    </td>
+                    <td>
+                        {% if mon.progress < 100 %}
+                            <input type="number" value="{{ mon.progress }}" min="0" max="100" style="width: 75px; padding: 5px 8px;"> %
+                            <button class="actionButton" style="padding: 5px 12px; font-size: 12px; margin-left: 6px;">Save</button>
+                        {% else %}
+                            <span class="statusBadge completed">&check; 100% Finished</span>
+                        {% endif %}
+                    </td>
+                </tr>
+                {% else %}
+                <tr>
+                    <td colspan="6" style="text-align: center; color: var(--mt); padding: 24px;">No production orders currently under monitoring.</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endblock %}

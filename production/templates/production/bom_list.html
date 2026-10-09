@@ -1,0 +1,158 @@
+{% extends "production/base.html" %}
+
+{% block content %}
+<div class="headerRow">
+    <div>
+        <h2>Bill of Materials (BOM)</h2>
+        <span style="color: var(--mt); font-size: 13.5px;">Standard material recipes per furniture unit and batch requirement calculator</span>
+    </div>
+</div>
+
+<div class="card" style="margin-bottom: 20px;">
+    <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 14px;">
+        <div style="display: flex; gap: 12px; align-items: center; flex-wrap: wrap;">
+            <label style="font-weight: 600; font-size: 13.5px;">Product Recipe:</label>
+            <select id="recipeSelect" onchange="window.location.href='{{ url_for('production.bomList') }}?furniture_id=' + this.value" style="min-width: 280px;">
+                {% for f in furnitureItems %}
+                    <option value="{{ f.furnitureID }}" {{ 'selected' if selectedFurniture and selectedFurniture.furnitureID == f.furnitureID else '' }}>
+                        {{ f.furnitureName }} ({{ f.furnitureType }})
+                    </option>
+                {% else %}
+                    <option value="">No Products Registered Yet</option>
+                {% endfor %}
+            </select>
+            {% if not furnitureItems %}
+            <a href="{{ url_for('production.furnitureList') }}" class="actionButton secondary" style="padding: 6px 12px; font-size: 12.5px; text-decoration: none;">+ Add Product in Product Master</a>
+            {% endif %}
+        </div>
+        {% if selectedFurniture %}
+        <div style="display: flex; align-items: center; gap: 8px; background: rgba(102, 117, 76, 0.08); padding: 8px 16px; border-radius: 8px; border: 1px solid rgba(102, 117, 76, 0.2);">
+            <span style="font-size: 12.5px; color: var(--mt);">Standard Unit Cost:</span>
+            <b style="font-size: 16px; color: var(--p);">₱{{ "{:,.2f}".format(unitTotalCost) }}</b>
+        </div>
+        {% endif %}
+    </div>
+</div>
+
+{% if selectedFurniture %}
+<div class="card" style="margin-bottom: 20px;">
+    <div class="headerRow" style="margin-bottom: 14px;">
+        <div>
+            <h3 style="font-size: 15px; margin: 0;">Standard Recipe: {{ selectedFurniture.furnitureName }}</h3>
+            <span style="color: var(--mt); font-size: 12.5px;">Required materials per 1 finished unit</span>
+        </div>
+    </div>
+
+    <div class="tableContainer">
+        <table>
+            <thead>
+                <tr>
+                    <th>#</th>
+                    <th>Material</th>
+                    <th>Unit</th>
+                    <th>Qty / Unit</th>
+                    <th>Unit Cost</th>
+                    <th>Subtotal</th>
+                    <th>Action</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for item in bomItems %}
+                <tr>
+                    <td><b>#{{ item.bomItemID }}</b></td>
+                    <td><b>{{ item.materialName }}</b></td>
+                    <td>{{ item.unit }}</td>
+                    <td>{{ "{:,.3f}".format(item.quantityRequired).rstrip('0').rstrip('.') or '0' }}</td>
+                    <td>₱{{ "{:,.2f}".format(item.unitCost) }}</td>
+                    <td>₱{{ "{:,.2f}".format(item.quantityRequired * item.unitCost) }}</td>
+                    <td>
+                        <form method="POST" action="{{ url_for('production.removeBomItem', bomItemID=item.bomItemID) }}" style="display: inline;" onsubmit="return confirm('Remove \'{{ item.materialName|replace('\'', '\\\'') }}\' from this BOM?');">
+                            <input type="hidden" name="furnitureID" value="{{ selectedFurniture.furnitureID }}">
+                            <button type="submit" class="actionButton secondary" style="padding: 4px 10px; font-size: 12px; color: #9a4a3a; border-color: #e2bcb3;">Remove</button>
+                        </form>
+                    </td>
+                </tr>
+                {% else %}
+                <tr>
+                    <td colspan="7" style="text-align: center; color: var(--mt); padding: 20px;">No material components in this recipe yet.</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+
+    <div style="margin-top: 18px; padding-top: 16px; border-top: 1px solid var(--bd);">
+        <form method="POST" action="{{ url_for('production.addBomItem') }}">
+            <input type="hidden" name="furnitureID" value="{{ selectedFurniture.furnitureID }}">
+            <div style="display: flex; gap: 12px; flex-wrap: wrap; align-items: flex-end;">
+                <div class="formGroup" style="flex: 1; min-width: 260px; margin-bottom: 0;">
+                    <label style="font-size: 12px; font-weight: 600;">+ Add Raw Material</label>
+                    <select name="materialID" required style="font-size: 13.5px;">
+                        <option value="">-- Choose Material --</option>
+                        {% for mat in materials %}
+                        <option value="{{ mat.materialID }}">{{ mat.materialName }} ({{ mat.unit }} &ndash; ₱{{ "{:,.2f}".format(mat.unitCost) }})</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="formGroup" style="width: 160px; margin-bottom: 0;">
+                    <label style="font-size: 12px; font-weight: 600;">Qty / Unit</label>
+                    <input type="number" name="quantityRequired" placeholder="e.g. 2.5" min="0.001" step="0.001" required style="font-size: 13.5px;">
+                </div>
+                <button type="submit" class="actionButton" style="height: 38px; padding: 0 18px; font-size: 13px;">Add</button>
+            </div>
+        </form>
+    </div>
+
+    <div style="margin-top: 28px; padding-top: 22px; border-top: 1.5px solid var(--bd);">
+        <div class="headerRow" style="margin-bottom: 14px; align-items: center;">
+            <div>
+                <h3 style="font-size: 15px; margin: 0 0 4px;">Batch Requirement Calculator</h3>
+                <span style="color: var(--mt); font-size: 12.5px;">Simulate total raw material demand and cost for batch production</span>
+            </div>
+            <div style="display: flex; align-items: center; gap: 8px; background: rgba(102, 117, 76, 0.08); padding: 8px 16px; border-radius: 8px; border: 1px solid rgba(102, 117, 76, 0.2);">
+                <span style="font-size: 12.5px; color: var(--mt);">Batch Total Cost:</span>
+                <b style="font-size: 16px; color: var(--p);">₱{{ "{:,.2f}".format(batchTotalCost) }}</b>
+            </div>
+        </div>
+
+        <form method="GET" action="{{ url_for('production.bomList') }}" style="display: flex; gap: 10px; align-items: center; margin-bottom: 16px; flex-wrap: wrap;">
+            <input type="hidden" name="furniture_id" value="{{ selectedFurniture.furnitureID }}">
+            <label style="font-size: 13px; font-weight: 600;">Batch Size (Units to Produce):</label>
+            <input type="number" name="batch_qty" value="{{ batchQuantity }}" min="1" step="1" style="width: 90px; font-weight: 700; padding: 6px 12px; font-size: 13.5px;">
+            <button type="submit" class="actionButton secondary" style="padding: 7px 14px; font-size: 13px;">Calculate Preview</button>
+        </form>
+
+        <div class="tableContainer">
+            <table>
+                <thead>
+                    <tr>
+                        <th>Material</th>
+                        <th>Unit</th>
+                        <th>Required (Per 1 Unit)</th>
+                        <th>Required for Batch ({{ batchQuantity }} units)</th>
+                        <th>Unit Cost</th>
+                        <th>Batch Component Cost</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for req in requirements %}
+                    <tr>
+                        <td><b>{{ req.materialName }}</b></td>
+                        <td>{{ req.unit }}</td>
+                        <td>{{ "{:,.3f}".format(req.quantityRequired).rstrip('0').rstrip('.') or '0' }}</td>
+                        <td><b>{{ "{:,.3f}".format(req.batchQuantity).rstrip('0').rstrip('.') or '0' }}</b></td>
+                        <td>₱{{ "{:,.2f}".format(req.unitCost) }}</td>
+                        <td>₱{{ "{:,.2f}".format(req.batchCost) }}</td>
+                    </tr>
+                    {% else %}
+                    <tr>
+                        <td colspan="6" style="text-align: center; color: var(--mt); padding: 18px;">Add components to the BOM above to calculate batch requirements.</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+{% endif %}
+{% endblock %}

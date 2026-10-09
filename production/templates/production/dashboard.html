@@ -1,0 +1,115 @@
+{% extends "production/base.html" %}
+
+{% block content %}
+<div class="headerRow">
+    <div>
+        <h2>Production Overview</h2>
+        <span style="color: var(--mt); font-size: 13.5px;">Live operations, orders workflow, and cross-team integration feed</span>
+    </div>
+    {% if databaseStatus %}
+        <span class="statusBadge alert">{{ databaseStatus }}</span>
+    {% endif %}
+</div>
+
+<div class="metricGrid">
+    <div class="metricCard">
+        <small>Active in Workshop</small>
+        <b>{{ metrics.inProgressOrders }} Orders</b>
+    </div>
+    <div class="metricCard">
+        <small>Completed & Inspected</small>
+        <b>{{ metrics.completedOrders }} Orders</b>
+    </div>
+    <div class="metricCard">
+        <small>Total Production Orders</small>
+        <b>{{ metrics.totalOrders }} Batches</b>
+    </div>
+    <div class="metricCard">
+        <small>Raw Materials Low in Stock</small>
+        <b style="color: var(--rd);">{{ metrics.lowStockCount }} Items</b>
+    </div>
+</div>
+
+<div class="card">
+    <div class="headerRow" style="margin-bottom: 12px;">
+        <h3>Production Orders Pipeline</h3>
+        <a href="{{ url_for('production.orderList') }}" class="actionButton secondary" style="font-size: 12px; padding: 5px 12px;">View All Orders</a>
+    </div>
+    <div class="tableContainer">
+        <table>
+            <thead>
+                <tr>
+                    <th>Order Reference</th>
+                    <th>Furniture Product</th>
+                    <th>Batch Size</th>
+                    <th>Order Date</th>
+                    <th>Pipeline Status</th>
+                    <th>Next Step</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for order in recentOrders %}
+                <tr>
+                    <td><b>Order #{{ order.orderID }}</b></td>
+                    <td>{{ order.furnitureName }}</td>
+                    <td>{{ order.plannedQuantity }} units</td>
+                    <td>{{ order.orderDate }}</td>
+                    <td>
+                        <span class="statusBadge {{ 'completed' if order.status == 'Completed' else ('inProgress' if order.status == 'In Progress' else ('released' if order.status == 'Released' else 'draft')) }}">
+                            {{ order.status }}
+                        </span>
+                    </td>
+                    <td>
+                        {% if order.status == 'Draft' %}
+                            <span style="color: var(--mt); font-size: 12.5px;">Check materials & release</span>
+                        {% elif order.status == 'Released' %}
+                            <span style="color: var(--p); font-size: 12.5px; font-weight: 600;">Ready to issue materials</span>
+                        {% elif order.status == 'In Progress' %}
+                            <span style="color: var(--s); font-size: 12.5px; font-weight: 600;">Workshop assembling</span>
+                        {% else %}
+                            <span style="color: var(--mt); font-size: 12.5px;">Inspected & archived</span>
+                        {% endif %}
+                    </td>
+                </tr>
+                {% else %}
+                <tr>
+                    <td colspan="6" style="text-align: center; color: var(--mt); padding: 24px;">No production orders created yet.</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<div class="card">
+    <h3>Cross-Team Integration Activity (integration.py)</h3>
+    <div class="tableContainer">
+        <table>
+            <thead>
+                <tr>
+                    <th>Time</th>
+                    <th>Collaborating Team</th>
+                    <th>Transaction Summary</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for event in integrationEvents %}
+                <tr>
+                    <td>{{ event.timestamp }}</td>
+                    <td>
+                        <span class="statusBadge {{ 'released' if 'Inventory' in event.targetModule else 'completed' }}">
+                            {{ event.targetModule }}
+                        </span>
+                    </td>
+                    <td>{{ event.detail }}</td>
+                </tr>
+                {% else %}
+                <tr>
+                    <td colspan="3" style="text-align: center; color: var(--mt); padding: 24px;">No cross-team integration activity recorded yet.</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endblock %}

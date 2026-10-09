@@ -1,0 +1,67 @@
+{% extends "production/base.html" %}
+
+{% block content %}
+<div class="headerRow">
+    <div>
+        <h2>Inventory Stock (Raw Materials)</h2>
+        <span style="color: var(--mt); font-size: 13.5px;">Read-only live warehouse stock fetched directly from Team 2 Inventory</span>
+    </div>
+</div>
+
+<div class="metricGrid">
+    <div class="metricCard">
+        <small>Tracked Raw Materials</small>
+        <b>{{ rawMaterials|length }} Items</b>
+    </div>
+    <div class="metricCard">
+        <small>Sufficient Stock</small>
+        <b style="color: var(--p);">{{ sufficientCount }} Ready</b>
+    </div>
+    <div class="metricCard">
+        <small>Low Stock Alerts</small>
+        <b style="color: var(--rd);">{{ lowStockCount }} Warnings</b>
+    </div>
+</div>
+
+<div class="card">
+    <!-- prod_material & integration.getMaterialStock -->
+    <div class="tableContainer">
+        <table>
+            <thead>
+                <tr>
+                    <th>Material Code</th>
+                    <th>Material Description</th>
+                    <th>Unit of Measure</th>
+                    <th>Standard Cost (for BOM)</th>
+                    <th>Available On Hand (Team 2)</th>
+                    <th>Production Readiness</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for mat in rawMaterials %}
+                <tr>
+                    <td><b>RM-{{ "%03d"|format(mat.materialID) }}</b></td>
+                    <td><b>{{ mat.materialName }}</b></td>
+                    <td>{{ mat.unit }}</td>
+                    <td>₱{{ "{:,.2f}".format(mat.unitCost) }}</td>
+                    <td>
+                        <b style="font-size: 14.5px;">{{ mat.quantityOnHand }}</b> {{ mat.unit }}
+                    </td>
+                    <td>
+                        {% if mat.quantityOnHand <= 20 %}
+                            <span class="statusBadge alert">&excl; Low Stock (Shortage Risk)</span>
+                        {% else %}
+                            <span class="statusBadge released">&check; Available for Production</span>
+                        {% endif %}
+                    </td>
+                </tr>
+                {% else %}
+                <tr>
+                    <td colspan="6" style="text-align: center; color: var(--mt); padding: 24px;">No inventory stock data retrieved from Team 2 yet.</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endblock %}

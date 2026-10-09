@@ -1,0 +1,265 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>ERP Production Team</title>
+    <link rel="stylesheet" href="{{ url_for('production.static', filename='css/style.css') }}">
+</head>
+<body>
+    <div class="container">
+        <nav>
+            <div class="navBrand">
+                <div>
+                    <h1>Furniture ERP</h1>
+                    <span>Team 3 &middot; Production</span>
+                </div>
+                <button id="hamburgerBtn" class="hamburgerBtn" onclick="toggleMobileNav()" aria-label="Toggle navigation">
+                    <span class="hamburgerBar"></span>
+                    <span class="hamburgerBar"></span>
+                    <span class="hamburgerBar"></span>
+                </button>
+            </div>
+            <div id="navLinksContainer" class="navLinksContainer">
+                <a href="{{ url_for('production.index') }}" class="{{ 'active' if activeTab == 'dashboard' else '' }}">Dashboard</a>
+                <a href="{{ url_for('production.furnitureList') }}" class="{{ 'active' if activeTab == 'furniture' else '' }}">Product Master</a>
+                <a href="{{ url_for('production.bomList') }}" class="{{ 'active' if activeTab == 'bom' else '' }}">Bill of Materials (BOM)</a>
+                <a href="{{ url_for('production.orderList') }}" class="{{ 'active' if activeTab == 'orders' else '' }}">Production Order</a>
+                <a href="{{ url_for('production.planningList') }}" class="{{ 'active' if activeTab == 'planning' else '' }}">Production Planning</a>
+                <a href="{{ url_for('production.requirementList') }}" class="{{ 'active' if activeTab == 'requirement' else '' }}">Material Requirement</a>
+                <a href="{{ url_for('production.issuanceList') }}" class="{{ 'active' if activeTab == 'issuance' else '' }}">Material Issuance</a>
+                <a href="{{ url_for('production.monitoringList') }}" class="{{ 'active' if activeTab == 'monitoring' else '' }}">Production Monitoring</a>
+                <a href="{{ url_for('production.finishedGoodsList') }}" class="{{ 'active' if activeTab == 'finishedGoods' else '' }}">Finished Goods</a>
+                <a href="{{ url_for('production.costingList') }}" class="{{ 'active' if activeTab == 'costing' else '' }}">Production Costing</a>
+                <a href="{{ url_for('production.reportView') }}" class="{{ 'active' if activeTab == 'report' else '' }}">Production Reports</a>
+            </div>
+        </nav>
+        <main>
+            {% block content %}{% endblock %}
+        </main>
+    </div>
+
+    <div id="toastContainer" class="toastContainer" aria-live="polite"></div>
+
+    <script>
+        function toggleMobileNav() {
+            const container = document.getElementById('navLinksContainer');
+            const button = document.getElementById('hamburgerBtn');
+            if (container) {
+                container.classList.toggle('mobileOpen');
+            }
+            if (button) {
+                button.classList.toggle('active');
+            }
+        }
+
+        function closeMobileNav() {
+            const container = document.getElementById('navLinksContainer');
+            const button = document.getElementById('hamburgerBtn');
+            if (container) {
+                container.classList.remove('mobileOpen');
+            }
+            if (button) {
+                button.classList.remove('active');
+            }
+        }
+
+        function openModal(modalId) {
+            const modalElement = document.getElementById(modalId);
+            if (modalElement) {
+                modalElement.classList.add('active');
+            }
+        }
+
+        function closeModal(modalId) {
+            const modalElement = document.getElementById(modalId);
+            if (modalElement) {
+                modalElement.classList.remove('active');
+            }
+        }
+
+        function showToast(message, type) {
+            const container = document.getElementById('toastContainer');
+            if (!container) return;
+
+            const toastType = type || 'info';
+            const toast = document.createElement('div');
+            toast.className = 'toastItem ' + toastType;
+
+            const textSpan = document.createElement('span');
+            textSpan.textContent = message;
+            toast.appendChild(textSpan);
+
+            const closeBtn = document.createElement('button');
+            closeBtn.className = 'toastClose';
+            closeBtn.innerHTML = '&times;';
+            closeBtn.setAttribute('aria-label', 'Close toast');
+            closeBtn.onclick = function() {
+                removeToast(toast);
+            };
+            toast.appendChild(closeBtn);
+
+            container.appendChild(toast);
+
+            requestAnimationFrame(function() {
+                toast.classList.add('show');
+            });
+
+            const duration = (toastType === 'error' || toastType === 'warning') ? 8000 : 4000;
+            const timer = setTimeout(function() {
+                removeToast(toast);
+            }, duration);
+
+            function removeToast(el) {
+                clearTimeout(timer);
+                el.classList.remove('show');
+                el.classList.add('hide');
+                setTimeout(function() {
+                    if (el.parentNode) {
+                        el.parentNode.removeChild(el);
+                    }
+                }, 300);
+            }
+        }
+
+        document.addEventListener('submit', function(event) {
+            const form = event.target;
+            if (!form || form.tagName !== 'FORM') return;
+            if (form.dataset.submitting === 'true') {
+                event.preventDefault();
+                return false;
+            }
+            form.dataset.submitting = 'true';
+            const submitBtn = form.querySelector('button[type="submit"]');
+            if (submitBtn) {
+                submitBtn.disabled = true;
+                const txt = (submitBtn.innerText || '').trim().toLowerCase();
+                if (txt.includes('delete')) {
+                    submitBtn.innerText = 'Deleting...';
+                } else {
+                    submitBtn.innerText = 'Saving...';
+                }
+            }
+        }, true);
+
+        document.addEventListener('DOMContentLoaded', function() {
+            {% with messages = get_flashed_messages(with_categories=true) %}
+                {% if messages %}
+                    const flashed = {{ messages|tojson }};
+                    flashed.forEach(function(item) {
+                        showToast(item[1], item[0]);
+                    });
+                {% endif %}
+            {% endwith %}
+        });
+
+        function openUpdateCostModal(id, name, cost, unit) {
+            const nameInput = document.getElementById('modalMaterialName');
+            const costInput = document.getElementById('modalMaterialCost');
+            if (nameInput) {
+                nameInput.value = name + ' (' + unit + ')';
+            }
+            if (costInput) {
+                costInput.value = cost;
+            }
+            openModal('updateCostModal');
+        }
+
+        function recalculateBatch(multiplier) {
+            const batchSize = Math.max(1, parseFloat(multiplier) || 1);
+            const batchDisplay = document.getElementById('batchQuantityDisplay');
+            if (batchDisplay) {
+                batchDisplay.innerText = batchSize;
+            }
+
+            const tableBody = document.getElementById('bomTableBody');
+            if (!tableBody) return;
+
+            const rows = tableBody.getElementsByTagName('tr');
+            let grandTotal = 0;
+
+            for (let row of rows) {
+                const baseQty = parseFloat(row.getAttribute('data-base')) || 0;
+                const unitCost = parseFloat(row.getAttribute('data-cost')) || 0;
+                const totalQty = (baseQty * batchSize).toFixed(1);
+                const totalCost = (baseQty * batchSize * unitCost).toFixed(2);
+                grandTotal += parseFloat(totalCost);
+
+                const qtyCell = row.querySelector('.calculatedQty');
+                const costCell = row.querySelector('.calculatedCost');
+                if (qtyCell) {
+                    const unitLabel = qtyCell.innerText.split(' ').slice(1).join(' ');
+                    qtyCell.innerText = totalQty + ' ' + unitLabel;
+                }
+                if (costCell) {
+                    costCell.innerText = '₱' + parseFloat(totalCost).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+                }
+            }
+
+            const summaryTotal = document.getElementById('summaryTotalCost');
+            if (summaryTotal) {
+                summaryTotal.innerText = 'Total Material Cost: ₱' + grandTotal.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+            }
+        }
+
+        document.addEventListener('DOMContentLoaded', function() {
+            const navLinks = document.querySelectorAll('nav a');
+            const mainContainer = document.querySelector('main');
+
+            async function loadTabContent(targetUrl, shouldPushState = true) {
+                closeMobileNav();
+                try {
+                    const response = await fetch(targetUrl);
+                    if (!response.ok) {
+                        window.location.href = targetUrl;
+                        return;
+                    }
+                    const pageHtml = await response.text();
+                    const domParser = new DOMParser();
+                    const parsedDocument = domParser.parseFromString(pageHtml, 'text/html');
+                    const incomingMain = parsedDocument.querySelector('main');
+
+                    if (incomingMain && mainContainer) {
+                        mainContainer.innerHTML = incomingMain.innerHTML;
+                        document.title = parsedDocument.title;
+
+                        if (shouldPushState) {
+                            history.pushState({ targetUrl: targetUrl }, '', targetUrl);
+                        }
+
+                        navLinks.forEach(link => {
+                            if (link.href === targetUrl || link.getAttribute('href') === targetUrl) {
+                                link.classList.add('active');
+                            } else {
+                                link.classList.remove('active');
+                            }
+                        });
+                    } else {
+                        window.location.href = targetUrl;
+                    }
+                } catch (loadError) {
+                    window.location.href = targetUrl;
+                }
+            }
+
+            navLinks.forEach(link => {
+                link.addEventListener('click', function(event) {
+                    const targetHref = this.getAttribute('href');
+                    if (targetHref && !targetHref.startsWith('#')) {
+                        event.preventDefault();
+                        loadTabContent(this.href);
+                    }
+                });
+            });
+
+            window.addEventListener('popstate', function(event) {
+                if (event.state && event.state.targetUrl) {
+                    loadTabContent(event.state.targetUrl, false);
+                } else {
+                    loadTabContent(window.location.href, false);
+                }
+            });
+        });
+    </script>
+</body>
+</html>
