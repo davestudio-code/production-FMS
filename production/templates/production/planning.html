@@ -134,7 +134,7 @@
 
 <script>
 function openScheduleModal(orderID, productName, startDate, dueDate) {
-    document.getElementById('scheduleForm').action = "/planning/update/" + orderID;
+    document.getElementById('scheduleForm').action = "/production/planning/update/" + orderID;
     document.getElementById('scheduleModalTitle').textContent = "Edit Schedule: Order #PO-" + orderID;
     document.getElementById('scheduleOrderProduct').textContent = productName;
     document.getElementById('scheduleStartDate').value = startDate || '';

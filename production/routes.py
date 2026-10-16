@@ -9,6 +9,7 @@ from .models.billofmaterials import BillOfMaterials
 from .models.bomitem import BOMItem
 from .models.productionorder import ProductionOrder
 from .models.materialissuance import MaterialIssuance
+from .models.monitoring import ProductionMonitoring
 from . import integration
 
 productionBlueprint = Blueprint(
@@ -691,12 +692,65 @@ def issueOrderMaterials(orderID):
 
 @productionBlueprint.route("/monitoring")
 def monitoringList():
-    productionMonitoringList = []
+    try:
+        productionMonitoringList = ProductionMonitoring.getAll()
+        summary = {
+            "total": len(productionMonitoringList),
+            "inProgress": sum(1 for m in productionMonitoringList if m.progress < 100),
+            "completed": sum(1 for m in productionMonitoringList if m.progress >= 100)
+        }
+    except Exception as err:
+        flash(f"Failed to load monitoring records: {str(err)}", "error")
+        productionMonitoringList = []
+        summary = {"total": 0, "inProgress": 0, "completed": 0}
+
     return render_template(
         "production/monitoring_list.html",
         activeTab="monitoring",
-        monitorings=productionMonitoringList
+        monitorings=productionMonitoringList,
+        summary=summary
     )
+
+@productionBlueprint.route("/monitoring/update/<int:monitoringID>", methods=["POST"])
+def updateMonitoringProgress(monitoringID):
+    stageLabels = {
+        25: "Stage 1: Cutting & Sizing",
+        50: "Stage 2: Joinery & Assembly",
+        75: "Stage 3: Sanding & Finishing",
+        90: "Stage 4: Ready for QA Inspection",
+        100: "QA Passed & Completed"
+    }
+    progressRaw = request.form.get("progress", "").strip()
+    try:
+        progressVal = float(progressRaw)
+        if progressVal < 0 or progressVal > 100:
+            flash("Progress must be between 0% and 100%.", "warning")
+            return redirect(url_for("production.monitoringList"))
+
+        existing = ProductionMonitoring.getByID(monitoringID)
+        if not existing:
+            flash("Monitoring record not found.", "error")
+            return redirect(url_for("production.monitoringList"))
+
+        if existing.orderStatus != "In Progress":
+            flash(f"Order #PO-{existing.orderID} is '{existing.orderStatus}'. Stage updates are only permitted while 'In Progress'.", "warning")
+            return redirect(url_for("production.monitoringList"))
+
+        updated = ProductionMonitoring.updateProgress(monitoringID, progressVal)
+        if updated:
+            stageName = stageLabels.get(int(round(progressVal)), f"{int(round(progressVal))}% Progress")
+            if progressVal >= 90 and progressVal < 100:
+                flash(f"Order #PO-{updated.orderID} workshop assembly completed: {stageName} ({int(round(progressVal))}%)! Ready for Quality Inspection.", "success")
+            elif progressVal >= 100:
+                flash(f"Order #PO-{updated.orderID} finalized: {stageName} (100%)!", "success")
+            else:
+                flash(f"Order #PO-{updated.orderID} updated to {stageName} ({int(round(progressVal))}%).", "success")
+    except ValueError:
+        flash("Invalid progress percentage entered.", "error")
+    except Exception as err:
+        flash(f"Failed to update progress: {str(err)}", "error")
+
+    return redirect(url_for("production.monitoringList"))
 
 @productionBlueprint.route("/finished-goods")
 def finishedGoodsList():
