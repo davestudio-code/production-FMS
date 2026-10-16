@@ -28,3 +28,61 @@ def deduct_material_stock(materialID, quantity, conn=None):
             if not row:
                 raise ValueError(f"Insufficient stock to deduct {deductQty} for material ID {materialID}.")
             return Decimal(str(row["current_stock"]))
+
+def add_finished_goods_stock(furnitureID, quantity, conn=None):
+    addQty = int(quantity)
+    if addQty <= 0:
+        raise ValueError("Finished goods quantity must be greater than zero.")
+
+    with openTransaction(conn) as connection:
+        with connection.cursor() as cursor:
+            cursor.execute(
+                "SELECT furniture_name, selling_price FROM prod_furniture WHERE furniture_id = %s",
+                (furnitureID,)
+            )
+            furn = cursor.fetchone()
+            if not furn:
+                raise ValueError(f"Furniture ID {furnitureID} does not exist.")
+
+            furnName = furn["furniture_name"]
+            furnPrice = furn["selling_price"]
+            itemCode = f"FG-{furnitureID:03d}"
+
+            cursor.execute(
+                "SELECT item_id FROM item_master WHERE item_code = %s OR (item_name = %s AND item_type = 'Finished Goods')",
+                (itemCode, furnName)
+            )
+            itemRow = cursor.fetchone()
+            if itemRow:
+                itemID = itemRow["item_id"]
+            else:
+                cursor.execute("""
+                    INSERT INTO item_master (item_code, item_name, unit, description, item_type)
+                    VALUES (%s, %s, 'pcs', %s, 'Finished Goods')
+                    RETURNING item_id
+                """, (itemCode, furnName, f"Produced {furnName}"))
+                itemID = cursor.fetchone()["item_id"]
+
+            cursor.execute("""
+                INSERT INTO finished_goods (item_id, product_name, quantity, unit_price)
+                VALUES (%s, %s, %s, %s)
+                ON CONFLICT (item_id)
+                DO UPDATE SET quantity = finished_goods.quantity + EXCLUDED.quantity,
+                              unit_price = EXCLUDED.unit_price,
+                              product_name = EXCLUDED.product_name
+                RETURNING finished_goods_id, item_id, product_name, quantity, unit_price
+            """, (itemID, furnName, addQty, furnPrice))
+            row = cursor.fetchone()
+            return row
+
+def get_finished_goods_stock(furnitureID, conn=None):
+    with openTransaction(conn) as connection:
+        with connection.cursor() as cursor:
+            cursor.execute("""
+                SELECT fg.quantity
+                FROM finished_goods fg
+                JOIN item_master im ON fg.item_id = im.item_id
+                WHERE im.item_code = %s OR (im.item_name = (SELECT furniture_name FROM prod_furniture WHERE furniture_id = %s))
+            """, (f"FG-{furnitureID:03d}", furnitureID))
+            row = cursor.fetchone()
+            return int(row["quantity"]) if row and row.get("quantity") is not None else 0

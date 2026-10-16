@@ -10,6 +10,7 @@ from .models.bomitem import BOMItem
 from .models.productionorder import ProductionOrder
 from .models.materialissuance import MaterialIssuance
 from .models.monitoring import ProductionMonitoring
+from .models.productionoutput import ProductionOutput
 from . import integration
 
 productionBlueprint = Blueprint(
@@ -754,12 +755,87 @@ def updateMonitoringProgress(monitoringID):
 
 @productionBlueprint.route("/finished-goods")
 def finishedGoodsList():
-    finishedGoodsRecordList = []
+    try:
+        allMonitoring = ProductionMonitoring.getAll()
+        pendingOrders = [m for m in allMonitoring if m.orderStatus == "In Progress" and m.progress >= 90.0]
+        outputRecords = ProductionOutput.getAll()
+        summary = {
+            "pending": len(pendingOrders),
+            "passed": sum(1 for o in outputRecords if o.qualityStatus == "Passed"),
+            "rework": sum(1 for o in outputRecords if o.qualityStatus == "Rework"),
+            "failed": sum(1 for o in outputRecords if o.qualityStatus == "Failed"),
+            "totalUnits": sum(o.quantity for o in outputRecords if o.qualityStatus == "Passed")
+        }
+    except Exception as err:
+        flash(f"Failed to load quality inspection records: {str(err)}", "error")
+        pendingOrders = []
+        outputRecords = []
+        summary = {"pending": 0, "passed": 0, "rework": 0, "failed": 0, "totalUnits": 0}
+
     return render_template(
         "production/finished_goods_list.html",
         activeTab="finishedGoods",
-        finishedGoodsList=finishedGoodsRecordList
+        pendingOrders=pendingOrders,
+        outputRecords=outputRecords,
+        summary=summary
     )
+
+@productionBlueprint.route("/finished-goods/inspect/<int:orderID>", methods=["POST"])
+def recordInspection(orderID):
+    statusChoice = request.form.get("qualityStatus", "Passed").strip()
+    qtyRaw = request.form.get("quantity", "").strip()
+
+    if statusChoice not in ProductionOutput.VALID_STATUSES:
+        flash("Invalid quality inspection status selected.", "error")
+        return redirect(url_for("production.finishedGoodsList"))
+
+    try:
+        order = ProductionOrder.getByID(orderID)
+        if not order:
+            flash("Production order not found.", "error")
+            return redirect(url_for("production.finishedGoodsList"))
+
+        if order.status != "In Progress":
+            flash(f"Order #PO-{orderID} is '{order.status}'. Quality inspection is only allowed for 'In Progress' orders.", "warning")
+            return redirect(url_for("production.finishedGoodsList"))
+
+        monitoring = ProductionMonitoring.getByOrderID(orderID)
+        if not monitoring or monitoring.progress < 90.0:
+            currentProg = int(round(monitoring.progress)) if monitoring else 0
+            flash(f"Order #PO-{orderID} assembly is at {currentProg}%. Workshop assembly must reach at least 90% before inspection.", "warning")
+            return redirect(url_for("production.finishedGoodsList"))
+
+        inspectQty = int(qtyRaw) if qtyRaw else int(order.plannedQuantity)
+        if inspectQty < 1:
+            flash("Inspected quantity must be at least 1 unit.", "error")
+            return redirect(url_for("production.finishedGoodsList"))
+
+        with openTransaction() as conn:
+            ProductionOutput.recordOutput(
+                orderID=orderID,
+                furnitureID=order.furnitureID,
+                quantity=inspectQty,
+                qualityStatus=statusChoice,
+                conn=conn
+            )
+
+            if statusChoice == "Passed":
+                ProductionMonitoring.updateProgress(monitoring.monitoringID, 100.0, conn=conn)
+                ProductionOrder.updateStatus(orderID, "Completed", conn=conn)
+                integration.add_finished_goods_stock(order.furnitureID, inspectQty, conn=conn)
+                flash(f"Quality inspection PASSED for Order #PO-{orderID}! {inspectQty} units of '{order.furnitureName}' transferred to Finished Goods inventory.", "success")
+            elif statusChoice == "Rework":
+                ProductionMonitoring.updateProgress(monitoring.monitoringID, 75.0, conn=conn)
+                flash(f"Order #PO-{orderID} marked for REWORK. Assembly progress rolled back to 75% for workshop correction.", "warning")
+            elif statusChoice == "Failed":
+                flash(f"Order #PO-{orderID} recorded as FAILED inspection. {inspectQty} units rejected.", "error")
+
+    except ValueError as valErr:
+        flash(str(valErr), "warning")
+    except Exception as err:
+        flash(f"Database error during quality inspection: {str(err)}", "error")
+
+    return redirect(url_for("production.finishedGoodsList"))
 
 @productionBlueprint.route("/costing")
 def costingList():

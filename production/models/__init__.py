@@ -5,5 +5,6 @@ from .billofmaterials import BillOfMaterials
 from .productionorder import ProductionOrder
 from .materialissuance import MaterialIssuance
 from .monitoring import ProductionMonitoring
+from .productionoutput import ProductionOutput
 
-__all__ = ["Furniture", "Material", "BOMItem", "BillOfMaterials", "ProductionOrder", "MaterialIssuance", "ProductionMonitoring"]
+__all__ = ["Furniture", "Material", "BOMItem", "BillOfMaterials", "ProductionOrder", "MaterialIssuance", "ProductionMonitoring", "ProductionOutput"]

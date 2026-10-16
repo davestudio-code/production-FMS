@@ -1,50 +1,337 @@
 {% extends "production/base.html" %}
 
 {% block content %}
+<style>
+    .monitoringTable {
+        width: 100%;
+        min-width: 660px;
+        border-collapse: collapse;
+    }
+
+    .monitoringTable th,
+    .monitoringTable td {
+        padding: 12px 14px;
+        vertical-align: middle;
+        text-align: left;
+    }
+
+    .updateCell {
+        width: 280px;
+        min-width: 280px;
+    }
+
+    .updateFormRow {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+    }
+
+    .stageSelect {
+        flex: 1;
+        height: 36px;
+        padding: 0 10px;
+        font-size: 12px;
+        border-radius: 6px;
+        border: 1px solid var(--bd);
+        background: var(--cd);
+        color: var(--tx);
+    }
+
+    .stageSaveBtn {
+        height: 36px;
+        padding: 0 14px;
+        font-size: 12px;
+        font-weight: 600;
+    }
+
+    .progressTrack {
+        width: 100px;
+        height: 10px;
+        background: #e2d8bd;
+        border: 1px solid var(--bd);
+        border-radius: 6px;
+        overflow: hidden;
+        display: inline-block;
+        vertical-align: middle;
+    }
+
+    .progressFill {
+        display: block;
+        height: 100%;
+        background: #526638;
+        border-radius: 6px;
+        transition: width 0.3s ease;
+    }
+
+    @media (max-width: 640px) {
+        .tableContainer {
+            overflow-x: visible;
+        }
+
+        .monitoringTable {
+            min-width: 100%;
+            display: block;
+        }
+
+        .monitoringTable thead {
+            display: none;
+        }
+
+        .monitoringTable tbody,
+        .monitoringTable tr {
+            display: block;
+            width: 100%;
+        }
+
+        .monitoringTable tr {
+            background: var(--cd);
+            border: 1px solid var(--bd);
+            border-radius: 10px;
+            margin-bottom: 14px;
+            padding: 12px 14px;
+            box-shadow: var(--sh);
+        }
+
+        .monitoringTable td {
+            border-bottom: 1px solid rgba(213, 199, 170, 0.45);
+            padding: 9px 0;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            text-align: right;
+            min-height: 42px;
+        }
+
+        .monitoringTable td::before {
+            content: attr(data-label);
+            font-weight: 700;
+            font-size: 11px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            color: var(--mt);
+            text-align: left;
+            flex-shrink: 0;
+            margin-right: 12px;
+        }
+
+        .monitoringTable td:last-child {
+            border-bottom: none;
+            display: block;
+            padding-top: 10px;
+            text-align: left;
+        }
+
+        .monitoringTable td:last-child::before {
+            display: block;
+            margin-bottom: 6px;
+        }
+
+        .updateCell {
+            width: 100%;
+            min-width: 100%;
+        }
+
+        .updateFormRow {
+            flex-direction: column;
+            align-items: stretch;
+            gap: 8px;
+        }
+
+        .stageSelect,
+        .stageSaveBtn {
+            height: 42px;
+            font-size: 13.5px;
+            width: 100%;
+        }
+
+        .stageSaveBtn {
+            justify-content: center;
+        }
+    }
+</style>
+
 <div class="headerRow">
     <div>
-        <h2>Quality Inspection & Finished Goods</h2>
-        <span style="color: var(--mt); font-size: 13.5px;">Authoritative quality inspection records and stock handoff (FinishedGoods)</span>
+        <h2>Quality Inspection &amp; Finished Goods</h2>
+        <span style="color: var(--mt); font-size: 13.5px;">Authoritative QA inspection gating and inventory stock
+            handoff to Team 2 (Finished Goods)</span>
+    </div>
+</div>
+
+<div class="metricGrid">
+    <div class="metricCard">
+        <small>Awaiting QA Check</small>
+        <b>{{ summary.pending }} Orders</b>
+    </div>
+    <div class="metricCard">
+        <small>Passed &amp; Stocked</small>
+        <b>{{ summary.passed }} Orders</b>
+    </div>
+    <div class="metricCard">
+        <small>Rework Required</small>
+        <b>{{ summary.rework }} Orders</b>
+    </div>
+    <div class="metricCard">
+        <small>Finished Units Credited</small>
+        <b>{{ summary.totalUnits }} units</b>
+    </div>
+</div>
+
+<div class="card" style="margin-bottom: 24px;">
+    <div class="headerRow" style="margin-bottom: 14px;">
+        <div>
+            <h3 style="margin: 0;">Orders Awaiting Quality Inspection</h3>
+            <small style="color: var(--mt);">Completed workshop assembly (Stage 4: 90%+). Perform final QA check before
+                stock handoff.</small>
+        </div>
+        <span class="statusBadge {{ 'inProgress' if summary.pending > 0 else 'draft' }}">{{ summary.pending }}
+            Pending</span>
+    </div>
+
+    <div class="tableContainer">
+        <table class="monitoringTable">
+            <thead>
+                <tr>
+                    <th>Order Reference</th>
+                    <th>Furniture Product</th>
+                    <th>Assembly Progress</th>
+                    <th>Target Due Date</th>
+                    <th class="updateCell">Perform Quality Inspection</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for ord in pendingOrders %}
+                <tr>
+                    <td data-label="Order">
+                        <div>
+                            <a href="{{ url_for('production.orderDetail', orderID=ord.orderID) }}"
+                                style="color: var(--p); font-weight: 700; text-decoration: none; font-size: 13.5px;">Order
+                                #PO-{{ ord.orderID }}</a>
+                        </div>
+                    </td>
+                    <td data-label="Product">
+                        <div>
+                            <b>{{ ord.furnitureName }}</b> &middot; {{ ord.plannedQuantity }} units
+                        </div>
+                    </td>
+                    <td data-label="Progress">
+                        <div style="display: flex; align-items: center; gap: 8px;">
+                            <div class="progressTrack">
+                                <span class="progressFill" style="width: {{ ord.progress | round | int }}%;"></span>
+                            </div>
+                            <span style="font-size: 12px; font-weight: 700; color: #526638;">{{ ord.progress | round |
+                                int }}%</span>
+                        </div>
+                    </td>
+                    <td data-label="Due Date">
+                        {% if ord.formattedDueDate %}
+                        <span style="font-size: 13px; font-weight: 500;">{{ ord.formattedDueDate }}</span>
+                        {% else %}
+                        <span style="color: var(--mt); font-size: 12.5px;">No Date</span>
+                        {% endif %}
+                    </td>
+                    <td data-label="QA Action" class="updateCell">
+                        <form method="POST" action="{{ url_for('production.recordInspection', orderID=ord.orderID) }}"
+                            class="updateFormRow">
+                            <input type="hidden" name="quantity" value="{{ ord.plannedQuantity }}">
+                            <select name="qualityStatus" class="stageSelect">
+                                <option value="Passed">Pass &amp; Stock (+{{ ord.plannedQuantity }} units)</option>
+                                <option value="Rework">Request Rework (Rollback to 75%)</option>
+                                <option value="Failed">Reject &amp; Fail Inspection</option>
+                            </select>
+                            <button type="submit" class="btn btnPrimary stageSaveBtn">Submit QA</button>
+                        </form>
+                    </td>
+                </tr>
+                {% else %}
+                <tr>
+                    <td colspan="5" style="text-align: center; color: var(--mt); padding: 28px;">
+                        No orders currently awaiting quality inspection. Orders reach QA here once updated to 90% in
+                        Production Monitoring.
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
     </div>
 </div>
 
 <div class="card">
-    <!-- prod_finishedGoods -->
+    <div class="headerRow" style="margin-bottom: 14px;">
+        <div>
+            <h3 style="margin: 0;">Quality Inspection Log &amp; Stock Handoff</h3>
+            <small style="color: var(--mt);">Authoritative records from prod_productionoutput with automatic Team 2
+                stock crediting</small>
+        </div>
+        <span class="statusBadge draft">{{ outputRecords|length }} Records</span>
+    </div>
+
     <div class="tableContainer">
-        <table>
+        <table class="monitoringTable">
             <thead>
                 <tr>
                     <th>Inspection Ref</th>
                     <th>Order Reference</th>
                     <th>Furniture Product</th>
-                    <th>Quantity Inspected</th>
+                    <th>Inspected Units</th>
                     <th>Quality Status</th>
+                    <th>Inspection Date</th>
                     <th>Inventory Stock Effect</th>
                 </tr>
             </thead>
             <tbody>
-                {% for fg in finishedGoodsList %}
+                {% for o in outputRecords %}
                 <tr>
-                    <td><b>#{{ fg.finishedGoodsID }}</b></td>
-                    <td><b>Order #{{ fg.orderID }}</b></td>
-                    <td>{{ fg.furnitureName }}</td>
-                    <td>{{ fg.quantity }} units</td>
-                    <td>
-                        <span class="statusBadge {{ 'completed' if fg.qualityStatus == 'Passed' else 'alert' }}">
-                            {{ fg.qualityStatus }}
-                        </span>
+                    <td data-label="Ref">
+                        <b>#OP-{{ o.outputID }}</b>
                     </td>
-                    <td>
-                        {% if fg.qualityStatus == 'Passed' %}
-                            <b style="color: var(--p);">&check; +{{ fg.quantity }} units added to Team 2 Inventory</b>
+                    <td data-label="Order">
+                        <a href="{{ url_for('production.orderDetail', orderID=o.orderID) }}"
+                            style="color: var(--p); font-weight: 700; text-decoration: none;">Order #PO-{{ o.orderID
+                            }}</a>
+                    </td>
+                    <td data-label="Product">
+                        {{ o.furnitureName }}
+                    </td>
+                    <td data-label="Units">
+                        <b>{{ o.quantity }} units</b>
+                    </td>
+                    <td data-label="Status">
+                        {% if o.qualityStatus == 'Passed' %}
+                        <span class="statusBadge completed">&check; Passed</span>
+                        {% elif o.qualityStatus == 'Rework' %}
+                        <span class="statusBadge"
+                            style="background: rgba(181, 143, 85, 0.15); color: #8e622a; border: 1px solid rgba(181, 143, 85, 0.35);">&circlearrowright;
+                            Rework</span>
+                        {% elif o.qualityStatus == 'Failed' %}
+                        <span class="statusBadge alert">&cross; Failed</span>
                         {% else %}
-                            <span style="color: var(--rd);">&cross; Scrapped (Not added to stock)</span>
+                        <span class="statusBadge draft">{{ o.qualityStatus }}</span>
+                        {% endif %}
+                    </td>
+                    <td data-label="Date">
+                        {{ o.formattedInspectionDate }}
+                    </td>
+                    <td data-label="Inventory Effect">
+                        {% if o.qualityStatus == 'Passed' %}
+                        <b style="color: var(--p);">&check; +{{ o.quantity }} units credited to Team 2 Inventory
+                            (Finished Goods)</b>
+                        {% elif o.qualityStatus == 'Rework' %}
+                        <span style="color: #8e622a;">&circlearrowright; Returned to workshop (Rolled back to
+                            75%)</span>
+                        {% elif o.qualityStatus == 'Failed' %}
+                        <span style="color: var(--rd);">&cross; Rejected / Scrapped (0 units added)</span>
+                        {% else %}
+                        <span style="color: var(--mt);">Pending QA review</span>
                         {% endif %}
                     </td>
                 </tr>
                 {% else %}
                 <tr>
-                    <td colspan="6" style="text-align: center; color: var(--mt); padding: 24px;">No quality inspection records found. Complete an order to record inspection.</td>
+                    <td colspan="7" style="text-align: center; color: var(--mt); padding: 28px;">
+                        No quality inspection records found. Passed inspections will automatically record here and
+                        credit Finished Goods inventory.
+                    </td>
                 </tr>
                 {% endfor %}
             </tbody>

@@ -2,153 +2,179 @@
 
 {% block content %}
 <style>
-.monitoringTable {
-    width: 100%;
-    min-width: 720px;
-    border-collapse: collapse;
-}
-.monitoringTable th, .monitoringTable td {
-    padding: 12px 14px;
-    vertical-align: middle;
-    text-align: left;
-}
-.updateCell {
-    width: 250px;
-    min-width: 250px;
-}
-.updateFormRow {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-}
-.stageSelect {
-    flex: 1;
-    height: 36px;
-    padding: 0 10px;
-    font-size: 12px;
-    border-radius: 6px;
-    border: 1px solid var(--bd);
-    background: var(--cd);
-    color: var(--tx);
-}
-.stageSaveBtn {
-    height: 36px;
-    padding: 0 14px;
-    font-size: 12px;
-    font-weight: 600;
-}
-.progressTrack {
-    width: 110px;
-    height: 10px;
-    background: #e2d8bd;
-    border: 1px solid var(--bd);
-    border-radius: 6px;
-    overflow: hidden;
-    display: inline-block;
-    vertical-align: middle;
-}
-.progressFill {
-    display: block;
-    height: 100%;
-    background: #526638;
-    border-radius: 6px;
-    transition: width 0.3s ease;
-}
-.dueBadge {
-    display: inline-block;
-    font-size: 11px;
-    font-weight: 600;
-    padding: 2px 7px;
-    border-radius: 12px;
-    vertical-align: middle;
-    line-height: 1.3;
-}
-.dueBadge.overdue {
-    background: #eed2cc;
-    color: #9a4a3a;
-}
-.dueBadge.normal {
-    background: #e7dfca;
-    color: #4a5436;
-}
-
-@media (max-width: 640px) {
-    .tableContainer {
-        overflow-x: visible;
-    }
     .monitoringTable {
-        min-width: 100%;
-        display: block;
-    }
-    .monitoringTable thead {
-        display: none;
-    }
-    .monitoringTable tbody, .monitoringTable tr {
-        display: block;
         width: 100%;
+        min-width: 720px;
+        border-collapse: collapse;
     }
-    .monitoringTable tr {
-        background: var(--cd);
-        border: 1px solid var(--bd);
-        border-radius: 10px;
-        margin-bottom: 14px;
-        padding: 12px 14px;
-        box-shadow: var(--sh);
-    }
+
+    .monitoringTable th,
     .monitoringTable td {
-        border-bottom: 1px solid rgba(213, 199, 170, 0.45);
-        padding: 9px 0;
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-        white-space: normal;
-        text-align: right;
-    }
-    .monitoringTable td::before {
-        content: attr(data-label);
-        font-weight: 600;
-        font-size: 11.5px;
-        color: var(--mt);
-        text-transform: uppercase;
-        letter-spacing: 0.5px;
-        text-align: left;
-        flex-shrink: 0;
-        margin-right: 12px;
-    }
-    .monitoringTable td:last-child {
-        border-bottom: none;
-        display: block;
-        padding-top: 10px;
+        padding: 12px 14px;
+        vertical-align: middle;
         text-align: left;
     }
-    .monitoringTable td:last-child::before {
-        display: block;
-        margin-bottom: 6px;
-    }
+
     .updateCell {
-        width: 100%;
-        min-width: 100%;
+        width: 250px;
+        min-width: 250px;
     }
+
     .updateFormRow {
-        flex-direction: column;
-        align-items: stretch;
+        display: flex;
+        align-items: center;
         gap: 8px;
     }
-    .stageSelect, .stageSaveBtn {
-        height: 42px;
-        font-size: 13.5px;
-        width: 100%;
+
+    .stageSelect {
+        flex: 1;
+        height: 36px;
+        padding: 0 10px;
+        font-size: 12px;
+        border-radius: 6px;
+        border: 1px solid var(--bd);
+        background: var(--cd);
+        color: var(--tx);
     }
+
     .stageSaveBtn {
-        justify-content: center;
+        height: 36px;
+        padding: 0 14px;
+        font-size: 12px;
+        font-weight: 600;
     }
-}
+
+    .progressTrack {
+        width: 110px;
+        height: 10px;
+        background: #e2d8bd;
+        border: 1px solid var(--bd);
+        border-radius: 6px;
+        overflow: hidden;
+        display: inline-block;
+        vertical-align: middle;
+    }
+
+    .progressFill {
+        display: block;
+        height: 100%;
+        background: #526638;
+        border-radius: 6px;
+        transition: width 0.3s ease;
+    }
+
+    .dueBadge {
+        display: inline-block;
+        font-size: 11px;
+        font-weight: 600;
+        padding: 2px 7px;
+        border-radius: 12px;
+        vertical-align: middle;
+        line-height: 1.3;
+    }
+
+    .dueBadge.overdue {
+        background: #eed2cc;
+        color: #9a4a3a;
+    }
+
+    .dueBadge.normal {
+        background: #e7dfca;
+        color: #4a5436;
+    }
+
+    @media (max-width: 640px) {
+        .tableContainer {
+            overflow-x: visible;
+        }
+
+        .monitoringTable {
+            min-width: 100%;
+            display: block;
+        }
+
+        .monitoringTable thead {
+            display: none;
+        }
+
+        .monitoringTable tbody,
+        .monitoringTable tr {
+            display: block;
+            width: 100%;
+        }
+
+        .monitoringTable tr {
+            background: var(--cd);
+            border: 1px solid var(--bd);
+            border-radius: 10px;
+            margin-bottom: 14px;
+            padding: 12px 14px;
+            box-shadow: var(--sh);
+        }
+
+        .monitoringTable td {
+            border-bottom: 1px solid rgba(213, 199, 170, 0.45);
+            padding: 9px 0;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            white-space: normal;
+            text-align: right;
+        }
+
+        .monitoringTable td::before {
+            content: attr(data-label);
+            font-weight: 600;
+            font-size: 11.5px;
+            color: var(--mt);
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            text-align: left;
+            flex-shrink: 0;
+            margin-right: 12px;
+        }
+
+        .monitoringTable td:last-child {
+            border-bottom: none;
+            display: block;
+            padding-top: 10px;
+            text-align: left;
+        }
+
+        .monitoringTable td:last-child::before {
+            display: block;
+            margin-bottom: 6px;
+        }
+
+        .updateCell {
+            width: 100%;
+            min-width: 100%;
+        }
+
+        .updateFormRow {
+            flex-direction: column;
+            align-items: stretch;
+            gap: 8px;
+        }
+
+        .stageSelect,
+        .stageSaveBtn {
+            height: 42px;
+            font-size: 13.5px;
+            width: 100%;
+        }
+
+        .stageSaveBtn {
+            justify-content: center;
+        }
+    }
 </style>
 
 <div class="headerRow">
     <div>
         <h2>Production Progress Monitoring</h2>
-        <span style="color: var(--mt); font-size: 13.5px;">Live progress tracking of workshop orders on the factory floor (prod_productionmonitoring)</span>
+        <span style="color: var(--mt); font-size: 13.5px;">Live progress tracking of workshop orders on the factory
+            floor (prod_productionmonitoring)</span>
     </div>
 </div>
 
@@ -173,7 +199,8 @@
             <h3 style="margin: 0;">Workshop Production Line</h3>
             <small style="color: var(--mt);">Real-time progress monitoring of actively assembling orders</small>
         </div>
-        <span class="statusBadge {{ 'inProgress' if summary.inProgress > 0 else 'draft' }}">{{ summary.inProgress }} Active</span>
+        <span class="statusBadge {{ 'inProgress' if summary.inProgress > 0 else 'draft' }}">{{ summary.inProgress }}
+            Active</span>
     </div>
 
     <div class="tableContainer">
@@ -192,7 +219,9 @@
                 <tr>
                     <td data-label="Order">
                         <div>
-                            <a href="{{ url_for('production.orderDetail', orderID=mon.orderID) }}" style="color: var(--p); font-weight: 700; text-decoration: none; font-size: 13.5px;">Order #PO-{{ mon.orderID }}</a>
+                            <a href="{{ url_for('production.orderDetail', orderID=mon.orderID) }}"
+                                style="color: var(--p); font-weight: 700; text-decoration: none; font-size: 13.5px;">Order
+                                #PO-{{ mon.orderID }}</a>
                         </div>
                         <div style="color: var(--tx); font-size: 12px; margin-top: 2px;">
                             {{ mon.furnitureName }} &middot; <b>{{ mon.plannedQuantity }} units</b>
@@ -203,16 +232,18 @@
                     </td>
                     <td data-label="Target Due" style="font-size: 13px;">
                         {% if mon.completionDate %}
-                            <span style="color: var(--p); font-weight: 600;">Finished {{ mon.formattedCompletionDate }}</span>
+                        <span style="color: var(--p); font-weight: 600;">Finished {{ mon.formattedCompletionDate
+                            }}</span>
                         {% elif mon.dueDate %}
-                            <span style="display: inline-flex; align-items: center; gap: 6px;">
-                                <b>{{ mon.formattedDueDate }}</b>
-                                {% if mon.dueStatus %}
-                                    <span class="dueBadge {{ 'overdue' if mon.dueStatus.isOverdue else 'normal' }}" style="margin: 0;">{{ mon.dueStatus.label }}</span>
-                                {% endif %}
-                            </span>
+                        <span style="display: inline-flex; align-items: center; gap: 6px;">
+                            <b>{{ mon.formattedDueDate }}</b>
+                            {% if mon.dueStatus %}
+                            <span class="dueBadge {{ 'overdue' if mon.dueStatus.isOverdue else 'normal' }}"
+                                style="margin: 0;">{{ mon.dueStatus.label }}</span>
+                            {% endif %}
+                        </span>
                         {% else %}
-                            <span style="color: var(--mt); font-style: italic;">No deadline</span>
+                        <span style="color: var(--mt); font-style: italic;">No deadline</span>
                         {% endif %}
                     </td>
                     <td data-label="Progress">
@@ -225,76 +256,85 @@
                             </div>
                             <div style="font-size: 11px; font-weight: 600; color: var(--mt); margin-top: 3px;">
                                 {% if mon.progress >= 100 %}
-                                    &check; QA Passed & Completed
+                                &check; QA Passed & Completed
                                 {% elif mon.progress >= 90 %}
-                                    Stage 4: Ready for QA
+                                Stage 4: Ready for QA
                                 {% elif mon.progress >= 75 %}
-                                    Stage 3: Sanding & Finishing
+                                Stage 3: Sanding & Finishing
                                 {% elif mon.progress >= 50 %}
-                                    Stage 2: Joinery & Assembly
+                                Stage 2: Joinery & Assembly
                                 {% elif mon.progress >= 25 %}
-                                    Stage 1: Cutting & Sizing
+                                Stage 1: Cutting & Sizing
                                 {% else %}
-                                    Not Started
+                                Not Started
                                 {% endif %}
                             </div>
                         </div>
                     </td>
                     <td data-label="Status" class="updateCell">
-                        {% if mon.progress < 90 %}
-                            <form method="POST" action="{{ url_for('production.updateMonitoringProgress', monitoringID=mon.monitoringID) }}" onsubmit="return confirmMilestoneSubmit(this, '{{ mon.orderID }}');" class="updateFormRow">
-                                <select name="progress" class="stageSelect">
-                                    <option value="25" {% if mon.progress|round|int <= 25 %}selected{% endif %}>Stage 1: Cutting & Sizing</option>
-                                    <option value="50" {% if mon.progress|round|int > 25 and mon.progress|round|int <= 50 %}selected{% endif %}>Stage 2: Joinery & Assembly</option>
-                                    <option value="75" {% if mon.progress|round|int > 50 and mon.progress|round|int <= 75 %}selected{% endif %}>Stage 3: Sanding & Finishing</option>
-                                    <option value="90" {% if mon.progress|round|int > 75 %}selected{% endif %}>Stage 4: Ready for QA</option>
-                                </select>
-                                <button type="submit" class="actionButton stageSaveBtn">Save</button>
+                        {% if mon.progress < 90 %} <form method="POST"
+                            action="{{ url_for('production.updateMonitoringProgress', monitoringID=mon.monitoringID) }}"
+                            onsubmit="return confirmMilestoneSubmit(this, '{{ mon.orderID }}');" class="updateFormRow">
+                            <select name="progress" class="stageSelect">
+                                <option value="25" {% if mon.progress|round|int <=25 %}selected{% endif %}>Stage 1:
+                                    Cutting & Sizing</option>
+                                <option value="50" {% if mon.progress|round|int> 25 and mon.progress|round|int <= 50
+                                        %}selected{% endif %}>Stage 2: Joinery & Assembly</option>
+                                <option value="75" {% if mon.progress|round|int> 50 and mon.progress|round|int <= 75
+                                        %}selected{% endif %}>Stage 3: Sanding & Finishing</option>
+                                <option value="90" {% if mon.progress|round|int> 75 %}selected{% endif %}>Stage 4: Ready
+                                    for QA</option>
+                            </select>
+                            <button type="submit" class="actionButton stageSaveBtn">Save</button>
                             </form>
-                        {% elif mon.progress < 100 %}
-                            <div style="display: flex; align-items: center; gap: 8px;">
-                                <span class="statusBadge released">&check; Ready for QA</span>
-                                <button type="button" class="actionButton secondary" style="padding: 4px 8px; font-size: 11px;" onclick="toggleRollbackForm('rollback_{{ mon.monitoringID }}')">Adjust</button>
-                            </div>
-                            <div id="rollback_{{ mon.monitoringID }}" style="display: none; margin-top: 6px;">
-                                <form method="POST" action="{{ url_for('production.updateMonitoringProgress', monitoringID=mon.monitoringID) }}" class="updateFormRow">
-                                    <select name="progress" class="stageSelect" style="height: 32px; font-size: 11.5px;">
-                                        <option value="50">Stage 2: Joinery & Assembly</option>
-                                        <option value="75" selected>Stage 3: Sanding & Finishing</option>
-                                    </select>
-                                    <button type="submit" class="actionButton" style="height: 32px; padding: 0 10px; font-size: 11.5px;">Rollback</button>
-                                </form>
-                            </div>
-                        {% else %}
-                            <span class="statusBadge completed">&check; 100% QA Passed</span>
-                        {% endif %}
-                    </td>
-                </tr>
-                {% else %}
-                <tr>
-                    <td colspan="5" style="text-align: center; color: var(--mt); padding: 28px;">No production orders currently under monitoring. Orders move here automatically once materials are issued.</td>
-                </tr>
-                {% endfor %}
-            </tbody>
-        </table>
+                            {% elif mon.progress < 100 %} <div style="display: flex; align-items: center; gap: 8px;">
+                                <span class="statusBadge released">Ready for QA</span>
+                                <button type="button" class="actionButton secondary"
+                                    style="padding: 4px 8px; font-size: 11px;"
+                                    onclick="toggleRollbackForm('rollback_{{ mon.monitoringID }}')">Adjust</button>
     </div>
+    <div id="rollback_{{ mon.monitoringID }}" style="display: none; margin-top: 6px;">
+        <form method="POST" action="{{ url_for('production.updateMonitoringProgress', monitoringID=mon.monitoringID) }}"
+            class="updateFormRow">
+            <select name="progress" class="stageSelect" style="height: 32px; font-size: 11.5px;">
+                <option value="50">Stage 2: Joinery & Assembly</option>
+                <option value="75" selected>Stage 3: Sanding & Finishing</option>
+            </select>
+            <button type="submit" class="actionButton"
+                style="height: 32px; padding: 0 10px; font-size: 11.5px;">Rollback</button>
+        </form>
+    </div>
+    {% else %}
+    <span class="statusBadge completed">&check; 100% QA Passed</span>
+    {% endif %}
+    </td>
+    </tr>
+    {% else %}
+    <tr>
+        <td colspan="5" style="text-align: center; color: var(--mt); padding: 28px;">No production orders currently
+            under monitoring. Orders move here automatically once materials are issued.</td>
+    </tr>
+    {% endfor %}
+    </tbody>
+    </table>
+</div>
 </div>
 
 <script>
-function confirmMilestoneSubmit(form, orderId) {
-    const select = form.querySelector('select[name="progress"]');
-    const val = parseFloat(select ? select.value : 0);
-    if (val >= 90) {
-        return confirm("Confirm Workshop Assembly:\n\nAre you sure Order #PO-" + orderId + " has finished physical assembly and is ready for Quality Inspection (Feature 8)?");
+    function confirmMilestoneSubmit(form, orderId) {
+        const select = form.querySelector('select[name="progress"]');
+        const val = parseFloat(select ? select.value : 0);
+        if (val >= 90) {
+            return confirm("Confirm Workshop Assembly:\n\nAre you sure Order #PO-" + orderId + " has finished physical assembly and is ready for Quality Inspection (Feature 8)?");
+        }
+        return true;
     }
-    return true;
-}
 
-function toggleRollbackForm(elementId) {
-    const el = document.getElementById(elementId);
-    if (el) {
-        el.style.display = (el.style.display === 'none' || el.style.display === '') ? 'flex' : 'none';
+    function toggleRollbackForm(elementId) {
+        const el = document.getElementById(elementId);
+        if (el) {
+            el.style.display = (el.style.display === 'none' || el.style.display === '') ? 'flex' : 'none';
+        }
     }
-}
 </script>
 {% endblock %}
