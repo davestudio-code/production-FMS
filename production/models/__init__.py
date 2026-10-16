@@ -6,5 +6,6 @@ from .productionorder import ProductionOrder
 from .materialissuance import MaterialIssuance
 from .monitoring import ProductionMonitoring
 from .productionoutput import ProductionOutput
+from .productioncost import ProductionCost
 
-__all__ = ["Furniture", "Material", "BOMItem", "BillOfMaterials", "ProductionOrder", "MaterialIssuance", "ProductionMonitoring", "ProductionOutput"]
+__all__ = ["Furniture", "Material", "BOMItem", "BillOfMaterials", "ProductionOrder", "MaterialIssuance", "ProductionMonitoring", "ProductionOutput", "ProductionCost"]

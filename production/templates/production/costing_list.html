@@ -1,44 +1,226 @@
 {% extends "production/base.html" %}
 
 {% block content %}
+<style>
+.costTable {
+    width: 100%;
+    min-width: 660px;
+    border-collapse: collapse;
+}
+.costTable th, .costTable td {
+    padding: 10px 12px;
+    vertical-align: middle;
+    text-align: left;
+}
+.costInput {
+    height: 34px;
+    padding: 0 8px;
+    font-size: 12px;
+    border-radius: 6px;
+    border: 1px solid var(--bd);
+    background: var(--cd);
+    color: var(--tx);
+    width: 85px;
+}
+.costSaveBtn {
+    height: 32px;
+    width: 92px;
+    padding: 0;
+    justify-content: center;
+    text-align: center;
+    font-size: 12px;
+    font-weight: 600;
+    white-space: nowrap;
+    border-radius: 6px;
+    cursor: pointer;
+}
+.actionButton.secondary.costSaveBtn {
+    background: transparent;
+    color: var(--tx);
+    border: 1px solid var(--bd);
+}
+.actionButton.secondary.costSaveBtn:hover {
+    border-color: var(--p);
+    color: var(--p);
+}
+.costFormRow {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+@media (max-width: 640px) {
+    .tableContainer {
+        overflow-x: visible;
+    }
+    .costTable {
+        min-width: 100%;
+        display: block;
+    }
+    .costTable thead {
+        display: none;
+    }
+    .costTable tbody, .costTable tr {
+        display: block;
+        width: 100%;
+    }
+    .costTable tr {
+        background: var(--cd);
+        border: 1px solid var(--bd);
+        border-radius: 10px;
+        margin-bottom: 14px;
+        padding: 12px 14px;
+        box-shadow: var(--sh);
+    }
+    .costTable td {
+        border-bottom: 1px solid rgba(213, 199, 170, 0.45);
+        padding: 9px 0;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        text-align: right;
+        min-height: 42px;
+    }
+    .costTable td::before {
+        content: attr(data-label);
+        font-weight: 700;
+        font-size: 11px;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+        color: var(--mt);
+        text-align: left;
+        flex-shrink: 0;
+        margin-right: 12px;
+    }
+    .costTable td:last-child {
+        border-bottom: none;
+        display: block;
+        padding-top: 10px;
+        text-align: left;
+    }
+    .costTable td:last-child::before {
+        display: block;
+        margin-bottom: 6px;
+    }
+    .costFormRow {
+        flex-direction: column;
+        align-items: stretch;
+        gap: 8px;
+    }
+    .costInput, .costSaveBtn {
+        height: 42px;
+        font-size: 13.5px;
+        width: 100%;
+    }
+    .costSaveBtn {
+        justify-content: center;
+    }
+}
+</style>
+
 <div class="headerRow">
     <div>
         <h2>Production Costing Rollup</h2>
-        <span style="color: var(--mt); font-size: 13.5px;">Accredited cost rollup & automatic 10% overhead calculation (ProductionCost)</span>
+        <span style="color: var(--mt); font-size: 13.5px;">Accredited cost rollup &amp; automatic {{ summary.overheadPercent }}% overhead calculation for Team 5 Accounting (prod_productioncost)</span>
+    </div>
+</div>
+
+<div class="metricGrid">
+    <div class="metricCard">
+        <small>Total Recorded Cost</small>
+        <b>₱{{ "{:,.2f}".format(summary.totalCost) }}</b>
+    </div>
+    <div class="metricCard">
+        <small>Costed Batches</small>
+        <b>{{ summary.costedOrders }} Orders</b>
+    </div>
+    <div class="metricCard">
+        <small>Pending Cost Sheets</small>
+        <b>{{ summary.pendingCosting }} Orders</b>
+    </div>
+    <div class="metricCard">
+        <small>Factory Overhead</small>
+        <b>{{ summary.overheadPercent }}% Standard</b>
     </div>
 </div>
 
 <div class="card">
-    <!-- prod_productionCost -->
+    <div class="headerRow" style="margin-bottom: 14px;">
+        <div>
+            <h3 style="margin: 0;">Batch Production Cost Sheets</h3>
+            <small style="color: var(--mt);">Direct material costs auto-calculated from issued raw materials with {{ summary.overheadPercent }}% factory overhead</small>
+        </div>
+        <span class="statusBadge {{ 'inProgress' if summary.pendingCosting > 0 else 'completed' }}">{{ summary.activeOrders }} Active / Complete</span>
+    </div>
+
     <div class="tableContainer">
-        <table>
+        <table class="costTable">
             <thead>
                 <tr>
-                    <th>Cost Sheet Ref</th>
-                    <th>Order Details</th>
+                    <th>Order Reference</th>
+                    <th>Status</th>
                     <th>Actual Material Cost</th>
-                    <th>Workshop Labor Cost</th>
-                    <th>10% Overhead</th>
-                    <th>Total Production Cost</th>
-                    <th>Finance Journal Status</th>
+                    <th>Labor Cost (₱)</th>
+                    <th>{{ summary.overheadPercent }}% Overhead</th>
+                    <th>Total Batch Cost</th>
+                    <th>Cost / Unit</th>
+                    <th>Action</th>
                 </tr>
             </thead>
             <tbody>
-                {% for c in costs %}
+                {% for ord in costOrders %}
                 <tr>
-                    <td><b>Cost #{{ c.costID }}</b></td>
-                    <td>Order #{{ c.orderID }} &middot; {{ c.furnitureName }}</td>
-                    <td>₱{{ "{:,.2f}".format(c.materialCost) }}</td>
-                    <td>₱{{ "{:,.2f}".format(c.laborCost) }}</td>
-                    <td>₱{{ "{:,.2f}".format(c.overheadCost) }}</td>
-                    <td><b style="color: var(--p); font-size: 15px;">₱{{ "{:,.2f}".format(c.totalCost) }}</b></td>
-                    <td>
-                        <span class="statusBadge released">&check; Published to Finance</span>
+                    <td data-label="Order">
+                        <div>
+                            <a href="{{ url_for('production.orderDetail', orderID=ord.orderID) }}" style="color: var(--p); font-weight: 700; text-decoration: none; font-size: 13.5px;">Order #PO-{{ ord.orderID }}</a>
+                        </div>
+                        <div style="color: var(--tx); font-size: 12px; margin-top: 2px;">
+                            {{ ord.furnitureName }} &middot; <b>{{ ord.plannedQuantity }} units</b>
+                        </div>
+                        {% if ord.hasCostSheet %}
+                        <div style="color: var(--p); font-size: 11px; margin-top: 3px; font-weight: 600;">
+                            &check; Cost Ref #CST-{{ ord.costID }} &middot; {{ ord.formattedCostDate }}
+                        </div>
+                        {% endif %}
+                    </td>
+                    <td data-label="Status">
+                        <span class="statusBadge {{ 'completed' if ord.status == 'Completed' else 'inProgress' }}">{{ ord.status }}</span>
+                    </td>
+                    <td data-label="Materials">
+                        <div>
+                            <b>₱{{ "{:,.2f}".format(ord.materialCost) }}</b>
+                        </div>
+                        <small style="color: var(--mt); font-size: 11px;">From issued stock</small>
+                    </td>
+                    <td data-label="Labor">
+                        <form id="costForm_{{ ord.orderID }}" method="POST" action="{{ url_for('production.saveOrderCost', orderID=ord.orderID) }}">
+                            <input type="hidden" name="materialCost" value="{{ ord.materialCost }}">
+                            <input type="hidden" name="overheadCost" value="{{ ord.overheadCost }}">
+                        </form>
+                        <input type="number" form="costForm_{{ ord.orderID }}" name="laborCost" value="{{ '{:.2f}'.format(ord.laborCost) }}" step="0.01" min="0" placeholder="0.00" class="costInput">
+                    </td>
+                    <td data-label="Overhead">
+                        <span>₱{{ "{:,.2f}".format(ord.overheadCost) }}</span>
+                    </td>
+                    <td data-label="Total Cost">
+                        <b style="color: var(--p); font-size: 14px;">₱{{ "{:,.2f}".format(ord.totalCost) }}</b>
+                    </td>
+                    <td data-label="Unit Cost">
+                        <span style="font-weight: 600;">₱{{ "{:,.2f}".format(ord.unitCost) }}</span>
+                    </td>
+                    <td data-label="Action">
+                        {% if ord.hasCostSheet %}
+                            <button type="submit" form="costForm_{{ ord.orderID }}" class="actionButton secondary costSaveBtn">Update</button>
+                        {% else %}
+                            <button type="submit" form="costForm_{{ ord.orderID }}" class="actionButton costSaveBtn">Save Cost</button>
+                        {% endif %}
                     </td>
                 </tr>
                 {% else %}
                 <tr>
-                    <td colspan="7" style="text-align: center; color: var(--mt); padding: 24px;">No production cost records generated yet. Cost sheets are generated upon order completion.</td>
+                    <td colspan="8" style="text-align: center; color: var(--mt); padding: 28px;">
+                        No production orders currently eligible for costing. Issue materials to an order to begin cost tracking.
+                    </td>
                 </tr>
                 {% endfor %}
             </tbody>

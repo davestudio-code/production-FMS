@@ -11,6 +11,7 @@ from .models.productionorder import ProductionOrder
 from .models.materialissuance import MaterialIssuance
 from .models.monitoring import ProductionMonitoring
 from .models.productionoutput import ProductionOutput
+from .models.productioncost import ProductionCost
 from . import integration
 
 productionBlueprint = Blueprint(
@@ -839,12 +840,105 @@ def recordInspection(orderID):
 
 @productionBlueprint.route("/costing")
 def costingList():
-    productionCostList = []
+    try:
+        allOrders = ProductionOrder.getAll()
+        costOrders = [o for o in allOrders if o.status in ("In Progress", "Completed")]
+        for o in costOrders:
+            savedCost = ProductionCost.getByOrderID(o.orderID)
+            if savedCost:
+                o.hasCostSheet = True
+                o.costID = savedCost.costID
+                o.materialCost = savedCost.materialCost
+                o.laborCost = savedCost.laborCost
+                o.overheadCost = savedCost.overheadCost
+                o.totalCost = savedCost.totalCost
+                o.unitCost = savedCost.unitCost
+                o.costDate = savedCost.costDate
+                o.formattedCostDate = savedCost.formattedCostDate
+            else:
+                o.hasCostSheet = False
+                o.costID = None
+                o.materialCost = ProductionCost.calculateActualMaterialCost(o.orderID)
+                o.laborCost = Decimal("0.00")
+                o.overheadCost = ProductionCost.calculateOverhead(o.materialCost)
+                o.totalCost = o.materialCost + o.laborCost + o.overheadCost
+                o.unitCost = (o.totalCost / Decimal(str(o.plannedQuantity))).quantize(Decimal("0.01")) if o.plannedQuantity else Decimal("0.00")
+                o.costDate = None
+                o.formattedCostDate = "-"
+
+        allCostRecords = ProductionCost.getAll()
+        totalRecordedCost = sum(c.totalCost for c in allCostRecords)
+        summary = {
+            "totalCost": totalRecordedCost,
+            "costedOrders": len(allCostRecords),
+            "pendingCosting": sum(1 for o in costOrders if not o.hasCostSheet),
+            "activeOrders": len(costOrders),
+            "overheadPercent": int(round(ProductionCost.DEFAULT_OVERHEAD_PERCENT * 100))
+        }
+    except Exception as err:
+        flash(f"Failed to load production costing records: {str(err)}", "error")
+        costOrders = []
+        allCostRecords = []
+        summary = {"totalCost": Decimal("0.00"), "costedOrders": 0, "pendingCosting": 0, "activeOrders": 0, "overheadPercent": int(round(ProductionCost.DEFAULT_OVERHEAD_PERCENT * 100))}
+
     return render_template(
         "production/costing_list.html",
         activeTab="costing",
-        costs=productionCostList
+        costOrders=costOrders,
+        costs=allCostRecords,
+        summary=summary
     )
+
+@productionBlueprint.route("/costing/save/<int:orderID>", methods=["POST"])
+def saveOrderCost(orderID):
+    matRaw = request.form.get("materialCost", "").strip()
+    labRaw = request.form.get("laborCost", "").strip()
+    overRaw = request.form.get("overheadCost", "").strip()
+
+    try:
+        order = ProductionOrder.getByID(orderID)
+        if not order:
+            flash("Production order not found.", "error")
+            return redirect(url_for("production.costingList"))
+
+        if matRaw:
+            try:
+                matCost = Decimal(matRaw)
+            except InvalidOperation:
+                flash("Invalid material cost entered.", "error")
+                return redirect(url_for("production.costingList"))
+        else:
+            matCost = ProductionCost.calculateActualMaterialCost(orderID)
+
+        try:
+            labCost = Decimal(labRaw) if labRaw else Decimal("0.00")
+        except InvalidOperation:
+            flash("Invalid labor cost entered.", "error")
+            return redirect(url_for("production.costingList"))
+
+        try:
+            overCost = Decimal(overRaw) if overRaw else ProductionCost.calculateOverhead(matCost)
+        except InvalidOperation:
+            flash("Invalid overhead cost entered.", "error")
+            return redirect(url_for("production.costingList"))
+
+        if matCost < Decimal("0.00") or labCost < Decimal("0.00") or overCost < Decimal("0.00"):
+            flash("Cost values cannot be negative.", "warning")
+            return redirect(url_for("production.costingList"))
+
+        saved = ProductionCost.saveCost(
+            orderID=orderID,
+            materialCost=matCost,
+            laborCost=labCost,
+            overheadCost=overCost
+        )
+        flash(f"Cost sheet saved for Order #PO-{orderID} (Total: ₱{saved.totalCost:,.2f})! Available for Team 5 Accounting.", "success")
+    except ValueError as valErr:
+        flash(str(valErr), "warning")
+    except Exception as err:
+        flash(f"Database error while saving production cost: {str(err)}", "error")
+
+    return redirect(url_for("production.costingList"))
 
 @productionBlueprint.route("/report")
 def reportView():
