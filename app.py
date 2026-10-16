@@ -10,5 +10,17 @@ app.register_blueprint(productionBlueprint, url_prefix="/production")
 def root():
     return redirect(url_for("production.index"))
 
+@app.teardown_appcontext
+def closeRequestContextDb(error=None):
+    from flask import g
+    conn = getattr(g, "dbConnection", None)
+    if conn is not None and conn.closed == 0:
+        if error:
+            conn.rollback()
+        else:
+            conn.commit()
+        conn.close()
+        g.dbConnection = None
+
 if __name__ == "__main__":
     app.run(debug=True)

@@ -3,13 +3,71 @@
 {% block content %}
 <div class="headerRow">
     <div>
-        <h2>Material Issuance Log</h2>
-        <span style="color: var(--mt); font-size: 13.5px;">Authoritative record of raw materials dispatched to workshop (MaterialIssuance)</span>
+        <h2>Material Issuance & Workshop Dispatch</h2>
+        <span style="color: var(--mt); font-size: 13.5px;">Dispatch approved raw materials from warehouse inventory to the workshop floor</span>
     </div>
 </div>
 
 <div class="card">
-    <!-- prod_materialIssuance -->
+    <div class="headerRow" style="margin-bottom: 14px;">
+        <div>
+            <h3 style="margin: 0;">Orders Awaiting Material Issuance</h3>
+            <small style="color: var(--mt);">Approved orders in 'Released' status ready to receive materials and start production</small>
+        </div>
+        <span class="statusBadge released">{{ releasedOrders|length }} Orders Ready</span>
+    </div>
+
+    {% if releasedOrders %}
+        <div style="display: flex; flex-direction: column; gap: 16px;">
+            {% for order in releasedOrders %}
+            <div style="border: 1px solid var(--bd); border-radius: 10px; padding: 18px 20px; background: #faf8f2;">
+                <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 12px; flex-wrap: wrap; gap: 10px;">
+                    <div>
+                        <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 4px;">
+                            <b style="font-size: 16px;">Order #PO-{{ order.orderID }} &middot; {{ order.furnitureName }}</b>
+                            <span class="statusBadge released">Released</span>
+                        </div>
+                        <span style="color: var(--mt); font-size: 13px;">Batch Size: <b>{{ order.plannedQuantity }} units</b> &middot; Ordered: {{ order.orderDate }}</span>
+                    </div>
+                    <form method="POST" action="{{ url_for('production.issueOrderMaterials', orderID=order.orderID) }}" onsubmit="return confirm('Deduct required materials from inventory and start workshop production for Order #PO-{{ order.orderID }}?');">
+                        <button type="submit" class="actionButton" style="padding: 9px 18px; font-size: 13px;">
+                            Issue Materials &amp; Start Assembly &rarr;
+                        </button>
+                    </form>
+                </div>
+
+                <div style="background: var(--cd); border: 1px solid var(--bd); border-radius: 8px; padding: 12px 16px;">
+                    <small style="color: var(--mt); font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px; display: block; margin-bottom: 8px;">Materials to be Dispatched from Inventory:</small>
+                    <div style="display: flex; flex-wrap: wrap; gap: 10px;">
+                        {% for req in order.requirements %}
+                        <div style="background: #f0ebe1; border: 1px solid #ddd6c7; border-radius: 6px; padding: 6px 12px; font-size: 13px;">
+                            <b>{{ req.materialName }}</b>: {{ "{:,.3f}".format(req.batchQuantity).rstrip('0').rstrip('.') }} {{ req.unit }}
+                        </div>
+                        {% else %}
+                        <span style="color: var(--mt); font-size: 13px;">No BOM components defined for this product.</span>
+                        {% endfor %}
+                    </div>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+    {% else %}
+        <div style="text-align: center; padding: 32px 16px; color: var(--mt);">
+            <p style="margin: 0 0 8px 0; font-size: 14px;">No production orders are currently waiting for material issuance.</p>
+            <span style="font-size: 12.5px;">Orders must first be verified and approved in <a href="{{ url_for('production.requirementList') }}" style="color: var(--p); font-weight: 600;">Material Requirement</a> to transition from Draft &rarr; Released.</span>
+        </div>
+    {% endif %}
+</div>
+
+<div class="card">
+    <div class="headerRow" style="margin-bottom: 12px;">
+        <div>
+            <h3 style="margin: 0;">Dispatched Materials History Log</h3>
+            <small style="color: var(--mt);">Authoritative record of raw materials dispatched to workshop (prod_materialissuance)</small>
+        </div>
+        <span class="statusBadge" style="background: #e7dfca;">{{ issuances|length }} Dispatched Records</span>
+    </div>
+
     <div class="tableContainer">
         <table>
             <thead>
@@ -24,15 +82,15 @@
             <tbody>
                 {% for iss in issuances %}
                 <tr>
-                    <td><b>#{{ iss.issuanceID }}</b></td>
-                    <td><b>Order #{{ iss.orderID }}</b> &middot; {{ iss.furnitureName }}</td>
+                    <td><b>#IS-{{ iss.issuanceID }}</b></td>
+                    <td><b>Order #PO-{{ iss.orderID }}</b> &middot; {{ iss.furnitureName }}</td>
                     <td><b>{{ iss.materialName }}</b></td>
-                    <td>{{ iss.quantityIssued }} {{ iss.unit }}</td>
+                    <td>{{ "{:,.3f}".format(iss.quantityIssued).rstrip('0').rstrip('.') }} {{ iss.unit }}</td>
                     <td>{{ iss.issueDate }}</td>
                 </tr>
                 {% else %}
                 <tr>
-                    <td colspan="5" style="text-align: center; color: var(--mt); padding: 24px;">No materials issued to workshop yet.</td>
+                    <td colspan="5" style="text-align: center; color: var(--mt); padding: 28px;">No materials issued to workshop yet.</td>
                 </tr>
                 {% endfor %}
             </tbody>

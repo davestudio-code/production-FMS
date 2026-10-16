@@ -26,16 +26,31 @@ def getConnection():
 
 @contextmanager
 def openTransaction(externalConnection=None):
-    isCallerOwned = externalConnection is not None
-    activeConnection = externalConnection if isCallerOwned else getConnection()
+    if externalConnection is not None:
+        yield externalConnection
+        return
+
+    isRequestScoped = False
     try:
-        yield activeConnection
-        if not isCallerOwned:
-            activeConnection.commit()
+        from flask import has_request_context, g
+        if has_request_context():
+            if not hasattr(g, "dbConnection") or g.dbConnection is None or g.dbConnection.closed != 0:
+                g.dbConnection = getConnection()
+            conn = g.dbConnection
+            isRequestScoped = True
+        else:
+            conn = getConnection()
     except Exception:
-        if not isCallerOwned:
-            activeConnection.rollback()
+        conn = getConnection()
+
+    try:
+        yield conn
+        if not isRequestScoped:
+            conn.commit()
+    except Exception:
+        if not isRequestScoped:
+            conn.rollback()
         raise
     finally:
-        if not isCallerOwned:
-            activeConnection.close()
+        if not isRequestScoped:
+            conn.close()

@@ -8,6 +8,8 @@ from .models.material import Material
 from .models.billofmaterials import BillOfMaterials
 from .models.bomitem import BOMItem
 from .models.productionorder import ProductionOrder
+from .models.materialissuance import MaterialIssuance
+from . import integration
 
 productionBlueprint = Blueprint(
     "production",
@@ -621,12 +623,71 @@ def releaseOrder(orderID):
 
 @productionBlueprint.route("/issuance")
 def issuanceList():
-    materialIssuanceList = []
+    try:
+        allOrders = ProductionOrder.getAll()
+        releasedOrders = [o for o in allOrders if o.status == "Released"]
+        for o in releasedOrders:
+            bom = BillOfMaterials.getByFurnitureID(o.furnitureID, autoCreate=False)
+            if bom:
+                o.requirements = bom.calculateRequirements(Decimal(str(o.plannedQuantity)))
+            else:
+                o.requirements = []
+        materialIssuanceList = MaterialIssuance.getAll()
+    except Exception as err:
+        flash(f"Failed to load issuance records: {str(err)}", "error")
+        releasedOrders = []
+        materialIssuanceList = []
+
     return render_template(
         "production/issuance_list.html",
         activeTab="issuance",
+        releasedOrders=releasedOrders,
         issuances=materialIssuanceList
     )
+
+@productionBlueprint.route("/issuance/issue/<int:orderID>", methods=["POST"])
+def issueOrderMaterials(orderID):
+    try:
+        order = ProductionOrder.getByID(orderID)
+        if not order:
+            flash("Production order not found.", "error")
+            return redirect(url_for("production.issuanceList"))
+
+        if order.status != "Released":
+            flash(f"Order #PO-{orderID} cannot be issued because it is currently '{order.status}' (Must be 'Released').", "warning")
+            return redirect(url_for("production.issuanceList"))
+
+        bom = BillOfMaterials.getByFurnitureID(order.furnitureID, autoCreate=False)
+        if not bom:
+            flash(f"Cannot issue materials: No Bill of Materials found for '{order.furnitureName}'.", "error")
+            return redirect(url_for("production.issuanceList"))
+
+        reqs = bom.calculateRequirements(Decimal(str(order.plannedQuantity)))
+        if not reqs:
+            flash(f"Cannot issue materials: BOM has no items for '{order.furnitureName}'.", "error")
+            return redirect(url_for("production.issuanceList"))
+
+        with openTransaction() as conn:
+            for r in reqs:
+                integration.deduct_material_stock(r["materialID"], r["batchQuantity"], conn=conn)
+                MaterialIssuance.recordIssuance(orderID, r["materialID"], r["batchQuantity"], conn=conn)
+
+            with conn.cursor() as cur:
+                cur.execute("""
+                    INSERT INTO prod_productionmonitoring (order_id, progress, start_date)
+                    VALUES (%s, 0.0, CURRENT_DATE)
+                    ON CONFLICT (order_id) DO NOTHING
+                """, (orderID,))
+
+            ProductionOrder.updateStatus(orderID, "In Progress", conn=conn)
+
+        flash(f"Materials dispatched for Order #PO-{orderID}! Order moved to 'In Progress' for workshop assembly.", "success")
+    except ValueError as valErr:
+        flash(f"Issuance blocked: {str(valErr)}", "error")
+    except Exception as err:
+        flash(f"Failed to issue materials: {str(err)}", "error")
+
+    return redirect(url_for("production.issuanceList"))
 
 @productionBlueprint.route("/monitoring")
 def monitoringList():
