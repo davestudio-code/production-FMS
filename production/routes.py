@@ -932,7 +932,7 @@ def saveOrderCost(orderID):
             laborCost=labCost,
             overheadCost=overCost
         )
-        flash(f"Cost sheet saved for Order #PO-{orderID} (Total: ₱{saved.totalCost:,.2f})! Available for Team 5 Accounting.", "success")
+        flash(f"Cost sheet saved for Order #PO-{orderID} (Total: ₱{saved.totalCost:,.2f})! Available for Team 5 Finance.", "success")
     except ValueError as valErr:
         flash(str(valErr), "warning")
     except Exception as err:
@@ -942,9 +942,123 @@ def saveOrderCost(orderID):
 
 @productionBlueprint.route("/report")
 def reportView():
-    productionReportList = []
+    statusFilter = request.args.get("status", "All").strip()
+
+    try:
+        with openTransaction() as conn:
+            with conn.cursor() as cur:
+                cur.execute("""
+                    SELECT po.order_id,
+                           po.planned_quantity,
+                           po.status,
+                           po.order_date,
+                           po.planned_start_date,
+                           po.due_date,
+                           f.furniture_name,
+                           f.furniture_type,
+                           f.selling_price,
+                           COALESCE(pm.progress, 0.00) AS progress,
+                           pm.start_date AS actual_start_date,
+                           pm.completion_date,
+                           pc.cost_id,
+                           pc.material_cost,
+                           pc.labor_cost,
+                           pc.overhead_cost,
+                           pc.total_cost,
+                           pc.cost_date
+                    FROM prod_productionorder po
+                    JOIN prod_furniture f ON po.furniture_id = f.furniture_id
+                    LEFT JOIN prod_productionmonitoring pm ON po.order_id = pm.order_id
+                    LEFT JOIN prod_productioncost pc ON po.order_id = pc.order_id
+                    ORDER BY po.order_id DESC
+                """)
+                rawOrders = cur.fetchall()
+
+                cur.execute("""
+                    SELECT rm.raw_material_id,
+                           im.item_name AS material_name,
+                           im.unit,
+                           rm.unit_cost,
+                           COALESCE(SUM(mi.quantity_issued), 0) AS total_quantity_issued,
+                           COALESCE(SUM(mi.quantity_issued * rm.unit_cost), 0.00) AS total_material_expense,
+                           COUNT(DISTINCT mi.order_id) AS orders_consumed_count
+                    FROM prod_materialissuance mi
+                    JOIN raw_material rm ON mi.material_id = rm.raw_material_id
+                    JOIN item_master im ON rm.item_id = im.item_id
+                    GROUP BY rm.raw_material_id, im.item_name, im.unit, rm.unit_cost
+                    ORDER BY total_material_expense DESC
+                """)
+                materialUsageRows = cur.fetchall()
+
+        allOrders = []
+        for r in rawOrders:
+            item = dict(r)
+            item["formattedOrderDate"] = item["order_date"].strftime("%b %d, %Y") if item.get("order_date") else "-"
+            item["formattedDueDate"] = item["due_date"].strftime("%b %d, %Y") if item.get("due_date") else "-"
+            item["formattedStartDate"] = item["actual_start_date"].strftime("%b %d, %Y") if item.get("actual_start_date") else (item["planned_start_date"].strftime("%b %d, %Y") if item.get("planned_start_date") else "-")
+            item["formattedCompletionDate"] = item["completion_date"].strftime("%b %d, %Y") if item.get("completion_date") else ("In Progress" if item["status"] == "In Progress" else "-")
+            qty = Decimal(str(item.get("planned_quantity") or 0))
+            price = Decimal(str(item.get("selling_price") or 0))
+            item["estimatedValue"] = qty * price
+            allOrders.append(item)
+
+        totalOrders = len(allOrders)
+        completedOrders = sum(1 for o in allOrders if o["status"] == "Completed")
+        inProgressOrders = sum(1 for o in allOrders if o["status"] == "In Progress")
+        releasedOrders = sum(1 for o in allOrders if o["status"] == "Released")
+        draftOrders = sum(1 for o in allOrders if o["status"] == "Draft")
+
+        totalPlannedUnits = sum(int(o["planned_quantity"]) for o in allOrders)
+        totalCompletedUnits = sum(int(o["planned_quantity"]) for o in allOrders if o["status"] == "Completed")
+        completionRate = int(round((completedOrders / totalOrders * 100))) if totalOrders > 0 else 0
+
+        totalRecordedCost = sum(Decimal(str(o["total_cost"])) for o in allOrders if o.get("total_cost") is not None)
+        totalMaterialExpense = sum(Decimal(str(m["total_material_expense"])) for m in materialUsageRows)
+        totalPlannedValue = sum(o["estimatedValue"] for o in allOrders)
+
+        summary = {
+            "totalOrders": totalOrders,
+            "completedOrders": completedOrders,
+            "inProgressOrders": inProgressOrders,
+            "releasedOrders": releasedOrders,
+            "draftOrders": draftOrders,
+            "totalPlannedUnits": totalPlannedUnits,
+            "totalCompletedUnits": totalCompletedUnits,
+            "completionRate": completionRate,
+            "totalRecordedCost": totalRecordedCost,
+            "totalMaterialExpense": totalMaterialExpense,
+            "totalPlannedValue": totalPlannedValue
+        }
+
+        if statusFilter in ("Completed", "In Progress", "Released", "Draft"):
+            filteredOrders = [o for o in allOrders if o["status"] == statusFilter]
+        else:
+            statusFilter = "All"
+            filteredOrders = allOrders
+
+    except Exception as err:
+        flash(f"Failed to load production reports: {str(err)}", "error")
+        filteredOrders = []
+        materialUsageRows = []
+        summary = {
+            "totalOrders": 0,
+            "completedOrders": 0,
+            "inProgressOrders": 0,
+            "releasedOrders": 0,
+            "draftOrders": 0,
+            "totalPlannedUnits": 0,
+            "totalCompletedUnits": 0,
+            "completionRate": 0,
+            "totalRecordedCost": Decimal("0.00"),
+            "totalMaterialExpense": Decimal("0.00"),
+            "totalPlannedValue": Decimal("0.00")
+        }
+
     return render_template(
         "production/report_view.html",
         activeTab="report",
-        reportRows=productionReportList
+        reportRows=filteredOrders,
+        materialUsage=materialUsageRows,
+        summary=summary,
+        currentFilter=statusFilter
     )

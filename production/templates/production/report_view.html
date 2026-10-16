@@ -1,62 +1,327 @@
 {% extends "production/base.html" %}
 
 {% block content %}
+<style>
+.progressTrack {
+    width: 90px;
+    height: 8px;
+    background: #e2d8bd;
+    border: 1px solid var(--bd);
+    border-radius: 6px;
+    overflow: hidden;
+    display: inline-block;
+    vertical-align: middle;
+}
+.progressFill {
+    display: block;
+    height: 100%;
+    background: var(--p);
+    border-radius: 4px;
+}
+.reportTable {
+    width: 100%;
+    border-collapse: collapse;
+}
+.reportTable th, .reportTable td {
+    padding: 11px 12px;
+    vertical-align: middle;
+    text-align: left;
+    white-space: normal;
+}
+.reportTable tfoot td {
+    font-weight: 700;
+    border-top: 2px solid var(--bd);
+    border-bottom: none;
+}
+.printHeader {
+    display: none;
+}
+
+@media print {
+    nav, .toolBar, .actionButton, .hamburgerBtn, .siteHeader, header, #toastContainer {
+        display: none !important;
+    }
+    body, main {
+        background: #ffffff !important;
+        color: #000000 !important;
+        padding: 0 !important;
+        margin: 0 !important;
+        width: 100% !important;
+    }
+    .card {
+        box-shadow: none !important;
+        border: 1px solid #cccccc !important;
+        margin-bottom: 20px !important;
+        page-break-inside: avoid;
+    }
+    .printHeader {
+        display: block !important;
+        margin-bottom: 24px;
+        border-bottom: 2px solid #333333;
+        padding-bottom: 12px;
+    }
+    .metricGrid {
+        grid-template-columns: repeat(4, 1fr) !important;
+        margin-bottom: 20px !important;
+    }
+    .metricCard {
+        border: 1px solid #cccccc !important;
+        background: #ffffff !important;
+    }
+    table {
+        font-size: 11px !important;
+    }
+    th, td {
+        padding: 6px 8px !important;
+        border-bottom: 1px solid #dddddd !important;
+    }
+}
+
+@media (max-width: 640px) {
+    .reportTable {
+        display: block;
+        min-width: 100%;
+    }
+    .reportTable thead {
+        display: none;
+    }
+    .reportTable tbody, .reportTable tr {
+        display: block;
+        width: 100%;
+    }
+    .reportTable tr {
+        background: var(--cd);
+        border: 1px solid var(--bd);
+        border-radius: 10px;
+        margin-bottom: 14px;
+        padding: 12px 14px;
+        box-shadow: var(--sh);
+    }
+    .reportTable td {
+        border-bottom: 1px solid rgba(213, 199, 170, 0.45);
+        padding: 8px 0;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        text-align: right;
+    }
+    .reportTable td::before {
+        content: attr(data-label);
+        font-weight: 700;
+        font-size: 11px;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+        color: var(--mt);
+        text-align: left;
+        flex-shrink: 0;
+        margin-right: 12px;
+    }
+    .reportTable td:last-child {
+        border-bottom: none;
+    }
+}
+</style>
+
+<div class="printHeader">
+    <h1 style="margin: 0; font-size: 22px;">Production Performance &amp; Material Analytics Report</h1>
+    <div style="font-size: 12px; color: #666666; margin-top: 4px;">
+        Team 3 Production &amp; Manufacturing Management System &middot; Generated on Live Database
+    </div>
+</div>
+
 <div class="headerRow">
     <div>
-        <h2>Production Performance Report</h2>
-        <span style="color: var(--mt); font-size: 13.5px;">Comprehensive registry of all production orders, progress, and costing</span>
+        <h2>Production Performance &amp; Analytics</h2>
+        <span style="color: var(--mt); font-size: 13.5px;">Executive audit ledger, production progress tracking, and material consumption</span>
     </div>
-    <button class="actionButton secondary" onclick="window.print()">&darr; Export / Print Report</button>
+    <button type="button" class="actionButton secondary" onclick="window.print()">&darr; Export / Print Report</button>
+</div>
+
+<div class="metricGrid">
+    <div class="metricCard">
+        <small>Units Output</small>
+        <b>{{ summary.totalCompletedUnits }} / {{ summary.totalPlannedUnits }} units</b>
+        <div style="color: var(--mt); font-size: 11.5px; margin-top: 3px;">{{ summary.completionRate }}% volume fulfillment</div>
+    </div>
+    <div class="metricCard">
+        <small>Batch Completion</small>
+        <b>{{ summary.completedOrders }} / {{ summary.totalOrders }} Batches</b>
+        <div style="color: var(--mt); font-size: 11.5px; margin-top: 3px;">{{ summary.inProgressOrders }} currently in progress</div>
+    </div>
+    <div class="metricCard">
+        <small>Factory Cost Incurred</small>
+        <b>₱{{ "{:,.2f}".format(summary.totalRecordedCost) }}</b>
+        <div style="color: var(--mt); font-size: 11.5px; margin-top: 3px;">Recorded job cost total</div>
+    </div>
+    <div class="metricCard">
+        <small>Raw Materials Consumed</small>
+        <b>₱{{ "{:,.2f}".format(summary.totalMaterialExpense) }}</b>
+        <div style="color: var(--mt); font-size: 11.5px; margin-top: 3px;">{{ materialUsage|length }} raw materials issued</div>
+    </div>
 </div>
 
 <div class="card">
+    <form method="GET" action="{{ url_for('production.reportView') }}" class="toolBar" style="margin-bottom: 22px;">
+        <select name="status" style="width: 220px;">
+            <option value="" {% if currentFilter == 'All' %}selected{% endif %}>All Lifecycle Stages ({{ summary.totalOrders }})</option>
+            <option value="In Progress" {% if currentFilter == 'In Progress' %}selected{% endif %}>In Progress ({{ summary.inProgressOrders }})</option>
+            <option value="Completed" {% if currentFilter == 'Completed' %}selected{% endif %}>Completed ({{ summary.completedOrders }})</option>
+            <option value="Released" {% if currentFilter == 'Released' %}selected{% endif %}>Released ({{ summary.releasedOrders }})</option>
+            <option value="Draft" {% if currentFilter == 'Draft' %}selected{% endif %}>Draft ({{ summary.draftOrders }})</option>
+        </select>
+        <button type="submit" class="actionButton secondary" style="padding: 8px 14px; font-size: 13px;">Filter</button>
+        {% if currentFilter and currentFilter != 'All' %}
+        <a href="{{ url_for('production.reportView') }}" class="actionButton secondary" style="padding: 8px 14px; font-size: 13px; text-decoration: none;">Reset</a>
+        {% endif %}
+    </form>
+
+    <div class="headerRow" style="margin-bottom: 14px;">
+        <div>
+            <h3 style="margin: 0;">Production Orders Performance Ledger</h3>
+            <small style="color: var(--mt);">Real-time progress, scheduled timelines, and batch cost audit</small>
+        </div>
+        <span class="statusBadge {{ 'completed' if currentFilter == 'Completed' else 'inProgress' }}">{{ reportRows|length }} {{ 'Batch' if reportRows|length == 1 else 'Batches' }}</span>
+    </div>
+
     <div class="tableContainer">
-        <table>
+        <table class="reportTable">
             <thead>
                 <tr>
                     <th>Order Reference</th>
-                    <th>Furniture Product</th>
-                    <th>Planned Batch Size</th>
-                    <th>Order Status</th>
+                    <th>Batch Size</th>
+                    <th>Status</th>
                     <th>Workshop Progress</th>
-                    <th>Total Production Cost</th>
-                    <th>Completion Date</th>
+                    <th>Schedule Dates</th>
+                    <th>Completion</th>
+                    <th>Total Cost</th>
+                    <th>Est. Value</th>
                 </tr>
             </thead>
             <tbody>
                 {% for r in reportRows %}
                 <tr>
-                    <td><b>Order #{{ r.orderID }}</b></td>
-                    <td><b>{{ r.furnitureName }}</b></td>
-                    <td>{{ r.plannedQuantity }} units</td>
-                    <td>
+                    <td data-label="Order">
+                        <div>
+                            <a href="{{ url_for('production.orderDetail', orderID=r.order_id) }}" style="color: var(--p); font-weight: 700; text-decoration: none; font-size: 13.5px;">Order #PO-{{ r.order_id }}</a>
+                        </div>
+                        <div style="color: var(--tx); font-size: 12px; margin-top: 2px;">
+                            {{ r.furniture_name }} &middot; <small style="color: var(--mt);">{{ r.furniture_type }}</small>
+                        </div>
+                    </td>
+                    <td data-label="Batch Size">
+                        <b>{{ r.planned_quantity }} units</b>
+                    </td>
+                    <td data-label="Status">
                         <span class="statusBadge {{ 'completed' if r.status == 'Completed' else ('inProgress' if r.status == 'In Progress' else ('released' if r.status == 'Released' else 'draft')) }}">
                             {{ r.status }}
                         </span>
                     </td>
-                    <td>
-                        <span class="progressBar">
-                            <span class="progressBarFill" style="width: {{ r.progress }}%;"></span>
-                        </span>
-                        <b>{{ r.progress }}%</b>
+                    <td data-label="Progress">
+                        <div style="display: flex; align-items: center; gap: 8px;">
+                            <div class="progressTrack">
+                                <span class="progressFill" style="width: {{ r.progress | round | int }}%;"></span>
+                            </div>
+                            <span style="font-size: 12px; font-weight: 700; color: #526638;">{{ r.progress | round | int }}%</span>
+                        </div>
                     </td>
-                    <td>
-                        {% if r.totalCost is not none and r.totalCost > 0 %}
-                            <b style="color: var(--p);">₱{{ "{:,.2f}".format(r.totalCost) }}</b>
+                    <td data-label="Dates">
+                        <div style="font-size: 12.5px;">Start: {{ r.formattedStartDate }}</div>
+                        <div style="font-size: 12px; color: var(--mt); margin-top: 2px;">Due: {{ r.formattedDueDate }}</div>
+                    </td>
+                    <td data-label="Completion">
+                        {% if r.status == 'Completed' %}
+                            <b style="color: var(--p); font-size: 12.5px;">{{ r.formattedCompletionDate }}</b>
+                        {% elif r.status == 'In Progress' %}
+                            <span style="color: #8e622a; font-size: 12.5px;">In Progress</span>
                         {% else %}
-                            <span style="color: var(--mt);">&mdash;</span>
+                            <span style="color: var(--mt); font-size: 12px;">Not Started</span>
                         {% endif %}
                     </td>
-                    <td>
-                        {{ '2026-10-02' if r.status == 'Completed' else 'Pending' }}
+                    <td data-label="Total Cost">
+                        {% if r.total_cost is not none and r.total_cost > 0 %}
+                            <b style="color: var(--p); font-size: 13.5px;">₱{{ "{:,.2f}".format(r.total_cost) }}</b>
+                            {% if r.cost_id %}
+                                <div style="font-size: 10.5px; color: var(--mt);">Ref #CST-{{ r.cost_id }}</div>
+                            {% endif %}
+                        {% else %}
+                            <span style="color: var(--mt); font-size: 12px;">Pending</span>
+                        {% endif %}
+                    </td>
+                    <td data-label="Est. Value">
+                        <b>₱{{ "{:,.2f}".format(r.estimatedValue) }}</b>
                     </td>
                 </tr>
                 {% else %}
                 <tr>
-                    <td colspan="7" style="text-align: center; color: var(--mt); padding: 24px;">No production orders recorded to generate reports.</td>
+                    <td colspan="8" style="text-align: center; color: var(--mt); padding: 28px;">
+                        No production orders found matching status filter "{{ currentFilter }}".
+                    </td>
                 </tr>
                 {% endfor %}
             </tbody>
+        </table>
+    </div>
+
+    <div style="height: 1px; background: var(--bd); margin: 32px 0 24px 0;"></div>
+
+    <div class="headerRow" style="margin-bottom: 14px;">
+        <div>
+            <h3 style="margin: 0;">Raw Material Usage &amp; Consumption Ledger</h3>
+            <small style="color: var(--mt);">Authoritative rollup of raw materials issued from inventory to workshop production batches</small>
+        </div>
+        <span class="statusBadge inProgress">{{ materialUsage|length }} {{ 'Material' if materialUsage|length == 1 else 'Materials' }}</span>
+    </div>
+
+    <div class="tableContainer">
+        <table class="reportTable">
+            <thead>
+                <tr>
+                    <th>Raw Material</th>
+                    <th>Unit</th>
+                    <th>Standard Unit Cost</th>
+                    <th>Total Quantity Issued</th>
+                    <th>Total Material Expense</th>
+                    <th>Orders Consumed In</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for m in materialUsage %}
+                <tr>
+                    <td data-label="Material">
+                        <b>{{ m.material_name }}</b>
+                    </td>
+                    <td data-label="Unit">
+                        {{ m.unit }}
+                    </td>
+                    <td data-label="Unit Cost">
+                        ₱{{ "{:,.2f}".format(m.unit_cost) }}
+                    </td>
+                    <td data-label="Quantity">
+                        <b>{{ "{:,.3f}".format(m.total_quantity_issued).rstrip("0").rstrip(".") or "0" }} {{ m.unit }}</b>
+                    </td>
+                    <td data-label="Expense">
+                        <b style="color: var(--p); font-size: 13.5px;">₱{{ "{:,.2f}".format(m.total_material_expense) }}</b>
+                    </td>
+                    <td data-label="Orders Count">
+                        <b>{{ m.orders_consumed_count }}</b> Batches
+                    </td>
+                </tr>
+                {% else %}
+                <tr>
+                    <td colspan="6" style="text-align: center; color: var(--mt); padding: 28px;">
+                        No material issuances recorded yet. Issuing materials to production orders will populate this consumption ledger.
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+            {% if materialUsage %}
+            <tfoot>
+                <tr>
+                    <td colspan="4" style="text-align: right;">Total Factory Material Consumption Expense:</td>
+                    <td colspan="2"><b style="color: var(--p); font-size: 14px;">₱{{ "{:,.2f}".format(summary.totalMaterialExpense) }}</b></td>
+                </tr>
+            </tfoot>
+            {% endif %}
         </table>
     </div>
 </div>
