@@ -10,6 +10,7 @@ class MaterialIssuance:
             rawQty = data.get("quantity_issued")
             self.quantityIssued = Decimal(str(rawQty)) if rawQty is not None else Decimal("0.000")
             self.issueDate = data.get("issue_date")
+            self.recordedBy = data.get("recorded_by") or "Dave Cagalitan"
             self.materialName = data.get("material_name", f"Material #{self.materialID}")
             self.unit = data.get("unit", "")
             self.furnitureName = data.get("furniture_name", "")
@@ -19,21 +20,23 @@ class MaterialIssuance:
             self.materialID = None
             self.quantityIssued = Decimal("0.000")
             self.issueDate = None
+            self.recordedBy = "Dave Cagalitan"
             self.materialName = ""
             self.unit = ""
             self.furnitureName = ""
 
     @classmethod
-    def recordIssuance(cls, orderID, materialID, quantityIssued, conn=None):
+    def recordIssuance(cls, orderID, materialID, quantityIssued, recordedBy=None, conn=None):
         qtyVal = Decimal(str(quantityIssued))
         if qtyVal <= 0:
             raise ValueError("Issued quantity must be greater than zero.")
 
+        issuerName = recordedBy or "Dave Cagalitan"
         with openTransaction(conn) as connection:
             with connection.cursor() as cursor:
                 cursor.execute(
-                    "INSERT INTO prod_materialissuance (order_id, material_id, quantity_issued, issue_date) VALUES (%s, %s, %s, CURRENT_DATE) RETURNING issuance_id, order_id, material_id, quantity_issued, issue_date",
-                    (orderID, materialID, qtyVal)
+                    "INSERT INTO prod_materialissuance (order_id, material_id, quantity_issued, issue_date, recorded_by) VALUES (%s, %s, %s, CURRENT_DATE, %s) RETURNING issuance_id, order_id, material_id, quantity_issued, issue_date, recorded_by",
+                    (orderID, materialID, qtyVal, issuerName)
                 )
                 row = cursor.fetchone()
                 return cls(row)
@@ -48,6 +51,7 @@ class MaterialIssuance:
                            mi.material_id,
                            mi.quantity_issued,
                            mi.issue_date,
+                           mi.recorded_by,
                            im.item_name AS material_name,
                            im.unit AS unit,
                            f.furniture_name AS furniture_name

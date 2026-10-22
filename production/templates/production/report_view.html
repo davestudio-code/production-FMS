@@ -38,8 +38,11 @@
 }
 
 @media print {
-    nav, .toolBar, .actionButton, .hamburgerBtn, .siteHeader, header, #toastContainer {
+    nav, .toolBar, .actionButton, .hamburgerBtn, .siteHeader, header, #toastContainer, .reportMainTabs, #paneAuditReport {
         display: none !important;
+    }
+    #paneExecutiveReport {
+        display: block !important;
     }
     body, main {
         background: #ffffff !important;
@@ -129,200 +132,501 @@
     </div>
 </div>
 
-<div class="headerRow">
+<div class="headerRow" style="margin-bottom: 16px;">
     <div>
-        <h2>Production Performance &amp; Analytics</h2>
-        <span style="color: var(--mt); font-size: 13.5px;">Executive audit ledger, production progress tracking, and material consumption</span>
+        <h2 style="margin: 0 0 4px 0;">Production Performance &amp; Reports</h2>
+        <span style="color: var(--mt); font-size: 13.5px;">Executive analytics, batch cost performance, and operational audit trail</span>
     </div>
-    <button type="button" class="actionButton secondary" onclick="window.print()">&darr; Export / Print Report</button>
-</div>
-
-<div class="metricGrid">
-    <div class="metricCard">
-        <small>Units Output</small>
-        <b>{{ summary.totalCompletedUnits }} / {{ summary.totalPlannedUnits }} units</b>
-        <div style="color: var(--mt); font-size: 11.5px; margin-top: 3px;">{{ summary.completionRate }}% volume fulfillment</div>
-    </div>
-    <div class="metricCard">
-        <small>Batch Completion</small>
-        <b>{{ summary.completedOrders }} / {{ summary.totalOrders }} Batches</b>
-        <div style="color: var(--mt); font-size: 11.5px; margin-top: 3px;">{{ summary.inProgressOrders }} currently in progress</div>
-    </div>
-    <div class="metricCard">
-        <small>Factory Cost Incurred</small>
-        <b>₱{{ "{:,.2f}".format(summary.totalRecordedCost) }}</b>
-        <div style="color: var(--mt); font-size: 11.5px; margin-top: 3px;">Recorded job cost total</div>
-    </div>
-    <div class="metricCard">
-        <small>Raw Materials Consumed</small>
-        <b>₱{{ "{:,.2f}".format(summary.totalMaterialExpense) }}</b>
-        <div style="color: var(--mt); font-size: 11.5px; margin-top: 3px;">{{ materialUsage|length }} raw materials issued</div>
+    <div id="reportActionBtnGroup">
+        <button type="button" class="actionButton secondary" onclick="window.print()">&darr; Export / Print Report</button>
     </div>
 </div>
 
-<div class="card">
-    <form method="GET" action="{{ url_for('production.reportView') }}" class="toolBar" style="margin-bottom: 22px;">
-        <select name="status" style="width: 220px;">
-            <option value="" {% if currentFilter == 'All' %}selected{% endif %}>All Lifecycle Stages ({{ summary.totalOrders }})</option>
-            <option value="In Progress" {% if currentFilter == 'In Progress' %}selected{% endif %}>In Progress ({{ summary.inProgressOrders }})</option>
-            <option value="Completed" {% if currentFilter == 'Completed' %}selected{% endif %}>Completed ({{ summary.completedOrders }})</option>
-            <option value="Released" {% if currentFilter == 'Released' %}selected{% endif %}>Released ({{ summary.releasedOrders }})</option>
-            <option value="Draft" {% if currentFilter == 'Draft' %}selected{% endif %}>Draft ({{ summary.draftOrders }})</option>
-        </select>
-        <button type="submit" class="actionButton secondary" style="padding: 8px 14px; font-size: 13px;">Filter</button>
-        {% if currentFilter and currentFilter != 'All' %}
-        <a href="{{ url_for('production.reportView') }}" class="actionButton secondary" style="padding: 8px 14px; font-size: 13px; text-decoration: none;">Reset</a>
-        {% endif %}
-    </form>
+<div class="reportMainTabs" style="display: flex; gap: 8px; margin-bottom: 20px; border-bottom: 1.5px solid var(--bd); padding-bottom: 12px;">
+    <button type="button" class="auditTabBtn active" id="mainTabExecutive" onclick="switchReportMainTab('executive')">
+        Executive Analytics &amp; KPIs
+    </button>
+    <button type="button" class="auditTabBtn" id="mainTabAudit" onclick="switchReportMainTab('audit')">
+        Audit &amp; Transaction Logs ({{ issuances|length + outputRecords|length }})
+    </button>
+</div>
 
-    <div class="headerRow" style="margin-bottom: 14px;">
-        <div>
-            <h3 style="margin: 0;">Production Orders Performance Ledger</h3>
-            <small style="color: var(--mt);">Real-time progress, scheduled timelines, and batch cost audit</small>
+<div id="paneExecutiveReport">
+    <div class="metricGrid">
+        <div class="metricCard">
+            <small>Units Output</small>
+            <b>{{ summary.totalCompletedUnits }} / {{ summary.totalPlannedUnits }} units</b>
+            <div style="color: var(--mt); font-size: 11.5px; margin-top: 3px;">{{ summary.completionRate }}% volume fulfillment</div>
         </div>
-        <span class="statusBadge {{ 'completed' if currentFilter == 'Completed' else 'inProgress' }}">{{ reportRows|length }} {{ 'Batch' if reportRows|length == 1 else 'Batches' }}</span>
-    </div>
-
-    <div class="tableContainer">
-        <table class="reportTable">
-            <thead>
-                <tr>
-                    <th>Order Reference</th>
-                    <th>Batch Size</th>
-                    <th>Status</th>
-                    <th>Workshop Progress</th>
-                    <th>Schedule Dates</th>
-                    <th>Completion</th>
-                    <th>Total Cost</th>
-                    <th>Est. Value</th>
-                </tr>
-            </thead>
-            <tbody>
-                {% for r in reportRows %}
-                <tr>
-                    <td data-label="Order">
-                        <div>
-                            <a href="{{ url_for('production.orderDetail', orderID=r.order_id) }}" style="color: var(--p); font-weight: 700; text-decoration: none; font-size: 13.5px;">Order #PO-{{ r.order_id }}</a>
-                        </div>
-                        <div style="color: var(--tx); font-size: 12px; margin-top: 2px;">
-                            {{ r.furniture_name }} &middot; <small style="color: var(--mt);">{{ r.furniture_type }}</small>
-                        </div>
-                    </td>
-                    <td data-label="Batch Size">
-                        <b>{{ r.planned_quantity }} units</b>
-                    </td>
-                    <td data-label="Status">
-                        <span class="statusBadge {{ 'completed' if r.status == 'Completed' else ('inProgress' if r.status == 'In Progress' else ('released' if r.status == 'Released' else 'draft')) }}">
-                            {{ r.status }}
-                        </span>
-                    </td>
-                    <td data-label="Progress">
-                        <div style="display: flex; align-items: center; gap: 8px;">
-                            <div class="progressTrack">
-                                <span class="progressFill" style="width: {{ r.progress | round | int }}%;"></span>
-                            </div>
-                            <span style="font-size: 12px; font-weight: 700; color: #526638;">{{ r.progress | round | int }}%</span>
-                        </div>
-                    </td>
-                    <td data-label="Dates">
-                        <div style="font-size: 12.5px;">Start: {{ r.formattedStartDate }}</div>
-                        <div style="font-size: 12px; color: var(--mt); margin-top: 2px;">Due: {{ r.formattedDueDate }}</div>
-                    </td>
-                    <td data-label="Completion">
-                        {% if r.status == 'Completed' %}
-                            <b style="color: var(--p); font-size: 12.5px;">{{ r.formattedCompletionDate }}</b>
-                        {% elif r.status == 'In Progress' %}
-                            <span style="color: #8e622a; font-size: 12.5px;">In Progress</span>
-                        {% else %}
-                            <span style="color: var(--mt); font-size: 12px;">Not Started</span>
-                        {% endif %}
-                    </td>
-                    <td data-label="Total Cost">
-                        {% if r.total_cost is not none and r.total_cost > 0 %}
-                            <b style="color: var(--p); font-size: 13.5px;">₱{{ "{:,.2f}".format(r.total_cost) }}</b>
-                            {% if r.cost_id %}
-                                <div style="font-size: 10.5px; color: var(--mt);">Ref #CST-{{ r.cost_id }}</div>
-                            {% endif %}
-                        {% else %}
-                            <span style="color: var(--mt); font-size: 12px;">Pending</span>
-                        {% endif %}
-                    </td>
-                    <td data-label="Est. Value">
-                        <b>₱{{ "{:,.2f}".format(r.estimatedValue) }}</b>
-                    </td>
-                </tr>
-                {% else %}
-                <tr>
-                    <td colspan="8" style="text-align: center; color: var(--mt); padding: 28px;">
-                        No production orders found matching status filter "{{ currentFilter }}".
-                    </td>
-                </tr>
-                {% endfor %}
-            </tbody>
-        </table>
-    </div>
-
-    <div style="height: 1px; background: var(--bd); margin: 32px 0 24px 0;"></div>
-
-    <div class="headerRow" style="margin-bottom: 14px;">
-        <div>
-            <h3 style="margin: 0;">Raw Material Usage &amp; Consumption Ledger</h3>
-            <small style="color: var(--mt);">Authoritative rollup of raw materials issued from inventory to workshop production batches</small>
+        <div class="metricCard">
+            <small>Batch Completion</small>
+            <b>{{ summary.completedOrders }} / {{ summary.totalOrders }} Batches</b>
+            <div style="color: var(--mt); font-size: 11.5px; margin-top: 3px;">{{ summary.inProgressOrders }} currently in progress</div>
         </div>
-        <span class="statusBadge inProgress">{{ materialUsage|length }} {{ 'Material' if materialUsage|length == 1 else 'Materials' }}</span>
+        <div class="metricCard">
+            <small>Factory Cost Incurred</small>
+            <b>₱{{ "{:,.2f}".format(summary.totalRecordedCost) }}</b>
+            <div style="color: var(--mt); font-size: 11.5px; margin-top: 3px;">Recorded job cost total</div>
+        </div>
+        <div class="metricCard">
+            <small>Raw Materials Consumed</small>
+            <b>₱{{ "{:,.2f}".format(summary.totalMaterialExpense) }}</b>
+            <div style="color: var(--mt); font-size: 11.5px; margin-top: 3px;">{{ materialUsage|length }} raw materials issued</div>
+        </div>
     </div>
 
-    <div class="tableContainer">
-        <table class="reportTable">
-            <thead>
-                <tr>
-                    <th>Raw Material</th>
-                    <th>Unit</th>
-                    <th>Standard Unit Cost</th>
-                    <th>Total Quantity Issued</th>
-                    <th>Total Material Expense</th>
-                    <th>Orders Consumed In</th>
-                </tr>
-            </thead>
-            <tbody>
-                {% for m in materialUsage %}
-                <tr>
-                    <td data-label="Material">
-                        <b>{{ m.material_name }}</b>
-                    </td>
-                    <td data-label="Unit">
-                        {{ m.unit }}
-                    </td>
-                    <td data-label="Unit Cost">
-                        ₱{{ "{:,.2f}".format(m.unit_cost) }}
-                    </td>
-                    <td data-label="Quantity">
-                        <b>{{ "{:,.3f}".format(m.total_quantity_issued).rstrip("0").rstrip(".") or "0" }} {{ m.unit }}</b>
-                    </td>
-                    <td data-label="Expense">
-                        <b style="color: var(--p); font-size: 13.5px;">₱{{ "{:,.2f}".format(m.total_material_expense) }}</b>
-                    </td>
-                    <td data-label="Orders Count">
-                        <b>{{ m.orders_consumed_count }}</b> Batches
-                    </td>
-                </tr>
-                {% else %}
-                <tr>
-                    <td colspan="6" style="text-align: center; color: var(--mt); padding: 28px;">
-                        No material issuances recorded yet. Issuing materials to production orders will populate this consumption ledger.
-                    </td>
-                </tr>
-                {% endfor %}
-            </tbody>
-            {% if materialUsage %}
-            <tfoot>
-                <tr>
-                    <td colspan="4" style="text-align: right;">Total Factory Material Consumption Expense:</td>
-                    <td colspan="2"><b style="color: var(--p); font-size: 14px;">₱{{ "{:,.2f}".format(summary.totalMaterialExpense) }}</b></td>
-                </tr>
-            </tfoot>
+    <div class="card">
+        <form method="GET" action="{{ url_for('production.reportView') }}" class="toolBar" style="margin-bottom: 22px;">
+            <select name="status" style="width: 220px;">
+                <option value="" {% if currentFilter == 'All' %}selected{% endif %}>All Lifecycle Stages ({{ summary.totalOrders }})</option>
+                <option value="In Progress" {% if currentFilter == 'In Progress' %}selected{% endif %}>In Progress ({{ summary.inProgressOrders }})</option>
+                <option value="Completed" {% if currentFilter == 'Completed' %}selected{% endif %}>Completed ({{ summary.completedOrders }})</option>
+                <option value="Released" {% if currentFilter == 'Released' %}selected{% endif %}>Released ({{ summary.releasedOrders }})</option>
+                <option value="Draft" {% if currentFilter == 'Draft' %}selected{% endif %}>Draft ({{ summary.draftOrders }})</option>
+            </select>
+            <button type="submit" class="actionButton secondary" style="padding: 8px 14px; font-size: 13px;">Filter</button>
+            {% if currentFilter and currentFilter != 'All' %}
+            <a href="{{ url_for('production.reportView') }}" class="actionButton secondary" style="padding: 8px 14px; font-size: 13px; text-decoration: none;">Reset</a>
             {% endif %}
-        </table>
+        </form>
+
+        <div class="headerRow" style="margin-bottom: 14px;">
+            <div>
+                <h3 style="margin: 0;">Production Orders Performance Ledger</h3>
+                <small style="color: var(--mt);">Real-time progress, scheduled timelines, and batch cost audit</small>
+            </div>
+            <span class="statusBadge {{ 'completed' if currentFilter == 'Completed' else 'inProgress' }}">{{ reportRows|length }} {{ 'Batch' if reportRows|length == 1 else 'Batches' }}</span>
+        </div>
+
+        <div class="tableContainer">
+            <table class="reportTable">
+                <thead>
+                    <tr>
+                        <th>Order Reference</th>
+                        <th>Batch Size</th>
+                        <th>Status</th>
+                        <th>Workshop Progress</th>
+                        <th>Schedule Dates</th>
+                        <th>Completion</th>
+                        <th>Total Cost</th>
+                        <th>Est. Value</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for r in reportRows %}
+                    <tr>
+                        <td data-label="Order">
+                            <div>
+                                <a href="{{ url_for('production.orderDetail', orderID=r.order_id) }}" style="color: var(--p); font-weight: 700; text-decoration: none; font-size: 13.5px;">Order #PO-{{ r.order_id }}</a>
+                            </div>
+                            <div style="color: var(--tx); font-size: 12px; margin-top: 2px;">
+                                {{ r.furniture_name }} &middot; <small style="color: var(--mt);">{{ r.furniture_type }}</small>
+                            </div>
+                        </td>
+                        <td data-label="Batch Size">
+                            <b>{{ r.planned_quantity }} units</b>
+                        </td>
+                        <td data-label="Status">
+                            <span class="statusBadge {{ 'completed' if r.status == 'Completed' else ('inProgress' if r.status == 'In Progress' else ('released' if r.status == 'Released' else 'draft')) }}">
+                                {{ r.status }}
+                            </span>
+                        </td>
+                        <td data-label="Progress">
+                            <div style="display: flex; align-items: center; gap: 8px;">
+                                <div class="progressTrack">
+                                    <span class="progressFill" style="width: {{ r.progress | round | int }}%;"></span>
+                                </div>
+                                <span style="font-size: 12px; font-weight: 700; color: #526638;">{{ r.progress | round | int }}%</span>
+                            </div>
+                        </td>
+                        <td data-label="Dates">
+                            <div style="font-size: 12.5px;">Start: {{ r.formattedStartDate }}</div>
+                            <div style="font-size: 12px; color: var(--mt); margin-top: 2px;">Due: {{ r.formattedDueDate }}</div>
+                        </td>
+                        <td data-label="Completion">
+                            {% if r.status == 'Completed' %}
+                                <b style="color: var(--p); font-size: 12.5px;">{{ r.formattedCompletionDate }}</b>
+                            {% elif r.status == 'In Progress' %}
+                                <span style="color: #8e622a; font-size: 12.5px;">In Progress</span>
+                            {% else %}
+                                <span style="color: var(--mt); font-size: 12px;">Not Started</span>
+                            {% endif %}
+                        </td>
+                        <td data-label="Total Cost">
+                            {% if r.total_cost is not none and r.total_cost > 0 %}
+                                <b style="color: var(--p); font-size: 13.5px;">₱{{ "{:,.2f}".format(r.total_cost) }}</b>
+                                {% if r.cost_id %}
+                                    <div style="font-size: 10.5px; color: var(--mt);">Ref #CST-{{ r.cost_id }}</div>
+                                {% endif %}
+                            {% else %}
+                                <span style="color: var(--mt); font-size: 12px;">Pending</span>
+                            {% endif %}
+                        </td>
+                        <td data-label="Est. Value">
+                            <b>₱{{ "{:,.2f}".format(r.estimatedValue) }}</b>
+                        </td>
+                    </tr>
+                    {% else %}
+                    <tr>
+                        <td colspan="8" style="text-align: center; color: var(--mt); padding: 28px;">
+                            No production orders found matching status filter "{{ currentFilter }}".
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+
+        <div style="height: 1px; background: var(--bd); margin: 32px 0 24px 0;"></div>
+
+        <div class="headerRow" style="margin-bottom: 14px;">
+            <div>
+                <h3 style="margin: 0;">Raw Material Usage &amp; Consumption Ledger</h3>
+                <small style="color: var(--mt);">Authoritative rollup of raw materials issued from inventory to workshop production batches</small>
+            </div>
+            <span class="statusBadge inProgress">{{ materialUsage|length }} {{ 'Material' if materialUsage|length == 1 else 'Materials' }}</span>
+        </div>
+
+        <div class="tableContainer">
+            <table class="reportTable">
+                <thead>
+                    <tr>
+                        <th>Raw Material</th>
+                        <th>Unit</th>
+                        <th>Standard Unit Cost</th>
+                        <th>Total Quantity Issued</th>
+                        <th>Total Material Expense</th>
+                        <th>Orders Consumed In</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for m in materialUsage %}
+                    <tr>
+                        <td data-label="Material">
+                            <b>{{ m.material_name }}</b>
+                        </td>
+                        <td data-label="Unit">
+                            {{ m.unit }}
+                        </td>
+                        <td data-label="Unit Cost">
+                            ₱{{ "{:,.2f}".format(m.unit_cost) }}
+                        </td>
+                        <td data-label="Quantity">
+                            <b>{{ "{:,.3f}".format(m.total_quantity_issued).rstrip("0").rstrip(".") or "0" }} {{ m.unit }}</b>
+                        </td>
+                        <td data-label="Expense">
+                            <b style="color: var(--p); font-size: 13.5px;">₱{{ "{:,.2f}".format(m.total_material_expense) }}</b>
+                        </td>
+                        <td data-label="Orders Count">
+                            <b>{{ m.orders_consumed_count }}</b> Batches
+                        </td>
+                    </tr>
+                    {% else %}
+                    <tr>
+                        <td colspan="6" style="text-align: center; color: var(--mt); padding: 28px;">
+                            No material issuances recorded yet. Issuing materials to production orders will populate this consumption ledger.
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+                {% if materialUsage %}
+                <tfoot>
+                    <tr>
+                        <td colspan="4" style="text-align: right;">Total Factory Material Consumption Expense:</td>
+                        <td colspan="2"><b style="color: var(--p); font-size: 14px;">₱{{ "{:,.2f}".format(summary.totalMaterialExpense) }}</b></td>
+                    </tr>
+                </tfoot>
+                {% endif %}
+            </table>
+        </div>
     </div>
 </div>
+
+<div id="paneAuditReport" style="display: none;">
+    <div class="auditSummaryRow">
+        <div class="auditSummaryCard">
+            <span class="auditSummaryLabel">Total Dispatches</span>
+            <b class="auditSummaryVal">{{ issuances|length }}</b>
+        </div>
+        <div class="auditSummaryCard">
+            <span class="auditSummaryLabel">Quality Handoffs</span>
+            <b class="auditSummaryVal">{{ outputRecords|length }}</b>
+        </div>
+        <div class="auditSummaryCard">
+            <span class="auditSummaryLabel">Last Activity</span>
+            <b class="auditSummaryVal" style="font-size: 18px;">{{ lastActivity }}</b>
+        </div>
+    </div>
+
+    <div class="card" style="padding: 16px 20px;">
+        <div class="auditTabNav">
+            <button type="button" class="auditTabBtn active" id="tabBtnDispatches" onclick="switchAuditTab('dispatches')">
+                Material Dispatches ({{ issuances|length }})
+            </button>
+            <button type="button" class="auditTabBtn" id="tabBtnQuality" onclick="switchAuditTab('quality')">
+                Quality Handoffs ({{ outputRecords|length }})
+            </button>
+        </div>
+
+        <div class="auditFilterBar">
+            <div class="auditFilterItem" style="flex: 1; min-width: 200px;">
+                <input type="text" id="auditSearchInput" class="auditFilterInput" placeholder="Search by Order #, Product, Material..." oninput="applyAuditFilters()">
+            </div>
+            <div class="auditFilterItem">
+                <select id="auditOrderSelect" class="auditFilterSelect" onchange="applyAuditFilters()">
+                    <option value="">All Orders</option>
+                    {% set seenOrders = [] %}
+                    {% for iss in issuances %}
+                        {% if iss.orderID not in seenOrders %}
+                            {% set _ = seenOrders.append(iss.orderID) %}
+                            <option value="PO-{{ iss.orderID }}">Order #PO-{{ iss.orderID }}</option>
+                        {% endif %}
+                    {% endfor %}
+                    {% for o in outputRecords %}
+                        {% if o.orderID not in seenOrders %}
+                            {% set _ = seenOrders.append(o.orderID) %}
+                            <option value="PO-{{ o.orderID }}">Order #PO-{{ o.orderID }}</option>
+                        {% endif %}
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="auditFilterItem" style="display: flex; align-items: center; gap: 6px;">
+                <input type="date" id="auditDateFrom" class="auditFilterInput" title="From Date" onchange="applyAuditFilters()">
+                <span style="color: var(--mt); font-size: 12px;">to</span>
+                <input type="date" id="auditDateTo" class="auditFilterInput" title="To Date" onchange="applyAuditFilters()">
+            </div>
+            <button type="button" class="auditResetBtn" onclick="resetAuditFilters()">Reset</button>
+        </div>
+
+        <div id="paneDispatches" class="auditTabPane active">
+            <div class="tableContainer auditTableWrapper">
+                <table class="auditTable">
+                    <thead>
+                        <tr>
+                            <th style="width: 130px;">Issuance Ref</th>
+                            <th>Associated Order</th>
+                            <th>Raw Material</th>
+                            <th style="text-align: right; width: 150px;">Dispatched Quantity</th>
+                            <th style="width: 120px;">Issue Date</th>
+                            <th style="width: 140px;">Issued By</th>
+                        </tr>
+                    </thead>
+                    <tbody id="dispatchesTableBody">
+                        {% for iss in issuances %}
+                        <tr class="auditRow dispatchRow" data-order="PO-{{ iss.orderID }}" data-search="PO-{{ iss.orderID }} {{ iss.furnitureName|lower }} {{ iss.materialName|lower }} {{ (iss.recordedBy or '')|lower }}" data-date="{{ iss.issueDate }}">
+                            <td data-label="Issuance Ref"><b>#IS-{{ iss.issuanceID }}</b></td>
+                            <td data-label="Associated Order">
+                                <a href="{{ url_for('production.orderDetail', orderID=iss.orderID) }}" class="auditOrderLink">Order #PO-{{ iss.orderID }}</a>
+                                <span style="color: var(--mt); font-size: 12.5px;">&middot; {{ iss.furnitureName }}</span>
+                            </td>
+                            <td data-label="Raw Material"><b>{{ iss.materialName }}</b></td>
+                            <td data-label="Dispatched Quantity" style="text-align: right; font-weight: 600;">
+                                {{ "{:,.3f}".format(iss.quantityIssued).rstrip('0').rstrip('.') }} {{ iss.unit }}
+                            </td>
+                            <td data-label="Issue Date">{{ iss.issueDate }}</td>
+                            <td data-label="Issued By">
+                                <span style="font-weight: 500; color: var(--tx);">{{ iss.recordedBy or 'Dave Cagalitan' }}</span>
+                            </td>
+                        </tr>
+                        {% else %}
+                        <tr class="auditEmptyRow">
+                            <td colspan="6" class="auditEmptyCell">No dispatch records recorded.</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+            <div class="auditPagination" id="dispatchesPagination">
+                <span class="auditPaginationInfo" id="dispatchesPageInfo"></span>
+                <div class="auditPaginationControls">
+                    <button type="button" class="btn" id="dispatchesPrevBtn" onclick="changeAuditPage('dispatches', -1)">&larr; Prev</button>
+                    <span id="dispatchesPageIndicator" style="font-size: 12.5px; font-weight: 600; color: var(--tx);"></span>
+                    <button type="button" class="btn" id="dispatchesNextBtn" onclick="changeAuditPage('dispatches', 1)">Next &rarr;</button>
+                </div>
+            </div>
+        </div>
+
+        <div id="paneQuality" class="auditTabPane">
+            <div class="tableContainer auditTableWrapper qualityWrapper">
+                <table class="auditTable qualityTable">
+                    <thead>
+                        <tr>
+                            <th style="width: 140px;">Inspection Ref</th>
+                            <th>Order Reference</th>
+                            <th>Furniture Product</th>
+                            <th style="text-align: right; width: 130px;">Inspected Units</th>
+                            <th style="width: 120px;">Quality Status</th>
+                            <th>Inventory Stock Effect</th>
+                            <th style="width: 140px;">Inspected By</th>
+                        </tr>
+                    </thead>
+                    <tbody id="qualityTableBody">
+                        {% for o in outputRecords %}
+                        <tr class="auditRow qualityRow" data-order="PO-{{ o.orderID }}" data-search="PO-{{ o.orderID }} {{ o.furnitureName|lower }} {{ o.qualityStatus|lower }} {{ (o.recordedBy or '')|lower }}" data-date="{{ o.inspectionDate }}">
+                            <td data-label="Inspection Ref">
+                                <b>#OP-{{ o.outputID }}</b>
+                                <div class="auditDateSub">{{ o.formattedInspectionDate }}</div>
+                            </td>
+                            <td data-label="Order Reference">
+                                <a href="{{ url_for('production.orderDetail', orderID=o.orderID) }}" class="auditOrderLink">Order #PO-{{ o.orderID }}</a>
+                            </td>
+                            <td data-label="Furniture Product">{{ o.furnitureName }}</td>
+                            <td data-label="Inspected Units" style="text-align: right; font-weight: 600;">{{ o.quantity }} units</td>
+                            <td data-label="Quality Status">
+                                {% if o.qualityStatus == 'Passed' %}
+                                <span class="statusBadge completed">&check; Passed</span>
+                                {% elif o.qualityStatus == 'Rework' %}
+                                <span class="statusBadge" style="background: rgba(181, 143, 85, 0.15); color: #8e622a; border: 1px solid rgba(181, 143, 85, 0.35);">&circlearrowright; Rework</span>
+                                {% elif o.qualityStatus == 'Failed' %}
+                                <span class="statusBadge alert">&cross; Failed</span>
+                                {% else %}
+                                <span class="statusBadge draft">{{ o.qualityStatus }}</span>
+                                {% endif %}
+                            </td>
+                            <td data-label="Inventory Effect">
+                                {% if o.qualityStatus == 'Passed' %}
+                                <b style="color: var(--p); font-size: 12.5px;">&check; +{{ o.quantity }} units credited to Finished Goods</b>
+                                {% elif o.qualityStatus == 'Rework' %}
+                                <span style="color: #8e622a; font-size: 12.5px;">&circlearrowright; Returned to workshop (75%)</span>
+                                {% elif o.qualityStatus == 'Failed' %}
+                                <span style="color: var(--rd); font-size: 12.5px;">&cross; Rejected / Scrapped</span>
+                                {% else %}
+                                <span style="color: var(--mt); font-size: 12.5px;">Pending QA review</span>
+                                {% endif %}
+                            </td>
+                            <td data-label="Inspected By">
+                                <span style="font-weight: 500; color: var(--tx);">{{ o.recordedBy or 'Dave Cagalitan' }}</span>
+                            </td>
+                        </tr>
+                        {% else %}
+                        <tr class="auditEmptyRow">
+                            <td colspan="7" class="auditEmptyCell">No quality inspection records recorded.</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+            <div class="auditPagination" id="qualityPagination">
+                <span class="auditPaginationInfo" id="qualityPageInfo"></span>
+                <div class="auditPaginationControls">
+                    <button type="button" class="btn" id="qualityPrevBtn" onclick="changeAuditPage('quality', -1)">&larr; Prev</button>
+                    <span id="qualityPageIndicator" style="font-size: 12.5px; font-weight: 600; color: var(--tx);"></span>
+                    <button type="button" class="btn" id="qualityNextBtn" onclick="changeAuditPage('quality', 1)">Next &rarr;</button>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+function switchReportMainTab(tabKey) {
+    const isExecutive = (tabKey === 'executive');
+    document.getElementById('mainTabExecutive').classList.toggle('active', isExecutive);
+    document.getElementById('mainTabAudit').classList.toggle('active', !isExecutive);
+    document.getElementById('paneExecutiveReport').style.display = isExecutive ? 'block' : 'none';
+    document.getElementById('paneAuditReport').style.display = isExecutive ? 'none' : 'block';
+    const actionGroup = document.getElementById('reportActionBtnGroup');
+    if (actionGroup) actionGroup.style.display = isExecutive ? 'block' : 'none';
+    if (!isExecutive) {
+        applyAuditFilters();
+    }
+}
+
+let activeAuditTab = 'dispatches';
+const auditPages = { dispatches: 1, quality: 1 };
+const pageSize = 25;
+
+function switchAuditTab(tabKey) {
+    activeAuditTab = tabKey;
+    document.getElementById('tabBtnDispatches').classList.toggle('active', tabKey === 'dispatches');
+    document.getElementById('tabBtnQuality').classList.toggle('active', tabKey === 'quality');
+    document.getElementById('paneDispatches').classList.toggle('active', tabKey === 'dispatches');
+    document.getElementById('paneQuality').classList.toggle('active', tabKey === 'quality');
+    applyAuditFilters();
+}
+
+function applyAuditFilters() {
+    const q = (document.getElementById('auditSearchInput').value || '').trim().toLowerCase();
+    const orderFilter = (document.getElementById('auditOrderSelect').value || '').trim();
+    const dateFrom = document.getElementById('auditDateFrom').value;
+    const dateTo = document.getElementById('auditDateTo').value;
+
+    const rowClass = activeAuditTab === 'dispatches' ? '.dispatchRow' : '.qualityRow';
+    const rows = Array.from(document.querySelectorAll(rowClass));
+
+    const matchedRows = [];
+    rows.forEach(row => {
+        const searchBlob = row.dataset.search || '';
+        const rowOrder = row.dataset.order || '';
+        const rowDate = row.dataset.date || '';
+
+        let matches = true;
+        if (q && !searchBlob.includes(q)) matches = false;
+        if (orderFilter && rowOrder !== orderFilter) matches = false;
+        if (dateFrom && rowDate && rowDate < dateFrom) matches = false;
+        if (dateTo && rowDate && rowDate > dateTo) matches = false;
+
+        if (matches) {
+            matchedRows.push(row);
+        } else {
+            row.style.display = 'none';
+        }
+    });
+
+    const currentPage = auditPages[activeAuditTab];
+    const totalRecords = matchedRows.length;
+    const totalPages = Math.ceil(totalRecords / pageSize) || 1;
+    if (currentPage > totalPages) auditPages[activeAuditTab] = totalPages;
+    const effectivePage = auditPages[activeAuditTab];
+
+    const startIndex = (effectivePage - 1) * pageSize;
+    const endIndex = startIndex + pageSize;
+
+    matchedRows.forEach((row, idx) => {
+        row.style.display = (idx >= startIndex && idx < endIndex) ? '' : 'none';
+    });
+
+    const infoEl = document.getElementById(activeAuditTab + 'PageInfo');
+    const indicatorEl = document.getElementById(activeAuditTab + 'PageIndicator');
+    const prevBtn = document.getElementById(activeAuditTab + 'PrevBtn');
+    const nextBtn = document.getElementById(activeAuditTab + 'NextBtn');
+
+    if (totalRecords === 0) {
+        if (infoEl) infoEl.textContent = 'No records match filter';
+        if (indicatorEl) indicatorEl.textContent = '0 of 0';
+        if (prevBtn) prevBtn.disabled = true;
+        if (nextBtn) nextBtn.disabled = true;
+    } else {
+        const startDisplay = startIndex + 1;
+        const endDisplay = Math.min(endIndex, totalRecords);
+        if (infoEl) infoEl.textContent = `Showing ${startDisplay}-${endDisplay} of ${totalRecords}`;
+        if (indicatorEl) indicatorEl.textContent = `Page ${effectivePage} of ${totalPages}`;
+        if (prevBtn) prevBtn.disabled = effectivePage <= 1;
+        if (nextBtn) nextBtn.disabled = effectivePage >= totalPages;
+    }
+}
+
+function changeAuditPage(tabKey, delta) {
+    auditPages[tabKey] += delta;
+    if (auditPages[tabKey] < 1) auditPages[tabKey] = 1;
+    applyAuditFilters();
+}
+
+function resetAuditFilters() {
+    document.getElementById('auditSearchInput').value = '';
+    document.getElementById('auditOrderSelect').value = '';
+    document.getElementById('auditDateFrom').value = '';
+    document.getElementById('auditDateTo').value = '';
+    auditPages.dispatches = 1;
+    auditPages.quality = 1;
+    applyAuditFilters();
+}
+
+document.addEventListener('DOMContentLoaded', function () {
+    const urlParams = new URLSearchParams(window.location.search);
+    if (urlParams.get('tab') === 'audit') {
+        switchReportMainTab('audit');
+    }
+});
+</script>
 {% endblock %}

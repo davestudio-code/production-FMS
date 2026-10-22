@@ -35,19 +35,24 @@ body {
 nav {
     width: 240px;
     background: var(--p);
-    padding: 24px 12px;
+    padding: 16px 12px;
     flex-shrink: 0;
     display: flex;
     flex-direction: column;
+    position: sticky;
+    top: 0;
+    height: 100vh;
+    box-sizing: border-box;
 }
 
 .navBrand {
-    padding: 0 10px 20px;
+    padding: 0 8px 14px;
     border-bottom: 1px solid rgba(246, 238, 218, 0.2);
-    margin-bottom: 16px;
+    margin-bottom: 10px;
     display: flex;
     justify-content: space-between;
     align-items: center;
+    flex-shrink: 0;
 }
 
 .navBrand h1 {
@@ -98,17 +103,30 @@ nav {
 .navLinksContainer {
     display: flex;
     flex-direction: column;
-    gap: 4px;
+    gap: 2px;
+    flex: 1;
+    min-height: 0;
+    overflow-y: auto;
+    padding-right: 2px;
+}
+
+.navLinksContainer::-webkit-scrollbar {
+    width: 4px;
+}
+
+.navLinksContainer::-webkit-scrollbar-thumb {
+    background: rgba(246, 238, 218, 0.25);
+    border-radius: 4px;
 }
 
 nav a {
     display: flex;
     align-items: center;
-    padding: 10px 14px;
+    padding: 7px 12px;
     color: var(--pt);
     text-decoration: none;
     border-radius: 8px;
-    font-size: 13.5px;
+    font-size: 13px;
     font-weight: 500;
     transition: all 0.15s ease;
 }
@@ -633,25 +651,6 @@ button.danger {
     color: var(--tx);
 }
 
-.userProfileHeader {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    gap: 8px;
-    padding: 8px 12px;
-    background: rgba(246, 238, 218, 0.12);
-    border: 1px solid rgba(213, 199, 170, 0.25);
-    border-radius: 10px;
-    margin-bottom: 14px;
-}
-
-.userProfileInfo {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    overflow: hidden;
-}
-
 .userBadge {
     display: inline-block;
     padding: 3px 8px;
@@ -673,31 +672,77 @@ button.danger {
     color: #FFFFFF;
 }
 
-.userName {
-    font-size: 12.5px;
-    font-weight: 600;
+.userProfileFooter {
+    margin-top: auto;
+    padding-top: 10px;
+    border-top: 1px solid rgba(246, 238, 218, 0.18);
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    flex-shrink: 0;
+}
+
+.userProfileCard {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 8px 10px;
+    background: rgba(246, 238, 218, 0.12);
+    border: 1px solid rgba(213, 199, 170, 0.25);
+    border-radius: 10px;
+}
+
+.userAvatar {
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    background: #F6EEDA;
+    color: #66754C;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: 700;
+    font-size: 13.5px;
+    flex-shrink: 0;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.userMeta {
+    display: flex;
+    flex-direction: column;
+    gap: 3px;
+    min-width: 0;
+    flex: 1;
+}
+
+.userFullName {
+    font-size: 13px;
+    font-weight: 700;
     color: #F6EEDA;
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
-    max-width: 150px;
 }
 
-.logoutBtn {
-    font-size: 11px;
+.logoutFooterBtn {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 7px;
+    width: 100%;
+    padding: 7px 10px;
+    font-size: 12px;
     font-weight: 600;
     color: #F6EEDA;
     text-decoration: none;
-    padding: 3px 8px;
-    border-radius: 6px;
-    background: rgba(213, 199, 170, 0.2);
-    border: 1px solid rgba(213, 199, 170, 0.35);
+    border-radius: 8px;
+    background: rgba(213, 199, 170, 0.18);
+    border: 1px solid rgba(213, 199, 170, 0.3);
     transition: all 0.15s ease;
-    white-space: nowrap;
-    flex-shrink: 0;
+    box-sizing: border-box;
 }
 
-.logoutBtn:hover {
+.logoutFooterBtn:hover {
     background: #9A4A3A;
     color: #FFFFFF;
     border-color: #9A4A3A;

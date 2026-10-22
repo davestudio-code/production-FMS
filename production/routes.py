@@ -723,7 +723,7 @@ def issueOrderMaterials(orderID):
         with openTransaction() as conn:
             for r in reqs:
                 integration.deduct_material_stock(r["materialID"], r["batchQuantity"], conn=conn)
-                MaterialIssuance.recordIssuance(orderID, r["materialID"], r["batchQuantity"], conn=conn)
+                MaterialIssuance.recordIssuance(orderID, r["materialID"], r["batchQuantity"], recordedBy=session.get("employee_name", "Dave Cagalitan"), conn=conn)
 
             with conn.cursor() as cur:
                 cur.execute("""
@@ -868,6 +868,7 @@ def recordInspection(orderID):
                 furnitureID=order.furnitureID,
                 quantity=inspectQty,
                 qualityStatus=statusChoice,
+                recordedBy=session.get("employee_name", "Dave Cagalitan"),
                 conn=conn
             )
 
@@ -1090,10 +1091,28 @@ def reportView():
             statusFilter = "All"
             filteredOrders = allOrders
 
+        issuances = MaterialIssuance.getAll()
+        outputRecords = ProductionOutput.getAll()
+        activityDates = []
+        for iss in issuances:
+            if iss.issueDate:
+                activityDates.append(iss.issueDate)
+        for o in outputRecords:
+            if o.inspectionDate:
+                activityDates.append(o.inspectionDate)
+        if activityDates:
+            latest = max(activityDates)
+            lastActivity = latest.strftime("%b %d, %Y") if hasattr(latest, "strftime") else str(latest)
+        else:
+            lastActivity = "-"
+
     except Exception as err:
         flash(f"Failed to load production reports: {str(err)}", "error")
         filteredOrders = []
         materialUsageRows = []
+        issuances = []
+        outputRecords = []
+        lastActivity = "-"
         summary = {
             "totalOrders": 0,
             "completedOrders": 0,
@@ -1114,39 +1133,16 @@ def reportView():
         reportRows=filteredOrders,
         materialUsage=materialUsageRows,
         summary=summary,
-        currentFilter=statusFilter
+        currentFilter=statusFilter,
+        issuances=issuances,
+        outputRecords=outputRecords,
+        lastActivity=lastActivity
     )
 
 @productionBlueprint.route("/logs")
 @roles_required("prodManager")
 def logsView():
-    try:
-        issuances = MaterialIssuance.getAll()
-        outputRecords = ProductionOutput.getAll()
-        activityDates = []
-        for iss in issuances:
-            if iss.issueDate:
-                activityDates.append(iss.issueDate)
-        for o in outputRecords:
-            if o.inspectionDate:
-                activityDates.append(o.inspectionDate)
-        if activityDates:
-            latest = max(activityDates)
-            lastActivity = latest.strftime("%b %d, %Y") if hasattr(latest, "strftime") else str(latest)
-        else:
-            lastActivity = "-"
-    except Exception as err:
-        flash(f"Failed to load production logs: {str(err)}", "error")
-        issuances = []
-        outputRecords = []
-        lastActivity = "-"
+    return redirect(url_for("production.reportView", tab="audit"))
 
-    return render_template(
-        "production/logs.html",
-        activeTab="logs",
-        issuances=issuances,
-        outputRecords=outputRecords,
-        lastActivity=lastActivity
-    )
 
 

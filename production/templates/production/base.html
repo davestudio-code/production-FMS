@@ -20,17 +20,6 @@
                     <span class="hamburgerBar"></span>
                 </button>
             </div>
-            {% if session.get('user_id') %}
-            <div class="userProfileHeader">
-                <div class="userProfileInfo">
-                    <span class="userBadge {{ 'managerBadge' if session.get('role') == 'prodManager' else 'staffBadge' }}">
-                        {{ 'Manager' if session.get('role') == 'prodManager' else 'Staff' }}
-                    </span>
-                    <span class="userName" title="{{ session.get('employee_name') }}">{{ session.get('employee_name', 'Operator') }}</span>
-                </div>
-                <a href="{{ url_for('production.logout') }}" class="logoutBtn" title="Sign Out">Sign Out</a>
-            </div>
-            {% endif %}
             <div id="navLinksContainer" class="navLinksContainer">
                 <a href="{{ url_for('production.index') }}" class="{{ 'active' if activeTab == 'dashboard' else '' }}">Dashboard</a>
                 <a href="{{ url_for('production.furnitureList') }}" class="{{ 'active' if activeTab == 'furniture' else '' }}">Product Master</a>
@@ -44,9 +33,35 @@
                 {% if session.get('role') == 'prodManager' %}
                 <a href="{{ url_for('production.costingList') }}" class="{{ 'active' if activeTab == 'costing' else '' }}">Production Costing</a>
                 <a href="{{ url_for('production.reportView') }}" class="{{ 'active' if activeTab == 'report' else '' }}">Production Reports</a>
-                <a href="{{ url_for('production.logsView') }}" class="{{ 'active' if activeTab == 'logs' else '' }}">Audit Log</a>
                 {% endif %}
             </div>
+            {% if session.get('user_id') %}
+            <div class="userProfileFooter">
+                <div class="userProfileCard">
+                    <div class="userAvatar">
+                        {{ (session.get('employee_name') or 'U')[:1]|upper }}
+                    </div>
+                    <div class="userMeta">
+                        <span class="userFullName" title="{{ session.get('employee_name') }}">
+                            {{ session.get('employee_name', 'Operator') }}
+                        </span>
+                        <div>
+                            <span class="userBadge {{ 'managerBadge' if session.get('role') == 'prodManager' else 'staffBadge' }}">
+                                {{ 'Manager' if session.get('role') == 'prodManager' else 'Staff' }}
+                            </span>
+                        </div>
+                    </div>
+                </div>
+                <a href="{{ url_for('production.logout') }}" class="logoutFooterBtn" title="Sign Out">
+                    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path>
+                        <polyline points="16 17 21 12 16 7"></polyline>
+                        <line x1="21" y1="12" x2="9" y2="12"></line>
+                    </svg>
+                    <span>Sign Out</span>
+                </a>
+            </div>
+            {% endif %}
         </nav>
         <main>
             {% block content %}{% endblock %}

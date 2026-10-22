@@ -12,6 +12,7 @@ class ProductionOutput:
             self.quantity = int(data.get("quantity", 0))
             self.qualityStatus = data.get("quality_status", "Pending")
             self.inspectionDate = data.get("inspection_date")
+            self.recordedBy = data.get("recorded_by") or "Dave Cagalitan"
             self.furnitureName = data.get("furniture_name", "")
             self.furnitureType = data.get("furniture_type", "")
         else:
@@ -21,6 +22,7 @@ class ProductionOutput:
             self.quantity = 0
             self.qualityStatus = "Pending"
             self.inspectionDate = None
+            self.recordedBy = "Dave Cagalitan"
             self.furnitureName = ""
             self.furnitureType = ""
 
@@ -34,19 +36,20 @@ class ProductionOutput:
             return str(self.inspectionDate)
 
     @classmethod
-    def recordOutput(cls, orderID, furnitureID, quantity, qualityStatus="Passed", conn=None):
+    def recordOutput(cls, orderID, furnitureID, quantity, qualityStatus="Passed", recordedBy=None, conn=None):
         if qualityStatus not in cls.VALID_STATUSES:
             raise ValueError(f"Invalid quality status '{qualityStatus}'. Allowed: {cls.VALID_STATUSES}")
         if int(quantity) < 0:
             raise ValueError("Quantity cannot be negative.")
 
+        inspectorName = recordedBy or "Dave Cagalitan"
         with openTransaction(conn) as connection:
             with connection.cursor() as cursor:
                 cursor.execute("""
-                    INSERT INTO prod_productionoutput (order_id, furniture_id, quantity, quality_status, inspection_date)
-                    VALUES (%s, %s, %s, %s, CURRENT_DATE)
-                    RETURNING output_id, order_id, furniture_id, quantity, quality_status, inspection_date
-                """, (orderID, furnitureID, quantity, qualityStatus))
+                    INSERT INTO prod_productionoutput (order_id, furniture_id, quantity, quality_status, inspection_date, recorded_by)
+                    VALUES (%s, %s, %s, %s, CURRENT_DATE, %s)
+                    RETURNING output_id, order_id, furniture_id, quantity, quality_status, inspection_date, recorded_by
+                """, (orderID, furnitureID, quantity, qualityStatus, inspectorName))
                 row = cursor.fetchone()
                 return cls(row)
 
@@ -61,6 +64,7 @@ class ProductionOutput:
                            o.quantity,
                            o.quality_status,
                            o.inspection_date,
+                           o.recorded_by,
                            f.furniture_name,
                            f.furniture_type
                     FROM prod_productionoutput o
