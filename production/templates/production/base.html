@@ -20,6 +20,17 @@
                     <span class="hamburgerBar"></span>
                 </button>
             </div>
+            {% if session.get('user_id') %}
+            <div class="userProfileHeader">
+                <div class="userProfileInfo">
+                    <span class="userBadge {{ 'managerBadge' if session.get('role') == 'prodManager' else 'staffBadge' }}">
+                        {{ 'Manager' if session.get('role') == 'prodManager' else 'Staff' }}
+                    </span>
+                    <span class="userName" title="{{ session.get('employee_name') }}">{{ session.get('employee_name', 'Operator') }}</span>
+                </div>
+                <a href="{{ url_for('production.logout') }}" class="logoutBtn" title="Sign Out">Sign Out</a>
+            </div>
+            {% endif %}
             <div id="navLinksContainer" class="navLinksContainer">
                 <a href="{{ url_for('production.index') }}" class="{{ 'active' if activeTab == 'dashboard' else '' }}">Dashboard</a>
                 <a href="{{ url_for('production.furnitureList') }}" class="{{ 'active' if activeTab == 'furniture' else '' }}">Product Master</a>
@@ -30,8 +41,11 @@
                 <a href="{{ url_for('production.issuanceList') }}" class="{{ 'active' if activeTab == 'issuance' else '' }}">Material Issuance</a>
                 <a href="{{ url_for('production.monitoringList') }}" class="{{ 'active' if activeTab == 'monitoring' else '' }}">Production Monitoring</a>
                 <a href="{{ url_for('production.finishedGoodsList') }}" class="{{ 'active' if activeTab == 'finishedGoods' else '' }}">Finished Goods</a>
+                {% if session.get('role') == 'prodManager' %}
                 <a href="{{ url_for('production.costingList') }}" class="{{ 'active' if activeTab == 'costing' else '' }}">Production Costing</a>
                 <a href="{{ url_for('production.reportView') }}" class="{{ 'active' if activeTab == 'report' else '' }}">Production Reports</a>
+                <a href="{{ url_for('production.logsView') }}" class="{{ 'active' if activeTab == 'logs' else '' }}">Production Logs</a>
+                {% endif %}
             </div>
         </nav>
         <main>

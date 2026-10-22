@@ -32,7 +32,9 @@
                     <th>Material Code</th>
                     <th>Material Description</th>
                     <th>Unit of Measure</th>
+                    {% if session.get('role') == 'prodManager' %}
                     <th>Standard Cost (for BOM)</th>
+                    {% endif %}
                     <th>Available On Hand (Team 2)</th>
                     <th>Production Readiness</th>
                 </tr>
@@ -43,7 +45,9 @@
                     <td><b>RM-{{ "%03d"|format(mat.materialID) }}</b></td>
                     <td><b>{{ mat.materialName }}</b></td>
                     <td>{{ mat.unit }}</td>
+                    {% if session.get('role') == 'prodManager' %}
                     <td>₱{{ "{:,.2f}".format(mat.unitCost) }}</td>
+                    {% endif %}
                     <td>
                         <b style="font-size: 14.5px;">{{ mat.quantityOnHand }}</b> {{ mat.unit }}
                     </td>
@@ -57,7 +61,7 @@
                 </tr>
                 {% else %}
                 <tr>
-                    <td colspan="6" style="text-align: center; color: var(--mt); padding: 24px;">No inventory stock data retrieved from Team 2 yet.</td>
+                    <td colspan="{{ '6' if session.get('role') == 'prodManager' else '5' }}" style="text-align: center; color: var(--mt); padding: 24px;">No inventory stock data retrieved from Team 2 yet.</td>
                 </tr>
                 {% endfor %}
             </tbody>

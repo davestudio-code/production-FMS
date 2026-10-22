@@ -6,7 +6,9 @@
         <h2>Product Master Catalog</h2>
         <span style="color: var(--mt); font-size: 13.5px;">Finished furniture designs, classifications, and target selling prices</span>
     </div>
+    {% if session.get('role') == 'prodManager' %}
     <button class="actionButton" onclick="openModal('addFurnitureModal')">+ Add New Product</button>
+    {% endif %}
 </div>
 
 <div class="card">
@@ -47,10 +49,12 @@
                     <td>
                         <div style="display: flex; gap: 8px; align-items: center;">
                             <a href="{{ url_for('production.bomList') }}?furniture_id={{ item.furnitureID }}" class="actionButton secondary" style="padding: 5px 11px; font-size: 12px; text-decoration: none;">BOM Recipe</a>
+                            {% if session.get('role') == 'prodManager' %}
                             <button type="button" class="actionButton secondary" style="padding: 5px 11px; font-size: 12px;" onclick="openEditModal({{ item.furnitureID }}, '{{ item.furnitureName|replace('\'', '\\\'') }}', '{{ item.furnitureType|replace('\'', '\\\'') }}', '{{ item.sellingPrice }}')">Edit</button>
                             <form method="POST" action="{{ url_for('production.deleteFurniture', furnitureID=item.furnitureID) }}" style="display: inline;" onsubmit="return confirm('Are you sure you want to delete \'{{ item.furnitureName|replace('\'', '\\\'') }}\'?');">
                                 <button type="submit" class="actionButton secondary" style="padding: 5px 11px; font-size: 12px; color: #9a4a3a; border-color: #e2bcb3;">Delete</button>
                             </form>
+                            {% endif %}
                         </div>
                     </td>
                 </tr>

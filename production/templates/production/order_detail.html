@@ -21,14 +21,14 @@
         <span style="color: var(--mt); font-size: 13.5px;">{{ order.furnitureName }} ({{ order.furnitureType }}) &bull; Ordered on {{ order.orderDate }}</span>
     </div>
 
-    {% if order.status == 'Draft' %}
+    {% if order.status == 'Draft' and session.get('role') == 'prodManager' %}
     <div style="display: flex; gap: 8px; align-items: center; flex-wrap: wrap;">
         <a href="{{ url_for('production.requirementList', order_id=order.orderID) }}" class="actionButton" style="padding: 6px 12px; font-size: 12.5px; text-decoration: none;">Check Requirements & Release &rarr;</a>
         <form method="POST" action="{{ url_for('production.deleteOrder', orderID=order.orderID) }}" onsubmit="return confirm('Are you sure you want to delete Draft Order #PO-{{ order.orderID }}?');" style="display: inline;">
             <button type="submit" class="actionButton secondary" style="color: #9a4a3a; border-color: #e2bcb3;">Delete Draft Order</button>
         </form>
     </div>
-    {% elif order.status == 'Released' %}
+    {% elif order.status == 'Released' and session.get('role') == 'prodManager' %}
     <div style="display: flex; gap: 8px; align-items: center; flex-wrap: wrap;">
         <a href="{{ url_for('production.issuanceList') }}" class="actionButton" style="padding: 6px 12px; font-size: 12.5px; text-decoration: none;">Issue Materials &rarr;</a>
     </div>
@@ -62,6 +62,7 @@
             <span style="font-size: 12px; color: var(--mt); display: block;">Target Due Date</span>
             <b style="font-size: 14.5px;">{{ order.dueDate or 'Not Scheduled' }}</b>
         </div>
+        {% if session.get('role') == 'prodManager' %}
         <div>
             <span style="font-size: 12px; color: var(--mt); display: block;">Estimated Material Cost per Unit</span>
             <b style="font-size: 14.5px;">₱{{ "{:,.2f}".format(estimatedUnitMaterialCost) }}</b>
@@ -70,6 +71,7 @@
             <span style="font-size: 12px; color: var(--mt); display: block;">Estimated Material Cost for Batch</span>
             <b style="font-size: 14.5px; color: var(--p);">₱{{ "{:,.2f}".format(estimatedBatchMaterialCost) }}</b>
         </div>
+        {% endif %}
         <div>
             <span style="font-size: 12px; color: var(--mt); display: block;">Current Production Status</span>
             <b style="font-size: 14.5px;">{{ order.status }}</b>
@@ -86,10 +88,12 @@
             <h3 style="font-size: 15px; margin: 0;">Bill of Materials Requirements (Read-Only)</h3>
             <span style="color: var(--mt); font-size: 12px;">Component material breakdown needed for batch of {{ order.plannedQuantity }} units</span>
         </div>
+        {% if session.get('role') == 'prodManager' %}
         <div>
             <span style="font-size: 13px; color: var(--mt); margin-right: 6px;">Estimated Material Cost for Batch:</span>
             <b style="font-size: 16px; color: var(--p);">₱{{ "{:,.2f}".format(estimatedBatchMaterialCost) }}</b>
         </div>
+        {% endif %}
     </div>
 
     <div class="tableContainer">
@@ -99,8 +103,10 @@
                     <th>Material Component</th>
                     <th>Per 1 Unit</th>
                     <th>Required for Batch ({{ order.plannedQuantity }} units)</th>
+                    {% if session.get('role') == 'prodManager' %}
                     <th>Standard Unit Cost</th>
                     <th>Estimated Component Cost</th>
+                    {% endif %}
                 </tr>
             </thead>
             <tbody>
@@ -109,12 +115,14 @@
                     <td><b>{{ req.materialName }}</b></td>
                     <td>{{ "{:,.3f}".format(req.quantityRequired).rstrip('0').rstrip('.') or '0' }} {{ req.unit }}</td>
                     <td><b>{{ "{:,.3f}".format(req.batchQuantity).rstrip('0').rstrip('.') or '0' }} {{ req.unit }}</b></td>
+                    {% if session.get('role') == 'prodManager' %}
                     <td>₱{{ "{:,.2f}".format(req.unitCost) }}</td>
                     <td>₱{{ "{:,.2f}".format(req.batchCost) }}</td>
+                    {% endif %}
                 </tr>
                 {% else %}
                 <tr>
-                    <td colspan="5" style="text-align: center; color: var(--mt); padding: 24px;">No bill of materials recipe found for this product.</td>
+                    <td colspan="{{ '5' if session.get('role') == 'prodManager' else '3' }}" style="text-align: center; color: var(--mt); padding: 24px;">No bill of materials recipe found for this product.</td>
                 </tr>
                 {% endfor %}
             </tbody>

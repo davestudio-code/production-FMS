@@ -114,11 +114,15 @@
                 <span style="font-size: 12px; color: var(--mt);">Sufficient raw materials are avalable in inventory
                     to fulfill this batch.</span>
             </div>
+            {% if session.get('role') == 'prodManager' %}
             <form method="POST" action="{{ url_for('production.releaseOrder', orderID=selectedOrder.orderID) }}"
                 onsubmit="return confirm('Release Order #PO-{{ selectedOrder.orderID }} to production?');">
                 <button type="submit" class="actionButton" style="padding: 9px 20px; font-size: 13.5px;">Release Order
                     to Production</button>
             </form>
+            {% else %}
+            <span style="font-size: 12.5px; color: var(--mt); font-style: italic;">Awaiting Manager Release</span>
+            {% endif %}
         </div>
         {% endif %}
         {% elif selectedOrder.status == 'Released' %}

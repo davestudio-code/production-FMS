@@ -1,8 +1,9 @@
-from flask import Blueprint, render_template, request, redirect, url_for, flash
+from flask import Blueprint, render_template, request, redirect, url_for, flash, session
 from decimal import Decimal, InvalidOperation
 from datetime import date
 from psycopg2.errors import UniqueViolation
 from .db import openTransaction
+from .auth import authenticate_credentials, login_required, roles_required
 from .models.furniture import Furniture
 from .models.material import Material
 from .models.billofmaterials import BillOfMaterials
@@ -20,6 +21,45 @@ productionBlueprint = Blueprint(
     template_folder="templates",
     static_folder="static"
 )
+
+@productionBlueprint.before_request
+def requireLogin():
+    if request.endpoint in ("production.login", "production.logout", "production.static"):
+        return
+    if not session.get("user_id"):
+        return redirect(url_for("production.login", next=request.path))
+
+@productionBlueprint.route("/login", methods=["GET", "POST"])
+def login():
+    if session.get("user_id"):
+        return redirect(url_for("production.index"))
+    if request.method == "POST":
+        email = request.form.get("email", "").strip()
+        password = request.form.get("password", "")
+        user_record, error_message = authenticate_credentials(email, password)
+        if error_message:
+            flash(error_message, "danger")
+            return render_template("production/login.html")
+        session["user_id"] = user_record.get("user_id") or user_record.get("employee_id") or user_record.get("auth_user_id")
+        session["email"] = user_record.get("email")
+        name = user_record.get("name") or ""
+        last_name = user_record.get("last_name") or ""
+        full_name = f"{name} {last_name}".strip()
+        session["employee_name"] = full_name if full_name else user_record.get("email")
+        session["role"] = user_record.get("assigned_role", "prodStaff")
+        session["position"] = user_record.get("position_name")
+        flash(f"Welcome back, {session['employee_name']}!", "success")
+        next_page = request.args.get("next")
+        if next_page and next_page.startswith("/production") and not next_page.startswith("/production/logout") and not next_page.startswith("/production/login"):
+            return redirect(next_page)
+        return redirect(url_for("production.index"))
+    return render_template("production/login.html")
+
+@productionBlueprint.route("/logout")
+def logout():
+    session.clear()
+    flash("You have been signed out successfully.", "info")
+    return redirect(url_for("production.login"))
 
 def getDatabaseStatus():
     try:
@@ -84,6 +124,7 @@ def furnitureList():
     )
 
 @productionBlueprint.route("/furniture/add", methods=["POST"])
+@roles_required("prodManager")
 def addFurniture():
     furnitureName = request.form.get("furnitureName", "").strip()
     furnitureType = request.form.get("furnitureType", "").strip()
@@ -117,6 +158,7 @@ def addFurniture():
     return redirect(url_for("production.furnitureList"))
 
 @productionBlueprint.route("/furniture/edit/<int:furnitureID>", methods=["POST"])
+@roles_required("prodManager")
 def editFurniture(furnitureID):
     furnitureName = request.form.get("furnitureName", "").strip()
     furnitureType = request.form.get("furnitureType", "").strip()
@@ -153,6 +195,7 @@ def editFurniture(furnitureID):
     return redirect(url_for("production.furnitureList"))
 
 @productionBlueprint.route("/furniture/delete/<int:furnitureID>", methods=["POST"])
+@roles_required("prodManager")
 def deleteFurniture(furnitureID):
     try:
         Furniture.deleteFurniture(furnitureID)
@@ -241,6 +284,7 @@ def bomList():
     )
 
 @productionBlueprint.route("/bom/add", methods=["POST"])
+@roles_required("prodManager")
 def addBomItem():
     furnitureID = request.form.get("furnitureID", "").strip()
     materialID = request.form.get("materialID", "").strip()
@@ -295,6 +339,7 @@ def addBomItem():
     return redirect(url_for("production.bomList", furniture_id=furnitureID))
 
 @productionBlueprint.route("/bom/remove/<int:bomItemID>", methods=["POST"])
+@roles_required("prodManager")
 def removeBomItem(bomItemID):
     furnitureID = request.form.get("furnitureID", "").strip()
     if not furnitureID or not furnitureID.isdigit():
@@ -365,6 +410,7 @@ def orderDetail(orderID):
     )
 
 @productionBlueprint.route("/orders/create", methods=["POST"])
+@roles_required("prodManager")
 def createOrder():
     furnitureIDRaw = request.form.get("furnitureID", "").strip()
     quantityRaw = request.form.get("plannedQuantity", "").strip()
@@ -431,6 +477,7 @@ def createOrder():
     return redirect(url_for("production.orderList"))
 
 @productionBlueprint.route("/orders/delete/<int:orderID>", methods=["POST"])
+@roles_required("prodManager")
 def deleteOrder(orderID):
     try:
         ProductionOrder.deleteOrder(orderID)
@@ -473,6 +520,7 @@ def planningList():
     )
 
 @productionBlueprint.route("/planning/update/<int:orderID>", methods=["POST"])
+@roles_required("prodManager")
 def updateOrderSchedule(orderID):
     startDateRaw = request.form.get("plannedStartDate", "").strip()
     dueDateRaw = request.form.get("dueDate", "").strip()
@@ -585,6 +633,7 @@ def requirementList():
     )
 
 @productionBlueprint.route("/requirements/release/<int:orderID>", methods=["POST"])
+@roles_required("prodManager")
 def releaseOrder(orderID):
     try:
         order = ProductionOrder.getByID(orderID)
@@ -649,6 +698,7 @@ def issuanceList():
     )
 
 @productionBlueprint.route("/issuance/issue/<int:orderID>", methods=["POST"])
+@roles_required("prodManager")
 def issueOrderMaterials(orderID):
     try:
         order = ProductionOrder.getByID(orderID)
@@ -782,6 +832,7 @@ def finishedGoodsList():
     )
 
 @productionBlueprint.route("/finished-goods/inspect/<int:orderID>", methods=["POST"])
+@roles_required("prodManager")
 def recordInspection(orderID):
     statusChoice = request.form.get("qualityStatus", "Passed").strip()
     qtyRaw = request.form.get("quantity", "").strip()
@@ -839,6 +890,7 @@ def recordInspection(orderID):
     return redirect(url_for("production.finishedGoodsList"))
 
 @productionBlueprint.route("/costing")
+@roles_required("prodManager")
 def costingList():
     try:
         allOrders = ProductionOrder.getAll()
@@ -890,6 +942,7 @@ def costingList():
     )
 
 @productionBlueprint.route("/costing/save/<int:orderID>", methods=["POST"])
+@roles_required("prodManager")
 def saveOrderCost(orderID):
     matRaw = request.form.get("materialCost", "").strip()
     labRaw = request.form.get("laborCost", "").strip()
@@ -941,6 +994,7 @@ def saveOrderCost(orderID):
     return redirect(url_for("production.costingList"))
 
 @productionBlueprint.route("/report")
+@roles_required("prodManager")
 def reportView():
     statusFilter = request.args.get("status", "All").strip()
 
@@ -1062,3 +1116,22 @@ def reportView():
         summary=summary,
         currentFilter=statusFilter
     )
+
+@productionBlueprint.route("/logs")
+@roles_required("prodManager")
+def logsView():
+    try:
+        issuances = MaterialIssuance.getAll()
+        outputRecords = ProductionOutput.getAll()
+    except Exception as err:
+        flash(f"Failed to load production logs: {str(err)}", "error")
+        issuances = []
+        outputRecords = []
+
+    return render_template(
+        "production/logs.html",
+        activeTab="logs",
+        issuances=issuances,
+        outputRecords=outputRecords
+    )
+

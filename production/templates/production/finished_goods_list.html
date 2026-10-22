@@ -231,6 +231,7 @@
                         {% endif %}
                     </td>
                     <td data-label="QA Action" class="updateCell">
+                        {% if session.get('role') == 'prodManager' %}
                         <form method="POST" action="{{ url_for('production.recordInspection', orderID=ord.orderID) }}"
                             class="updateFormRow">
                             <input type="hidden" name="quantity" value="{{ ord.plannedQuantity }}">
@@ -241,6 +242,9 @@
                             </select>
                             <button type="submit" class="btn btnPrimary stageSaveBtn">Submit QA</button>
                         </form>
+                        {% else %}
+                        <span style="font-size: 12.5px; color: var(--mt); font-style: italic;">Awaiting Manager Sign-Off</span>
+                        {% endif %}
                     </td>
                 </tr>
                 {% else %}
@@ -256,86 +260,4 @@
     </div>
 </div>
 
-<div class="card">
-    <div class="headerRow" style="margin-bottom: 14px;">
-        <div>
-            <h3 style="margin: 0;">Quality Inspection Log &amp; Stock Handoff</h3>
-            <small style="color: var(--mt);">Authoritative records from prod_productionoutput with automatic Team 2
-                stock crediting</small>
-        </div>
-        <span class="statusBadge draft">{{ outputRecords|length }} Records</span>
-    </div>
-
-    <div class="tableContainer">
-        <table class="monitoringTable">
-            <thead>
-                <tr>
-                    <th>Inspection Ref</th>
-                    <th>Order Reference</th>
-                    <th>Furniture Product</th>
-                    <th>Inspected Units</th>
-                    <th>Quality Status</th>
-                    <th>Inspection Date</th>
-                    <th>Inventory Stock Effect</th>
-                </tr>
-            </thead>
-            <tbody>
-                {% for o in outputRecords %}
-                <tr>
-                    <td data-label="Ref">
-                        <b>#OP-{{ o.outputID }}</b>
-                    </td>
-                    <td data-label="Order">
-                        <a href="{{ url_for('production.orderDetail', orderID=o.orderID) }}"
-                            style="color: var(--p); font-weight: 700; text-decoration: none;">Order #PO-{{ o.orderID
-                            }}</a>
-                    </td>
-                    <td data-label="Product">
-                        {{ o.furnitureName }}
-                    </td>
-                    <td data-label="Units">
-                        <b>{{ o.quantity }} units</b>
-                    </td>
-                    <td data-label="Status">
-                        {% if o.qualityStatus == 'Passed' %}
-                        <span class="statusBadge completed">&check; Passed</span>
-                        {% elif o.qualityStatus == 'Rework' %}
-                        <span class="statusBadge"
-                            style="background: rgba(181, 143, 85, 0.15); color: #8e622a; border: 1px solid rgba(181, 143, 85, 0.35);">&circlearrowright;
-                            Rework</span>
-                        {% elif o.qualityStatus == 'Failed' %}
-                        <span class="statusBadge alert">&cross; Failed</span>
-                        {% else %}
-                        <span class="statusBadge draft">{{ o.qualityStatus }}</span>
-                        {% endif %}
-                    </td>
-                    <td data-label="Date">
-                        {{ o.formattedInspectionDate }}
-                    </td>
-                    <td data-label="Inventory Effect">
-                        {% if o.qualityStatus == 'Passed' %}
-                        <b style="color: var(--p);">&check; +{{ o.quantity }} units credited to Team 2 Inventory
-                            (Finished Goods)</b>
-                        {% elif o.qualityStatus == 'Rework' %}
-                        <span style="color: #8e622a;">&circlearrowright; Returned to workshop (Rolled back to
-                            75%)</span>
-                        {% elif o.qualityStatus == 'Failed' %}
-                        <span style="color: var(--rd);">&cross; Rejected / Scrapped (0 units added)</span>
-                        {% else %}
-                        <span style="color: var(--mt);">Pending QA review</span>
-                        {% endif %}
-                    </td>
-                </tr>
-                {% else %}
-                <tr>
-                    <td colspan="7" style="text-align: center; color: var(--mt); padding: 28px;">
-                        No quality inspection records found. Passed inspections will automatically record here and
-                        credit Finished Goods inventory.
-                    </td>
-                </tr>
-                {% endfor %}
-            </tbody>
-        </table>
-    </div>
-</div>
 {% endblock %}

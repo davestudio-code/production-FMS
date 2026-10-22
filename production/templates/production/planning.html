@@ -94,10 +94,14 @@
                         {% endif %}
                     </td>
                     <td>
+                        {% if session.get('role') == 'prodManager' %}
                         <button type="button" class="actionButton secondary" style="padding: 4px 10px; font-size: 12px;"
                             onclick="openScheduleModal('{{ ord.orderID }}', '{{ ord.furnitureName|replace('\'', '\\\'') }}', '{{ ord.plannedStartDate or '' }}', '{{ ord.dueDate or '' }}')">
                             Edit Dates
                         </button>
+                        {% else %}
+                        <span style="color: var(--mt); font-size: 12px;">View Only</span>
+                        {% endif %}
                     </td>
                 </tr>
                 {% else %}
