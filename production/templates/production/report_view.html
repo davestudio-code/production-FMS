@@ -38,7 +38,7 @@
 }
 
 @media print {
-    nav, .toolBar, .actionButton, .hamburgerBtn, .siteHeader, header, #toastContainer, .reportMainTabs, #paneAuditReport {
+    nav, .toolBar, .actionButton, .hamburgerBtn, .siteHeader, header, #toastContainer, .reportMainTabs, #paneAuditReport, #reportPageHeader {
         display: none !important;
     }
     #paneExecutiveReport {
@@ -132,7 +132,7 @@
     </div>
 </div>
 
-<div class="headerRow" style="margin-bottom: 16px;">
+<div class="headerRow" id="reportPageHeader" style="margin-bottom: 16px;">
     <div>
         <h2 style="margin: 0 0 4px 0;">Production Performance &amp; Reports</h2>
         <span style="color: var(--mt); font-size: 13.5px;">Executive analytics, batch cost performance, and operational audit trail</span>
