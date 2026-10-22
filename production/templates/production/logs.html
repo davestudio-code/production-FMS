@@ -1,141 +1,273 @@
 {% extends "production/base.html" %}
 
 {% block content %}
-<div class="headerRow" style="margin-bottom: 24px;">
-    <div>
-        <h2 style="margin: 0 0 6px 0;">Production Audit &amp; Operational Logs</h2>
-        <span style="color: var(--mt); font-size: 14px;">Immutable chronological records of shop-floor material dispatches and quality inspection stock handoffs</span>
-    </div>
-    <div style="display: flex; gap: 8px;">
+<div class="headerRow" style="margin-bottom: 18px;">
+    <div style="display: flex; align-items: center; gap: 12px; flex-wrap: wrap;">
+        <h2 style="margin: 0;">Audit Log</h2>
         <span class="userBadge managerBadge">Manager Access Only</span>
     </div>
+    <span style="color: var(--mt); font-size: 13px;">Chronological history of workshop material dispatches and quality inspection stock handoffs</span>
 </div>
 
-<div class="metricsGrid" style="margin-bottom: 24px;">
-    <div class="metricCard">
-        <small>Total Dispatches Recorded</small>
-        <b>{{ issuances|length }}</b>
+<div class="auditSummaryRow">
+    <div class="auditSummaryCard">
+        <span class="auditSummaryLabel">Total Dispatches</span>
+        <b class="auditSummaryVal">{{ issuances|length }}</b>
     </div>
-    <div class="metricCard">
-        <small>Quality Handoffs Recorded</small>
-        <b>{{ outputRecords|length }}</b>
+    <div class="auditSummaryCard">
+        <span class="auditSummaryLabel">Quality Handoffs</span>
+        <b class="auditSummaryVal">{{ outputRecords|length }}</b>
+    </div>
+    <div class="auditSummaryCard">
+        <span class="auditSummaryLabel">Last Activity</span>
+        <b class="auditSummaryVal" style="font-size: 18px;">{{ lastActivity }}</b>
     </div>
 </div>
 
-<div class="card" style="margin-bottom: 24px;">
-    <div class="headerRow" style="margin-bottom: 14px;">
-        <div>
-            <h3 style="margin: 0;">Dispatched Materials History Log</h3>
-            <small style="color: var(--mt);">Authoritative record of raw materials dispatched to workshop (prod_materialissuance)</small>
+<div class="card" style="padding: 16px 20px;">
+    <div class="auditTabNav">
+        <button type="button" class="auditTabBtn active" id="tabBtnDispatches" onclick="switchAuditTab('dispatches')">
+            Material Dispatches ({{ issuances|length }})
+        </button>
+        <button type="button" class="auditTabBtn" id="tabBtnQuality" onclick="switchAuditTab('quality')">
+            Quality Handoffs ({{ outputRecords|length }})
+        </button>
+    </div>
+
+    <div class="auditFilterBar">
+        <div class="auditFilterItem" style="flex: 1; min-width: 200px;">
+            <input type="text" id="auditSearchInput" class="auditFilterInput" placeholder="Search by Order #, Product, Material..." oninput="applyAuditFilters()">
         </div>
-        <span class="statusBadge" style="background: #e7dfca;">{{ issuances|length }} Dispatched Records</span>
-    </div>
-
-    <div class="tableContainer">
-        <table>
-            <thead>
-                <tr>
-                    <th>Issuance Ref</th>
-                    <th>Associated Order</th>
-                    <th>Raw Material</th>
-                    <th>Dispatched Quantity</th>
-                    <th>Issue Date</th>
-                </tr>
-            </thead>
-            <tbody>
+        <div class="auditFilterItem">
+            <select id="auditOrderSelect" class="auditFilterSelect" onchange="applyAuditFilters()">
+                <option value="">All Orders</option>
+                {% set seenOrders = [] %}
                 {% for iss in issuances %}
-                <tr>
-                    <td><b>#IS-{{ iss.issuanceID }}</b></td>
-                    <td>
-                        <a href="{{ url_for('production.orderDetail', orderID=iss.orderID) }}" style="color: var(--p); font-weight: 700; text-decoration: none;">Order #PO-{{ iss.orderID }}</a>
-                        &middot; {{ iss.furnitureName }}
-                    </td>
-                    <td><b>{{ iss.materialName }}</b></td>
-                    <td>{{ "{:,.3f}".format(iss.quantityIssued).rstrip('0').rstrip('.') }} {{ iss.unit }}</td>
-                    <td>{{ iss.issueDate }}</td>
-                </tr>
-                {% else %}
-                <tr>
-                    <td colspan="5" style="text-align: center; color: var(--mt); padding: 28px;">No materials issued to workshop yet.</td>
-                </tr>
+                    {% if iss.orderID not in seenOrders %}
+                        {% set _ = seenOrders.append(iss.orderID) %}
+                        <option value="PO-{{ iss.orderID }}">Order #PO-{{ iss.orderID }}</option>
+                    {% endif %}
                 {% endfor %}
-            </tbody>
-        </table>
-    </div>
-</div>
-
-<div class="card">
-    <div class="headerRow" style="margin-bottom: 14px;">
-        <div>
-            <h3 style="margin: 0;">Quality Inspection Log &amp; Stock Handoff</h3>
-            <small style="color: var(--mt);">Authoritative records from prod_productionoutput with automatic Team 2 stock crediting</small>
-        </div>
-        <span class="statusBadge draft">{{ outputRecords|length }} Records</span>
-    </div>
-
-    <div class="tableContainer">
-        <table>
-            <thead>
-                <tr>
-                    <th>Inspection Ref</th>
-                    <th>Order Reference</th>
-                    <th>Furniture Product</th>
-                    <th>Inspected Units</th>
-                    <th>Quality Status</th>
-                    <th>Inspection Date</th>
-                    <th>Inventory Stock Effect</th>
-                </tr>
-            </thead>
-            <tbody>
                 {% for o in outputRecords %}
-                <tr>
-                    <td data-label="Ref">
-                        <b>#OP-{{ o.outputID }}</b>
-                    </td>
-                    <td data-label="Order">
-                        <a href="{{ url_for('production.orderDetail', orderID=o.orderID) }}" style="color: var(--p); font-weight: 700; text-decoration: none;">Order #PO-{{ o.orderID }}</a>
-                    </td>
-                    <td data-label="Product">
-                        {{ o.furnitureName }}
-                    </td>
-                    <td data-label="Units">
-                        <b>{{ o.quantity }} units</b>
-                    </td>
-                    <td data-label="Status">
-                        {% if o.qualityStatus == 'Passed' %}
-                        <span class="statusBadge completed">&check; Passed</span>
-                        {% elif o.qualityStatus == 'Rework' %}
-                        <span class="statusBadge" style="background: rgba(181, 143, 85, 0.15); color: #8e622a; border: 1px solid rgba(181, 143, 85, 0.35);">&circlearrowright; Rework</span>
-                        {% elif o.qualityStatus == 'Failed' %}
-                        <span class="statusBadge alert">&cross; Failed</span>
-                        {% else %}
-                        <span class="statusBadge draft">{{ o.qualityStatus }}</span>
-                        {% endif %}
-                    </td>
-                    <td data-label="Date">
-                        {{ o.formattedInspectionDate }}
-                    </td>
-                    <td data-label="Inventory Effect">
-                        {% if o.qualityStatus == 'Passed' %}
-                        <b style="color: var(--p);">&check; +{{ o.quantity }} units credited to Team 2 Inventory (Finished Goods)</b>
-                        {% elif o.qualityStatus == 'Rework' %}
-                        <span style="color: #8e622a;">&circlearrowright; Returned to workshop (Rolled back to 75%)</span>
-                        {% elif o.qualityStatus == 'Failed' %}
-                        <span style="color: var(--rd);">&cross; Rejected / Scrapped (0 units added)</span>
-                        {% else %}
-                        <span style="color: var(--mt);">Pending QA review</span>
-                        {% endif %}
-                    </td>
-                </tr>
-                {% else %}
-                <tr>
-                    <td colspan="7" style="text-align: center; color: var(--mt); padding: 28px;">
-                        No quality inspection records found. Passed inspections will automatically record here and credit Finished Goods inventory.
-                    </td>
-                </tr>
+                    {% if o.orderID not in seenOrders %}
+                        {% set _ = seenOrders.append(o.orderID) %}
+                        <option value="PO-{{ o.orderID }}">Order #PO-{{ o.orderID }}</option>
+                    {% endif %}
                 {% endfor %}
-            </tbody>
-        </table>
+            </select>
+        </div>
+        <div class="auditFilterItem" style="display: flex; align-items: center; gap: 6px;">
+            <input type="date" id="auditDateFrom" class="auditFilterInput" title="From Date" onchange="applyAuditFilters()">
+            <span style="color: var(--mt); font-size: 12px;">to</span>
+            <input type="date" id="auditDateTo" class="auditFilterInput" title="To Date" onchange="applyAuditFilters()">
+        </div>
+        <button type="button" class="auditResetBtn" onclick="resetAuditFilters()">Reset</button>
+    </div>
+
+    <div id="paneDispatches" class="auditTabPane active">
+        <div class="tableContainer auditTableWrapper">
+            <table class="auditTable">
+                <thead>
+                    <tr>
+                        <th style="width: 140px;">Issuance Ref</th>
+                        <th>Associated Order</th>
+                        <th>Raw Material</th>
+                        <th style="text-align: right; width: 160px;">Dispatched Quantity</th>
+                        <th style="width: 130px;">Issue Date</th>
+                    </tr>
+                </thead>
+                <tbody id="dispatchesTableBody">
+                    {% for iss in issuances %}
+                    <tr class="auditRow dispatchRow" data-order="PO-{{ iss.orderID }}" data-search="PO-{{ iss.orderID }} {{ iss.furnitureName|lower }} {{ iss.materialName|lower }}" data-date="{{ iss.issueDate }}">
+                        <td data-label="Issuance Ref"><b>#IS-{{ iss.issuanceID }}</b></td>
+                        <td data-label="Associated Order">
+                            <a href="{{ url_for('production.orderDetail', orderID=iss.orderID) }}" class="auditOrderLink">Order #PO-{{ iss.orderID }}</a>
+                            <span style="color: var(--mt); font-size: 12.5px;">&middot; {{ iss.furnitureName }}</span>
+                        </td>
+                        <td data-label="Raw Material"><b>{{ iss.materialName }}</b></td>
+                        <td data-label="Dispatched Quantity" style="text-align: right; font-weight: 600;">
+                            {{ "{:,.3f}".format(iss.quantityIssued).rstrip('0').rstrip('.') }} {{ iss.unit }}
+                        </td>
+                        <td data-label="Issue Date">{{ iss.issueDate }}</td>
+                    </tr>
+                    {% else %}
+                    <tr class="auditEmptyRow">
+                        <td colspan="5" class="auditEmptyCell">No dispatch records recorded.</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        <div class="auditPagination" id="dispatchesPagination">
+            <span class="auditPaginationInfo" id="dispatchesPageInfo"></span>
+            <div class="auditPaginationControls">
+                <button type="button" class="btn" id="dispatchesPrevBtn" onclick="changeAuditPage('dispatches', -1)">&larr; Prev</button>
+                <span id="dispatchesPageIndicator" style="font-size: 12.5px; font-weight: 600; color: var(--tx);"></span>
+                <button type="button" class="btn" id="dispatchesNextBtn" onclick="changeAuditPage('dispatches', 1)">Next &rarr;</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="paneQuality" class="auditTabPane">
+        <div class="tableContainer auditTableWrapper qualityWrapper">
+            <table class="auditTable qualityTable">
+                <thead>
+                    <tr>
+                        <th style="width: 150px;">Inspection Ref</th>
+                        <th>Order Reference</th>
+                        <th>Furniture Product</th>
+                        <th style="text-align: right; width: 140px;">Inspected Units</th>
+                        <th style="width: 130px;">Quality Status</th>
+                        <th>Inventory Stock Effect</th>
+                    </tr>
+                </thead>
+                <tbody id="qualityTableBody">
+                    {% for o in outputRecords %}
+                    <tr class="auditRow qualityRow" data-order="PO-{{ o.orderID }}" data-search="PO-{{ o.orderID }} {{ o.furnitureName|lower }} {{ o.qualityStatus|lower }}" data-date="{{ o.inspectionDate }}">
+                        <td data-label="Inspection Ref">
+                            <b>#OP-{{ o.outputID }}</b>
+                            <div class="auditDateSub">{{ o.formattedInspectionDate }}</div>
+                        </td>
+                        <td data-label="Order Reference">
+                            <a href="{{ url_for('production.orderDetail', orderID=o.orderID) }}" class="auditOrderLink">Order #PO-{{ o.orderID }}</a>
+                        </td>
+                        <td data-label="Furniture Product">{{ o.furnitureName }}</td>
+                        <td data-label="Inspected Units" style="text-align: right; font-weight: 600;">{{ o.quantity }} units</td>
+                        <td data-label="Quality Status">
+                            {% if o.qualityStatus == 'Passed' %}
+                            <span class="statusBadge completed">&check; Passed</span>
+                            {% elif o.qualityStatus == 'Rework' %}
+                            <span class="statusBadge" style="background: rgba(181, 143, 85, 0.15); color: #8e622a; border: 1px solid rgba(181, 143, 85, 0.35);">&circlearrowright; Rework</span>
+                            {% elif o.qualityStatus == 'Failed' %}
+                            <span class="statusBadge alert">&cross; Failed</span>
+                            {% else %}
+                            <span class="statusBadge draft">{{ o.qualityStatus }}</span>
+                            {% endif %}
+                        </td>
+                        <td data-label="Inventory Effect">
+                            {% if o.qualityStatus == 'Passed' %}
+                            <b style="color: var(--p); font-size: 12.5px;">&check; +{{ o.quantity }} units credited to Finished Goods</b>
+                            {% elif o.qualityStatus == 'Rework' %}
+                            <span style="color: #8e622a; font-size: 12.5px;">&circlearrowright; Returned to workshop (75%)</span>
+                            {% elif o.qualityStatus == 'Failed' %}
+                            <span style="color: var(--rd); font-size: 12.5px;">&cross; Rejected / Scrapped</span>
+                            {% else %}
+                            <span style="color: var(--mt); font-size: 12.5px;">Pending QA review</span>
+                            {% endif %}
+                        </td>
+                    </tr>
+                    {% else %}
+                    <tr class="auditEmptyRow">
+                        <td colspan="6" class="auditEmptyCell">No quality inspection records recorded.</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        <div class="auditPagination" id="qualityPagination">
+            <span class="auditPaginationInfo" id="qualityPageInfo"></span>
+            <div class="auditPaginationControls">
+                <button type="button" class="btn" id="qualityPrevBtn" onclick="changeAuditPage('quality', -1)">&larr; Prev</button>
+                <span id="qualityPageIndicator" style="font-size: 12.5px; font-weight: 600; color: var(--tx);"></span>
+                <button type="button" class="btn" id="qualityNextBtn" onclick="changeAuditPage('quality', 1)">Next &rarr;</button>
+            </div>
+        </div>
     </div>
 </div>
+
+<script>
+let activeAuditTab = 'dispatches';
+const auditPages = { dispatches: 1, quality: 1 };
+const pageSize = 25;
+
+function switchAuditTab(tabKey) {
+    activeAuditTab = tabKey;
+    document.getElementById('tabBtnDispatches').classList.toggle('active', tabKey === 'dispatches');
+    document.getElementById('tabBtnQuality').classList.toggle('active', tabKey === 'quality');
+    document.getElementById('paneDispatches').classList.toggle('active', tabKey === 'dispatches');
+    document.getElementById('paneQuality').classList.toggle('active', tabKey === 'quality');
+    applyAuditFilters();
+}
+
+function applyAuditFilters() {
+    const q = (document.getElementById('auditSearchInput').value || '').trim().toLowerCase();
+    const orderFilter = (document.getElementById('auditOrderSelect').value || '').trim();
+    const dateFrom = document.getElementById('auditDateFrom').value;
+    const dateTo = document.getElementById('auditDateTo').value;
+
+    const rowClass = activeAuditTab === 'dispatches' ? '.dispatchRow' : '.qualityRow';
+    const rows = Array.from(document.querySelectorAll(rowClass));
+
+    const matchedRows = [];
+    rows.forEach(row => {
+        const searchBlob = row.dataset.search || '';
+        const rowOrder = row.dataset.order || '';
+        const rowDate = row.dataset.date || '';
+
+        let matches = true;
+        if (q && !searchBlob.includes(q)) matches = false;
+        if (orderFilter && rowOrder !== orderFilter) matches = false;
+        if (dateFrom && rowDate && rowDate < dateFrom) matches = false;
+        if (dateTo && rowDate && rowDate > dateTo) matches = false;
+
+        if (matches) {
+            matchedRows.push(row);
+        } else {
+            row.style.display = 'none';
+        }
+    });
+
+    const currentPage = auditPages[activeAuditTab];
+    const totalRecords = matchedRows.length;
+    const totalPages = Math.ceil(totalRecords / pageSize) || 1;
+    if (currentPage > totalPages) auditPages[activeAuditTab] = totalPages;
+    const effectivePage = auditPages[activeAuditTab];
+
+    const startIndex = (effectivePage - 1) * pageSize;
+    const endIndex = startIndex + pageSize;
+
+    matchedRows.forEach((row, idx) => {
+        row.style.display = (idx >= startIndex && idx < endIndex) ? '' : 'none';
+    });
+
+    const infoEl = document.getElementById(activeAuditTab + 'PageInfo');
+    const indicatorEl = document.getElementById(activeAuditTab + 'PageIndicator');
+    const prevBtn = document.getElementById(activeAuditTab + 'PrevBtn');
+    const nextBtn = document.getElementById(activeAuditTab + 'NextBtn');
+
+    if (totalRecords === 0) {
+        if (infoEl) infoEl.textContent = 'No records match filter';
+        if (indicatorEl) indicatorEl.textContent = '0 of 0';
+        if (prevBtn) prevBtn.disabled = true;
+        if (nextBtn) nextBtn.disabled = true;
+    } else {
+        const startDisplay = startIndex + 1;
+        const endDisplay = Math.min(endIndex, totalRecords);
+        if (infoEl) infoEl.textContent = `Showing ${startDisplay}-${endDisplay} of ${totalRecords}`;
+        if (indicatorEl) indicatorEl.textContent = `Page ${effectivePage} of ${totalPages}`;
+        if (prevBtn) prevBtn.disabled = effectivePage <= 1;
+        if (nextBtn) nextBtn.disabled = effectivePage >= totalPages;
+    }
+}
+
+function changeAuditPage(tabKey, delta) {
+    auditPages[tabKey] += delta;
+    if (auditPages[tabKey] < 1) auditPages[tabKey] = 1;
+    applyAuditFilters();
+}
+
+function resetAuditFilters() {
+    document.getElementById('auditSearchInput').value = '';
+    document.getElementById('auditOrderSelect').value = '';
+    document.getElementById('auditDateFrom').value = '';
+    document.getElementById('auditDateTo').value = '';
+    auditPages.dispatches = 1;
+    auditPages.quality = 1;
+    applyAuditFilters();
+}
+
+document.addEventListener('DOMContentLoaded', function() {
+    applyAuditFilters();
+});
+</script>
 {% endblock %}

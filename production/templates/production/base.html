@@ -44,7 +44,7 @@
                 {% if session.get('role') == 'prodManager' %}
                 <a href="{{ url_for('production.costingList') }}" class="{{ 'active' if activeTab == 'costing' else '' }}">Production Costing</a>
                 <a href="{{ url_for('production.reportView') }}" class="{{ 'active' if activeTab == 'report' else '' }}">Production Reports</a>
-                <a href="{{ url_for('production.logsView') }}" class="{{ 'active' if activeTab == 'logs' else '' }}">Production Logs</a>
+                <a href="{{ url_for('production.logsView') }}" class="{{ 'active' if activeTab == 'logs' else '' }}">Audit Log</a>
                 {% endif %}
             </div>
         </nav>

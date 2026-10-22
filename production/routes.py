@@ -1123,15 +1123,30 @@ def logsView():
     try:
         issuances = MaterialIssuance.getAll()
         outputRecords = ProductionOutput.getAll()
+        activityDates = []
+        for iss in issuances:
+            if iss.issueDate:
+                activityDates.append(iss.issueDate)
+        for o in outputRecords:
+            if o.inspectionDate:
+                activityDates.append(o.inspectionDate)
+        if activityDates:
+            latest = max(activityDates)
+            lastActivity = latest.strftime("%b %d, %Y") if hasattr(latest, "strftime") else str(latest)
+        else:
+            lastActivity = "-"
     except Exception as err:
         flash(f"Failed to load production logs: {str(err)}", "error")
         issuances = []
         outputRecords = []
+        lastActivity = "-"
 
     return render_template(
         "production/logs.html",
         activeTab="logs",
         issuances=issuances,
-        outputRecords=outputRecords
+        outputRecords=outputRecords,
+        lastActivity=lastActivity
     )
+
 
