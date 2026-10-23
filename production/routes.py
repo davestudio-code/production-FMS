@@ -367,11 +367,13 @@ def orderList():
         productionOrderList = ProductionOrder.getAll(statusFilter=statusFilter, searchQuery=searchQuery)
         summary = ProductionOrder.getSummaryCounts()
         furnitureItemList = Furniture.getAll()
+        salesOrdersList = integration.get_pending_sales_orders()
     except Exception as err:
         flash(f"Failed to load production orders: {str(err)}", "error")
         productionOrderList = []
         summary = {"total": 0, "draft": 0, "released": 0, "inProgress": 0, "completed": 0}
         furnitureItemList = []
+        salesOrdersList = []
 
     return render_template(
         "production/order_list.html",
@@ -379,6 +381,7 @@ def orderList():
         orders=productionOrderList,
         summary=summary,
         furnitureItems=furnitureItemList,
+        salesOrders=salesOrdersList,
         statusFilter=statusFilter,
         searchQuery=searchQuery
     )
@@ -416,6 +419,8 @@ def createOrder():
     quantityRaw = request.form.get("plannedQuantity", "").strip()
     startDateRaw = request.form.get("plannedStartDate", "").strip()
     dueDateRaw = request.form.get("dueDate", "").strip()
+    salesOrderItemIDRaw = request.form.get("salesOrderItemID", "").strip()
+    salesOrderItemID = int(salesOrderItemIDRaw) if salesOrderItemIDRaw and salesOrderItemIDRaw.isdigit() else None
 
     if not furnitureIDRaw or not furnitureIDRaw.isdigit():
         flash("Please select a valid furniture product.", "error")
@@ -466,7 +471,8 @@ def createOrder():
             furnitureID=furnitureID,
             plannedQuantity=plannedQuantity,
             plannedStartDate=parsedStartDate,
-            dueDate=parsedDueDate
+            dueDate=parsedDueDate,
+            salesOrderItemID=salesOrderItemID
         )
         flash(f"Production Order #PO-{newOrderID} created successfully in Draft status.", "success")
     except ValueError as valErr:

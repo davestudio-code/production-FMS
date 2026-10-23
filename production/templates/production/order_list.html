@@ -123,22 +123,36 @@
 </div>
 
 <div id="createOrderModal" class="modalOverlay">
-    <div class="modalCard" style="max-width: 520px;">
+    <div class="modalCard" style="max-width: 520px; width: 100%; box-sizing: border-box; overflow-x: hidden;">
         <div class="modalHeader">
             <h3>New Production Order</h3>
             <button class="modalClose" onclick="closeModal('createOrderModal')">&times;</button>
         </div>
         <form method="POST" action="{{ url_for('production.createOrder') }}">
             <div class="formGroup">
-                <label>Production Order Source</label>
-                <div style="display: flex; gap: 14px; margin-top: 4px;">
-                    <label style="display: flex; align-items: center; gap: 6px; font-weight: normal; font-size: 13px; cursor: pointer;">
-                        <input type="radio" name="orderSource" value="stock" checked> Make-to-Stock (Inventory)
+                <label>Order Type</label>
+                <div style="display: flex; gap: 20px; align-items: center; padding: 4px 0;">
+                    <label style="display: flex; align-items: center; gap: 8px; cursor: pointer; font-size: 13.5px; color: var(--tx); font-weight: 500;">
+                        <input type="radio" name="orderSource" value="stock" checked onchange="toggleOrderSource('stock')" style="accent-color: var(--p);">
+                        Make-to-Stock
                     </label>
-                    <label style="display: flex; align-items: center; gap: 6px; font-weight: normal; font-size: 13px; color: var(--mt); cursor: not-allowed;" title="Pending Team 4 Sales confirmation">
-                        <input type="radio" name="orderSource" value="sales" disabled> From Sales Order <span style="font-size: 11px;">(Pending Sales)</span>
+                    <label style="display: flex; align-items: center; gap: 8px; cursor: pointer; font-size: 13.5px; color: var(--tx); font-weight: 500;">
+                        <input type="radio" name="orderSource" value="sales" onchange="toggleOrderSource('sales')" style="accent-color: var(--p);">
+                        Make-to-Order (Sales)
                     </label>
                 </div>
+            </div>
+            <div class="formGroup" id="salesOrderGroup" style="display: none;">
+                <label>Sales Order Item</label>
+                <select name="salesOrderItemID" id="salesOrderSelect" onchange="onSalesOrderSelected()">
+                    <option value="">-- Select Sales Order Item --</option>
+                    {% for so in salesOrders %}
+                        <option value="{{ so.order_item_id }}" data-qty="{{ so.quantity }}" data-furniture-id="{{ so.furniture_id or '' }}" data-customer="{{ so.customer_name|title }}" data-order-date="{{ so.order_date }}">
+                            SO-{{ "%03d"|format(so.sales_order_id) }} &bull; {{ so.customer_name|title }} &mdash; {{ so.quantity }}x {{ so.item_name }} ({{ so.order_date }})
+                        </option>
+                    {% endfor %}
+                </select>
+                <div id="salesOrderHint" style="display: none; font-size: 12px; color: var(--mt); margin-top: 3px;"></div>
             </div>
             <div class="formGroup">
                 <label>Furniture Product (Must have configured BOM)</label>
@@ -173,4 +187,49 @@
         </form>
     </div>
 </div>
+
+<script>
+function toggleOrderSource(source) {
+    const salesGroup = document.getElementById('salesOrderGroup');
+    const salesSelect = document.getElementById('salesOrderSelect');
+    const salesHint = document.getElementById('salesOrderHint');
+    if (source === 'sales') {
+        salesGroup.style.display = 'flex';
+    } else {
+        salesGroup.style.display = 'none';
+        if (salesSelect) salesSelect.value = '';
+        if (salesHint) {
+            salesHint.style.display = 'none';
+            salesHint.textContent = '';
+        }
+    }
+}
+
+function onSalesOrderSelected() {
+    const sel = document.getElementById('salesOrderSelect');
+    const opt = sel.options[sel.selectedIndex];
+    const hint = document.getElementById('salesOrderHint');
+    if (opt && opt.value) {
+        const qty = opt.dataset.qty;
+        const furnId = opt.dataset.furnitureId;
+        const customer = opt.dataset.customer;
+        const orderDate = opt.dataset.orderDate;
+        const qtyInput = document.querySelector('input[name="plannedQuantity"]');
+        const furnSelect = document.querySelector('select[name="furnitureID"]');
+        if (qty && qtyInput) qtyInput.value = qty;
+        if (furnId && furnSelect && furnId !== '') {
+            furnSelect.value = furnId;
+        }
+        if (hint) {
+            hint.style.display = 'block';
+            hint.textContent = `Customer: ${customer} | Placed on ${orderDate}`;
+        }
+    } else {
+        if (hint) {
+            hint.style.display = 'none';
+            hint.textContent = '';
+        }
+    }
+}
+</script>
 {% endblock %}

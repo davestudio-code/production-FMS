@@ -86,3 +86,30 @@ def get_finished_goods_stock(furnitureID, conn=None):
             """, (f"FG-{furnitureID:03d}", furnitureID))
             row = cursor.fetchone()
             return int(row["quantity"]) if row and row.get("quantity") is not None else 0
+
+def get_pending_sales_orders(conn=None):
+    try:
+        with openTransaction(conn) as connection:
+            with connection.cursor() as cursor:
+                cursor.execute("""
+                    SELECT so.order_id AS sales_order_id,
+                           oi.order_item_id,
+                           oi.quantity,
+                           so.order_date,
+                           so.status AS sales_status,
+                           c.name AS customer_name,
+                           COALESCE(im.item_name, 'Furniture Product') AS item_name,
+                           f.furniture_id,
+                           f.furniture_name
+                    FROM salesorder so
+                    JOIN customer c ON so.customer_id = c.customer_id
+                    JOIN orderitem oi ON so.order_id = oi.order_id
+                    LEFT JOIN item_master im ON oi.item_id = im.item_id
+                    LEFT JOIN prod_furniture f ON LOWER(TRIM(f.furniture_name)) = LOWER(TRIM(im.item_name))
+                    WHERE LOWER(so.status) IN ('pending', 'backorder', 'approved')
+                       OR so.status IS NULL
+                    ORDER BY so.order_id DESC, oi.order_item_id ASC;
+                """)
+                return cursor.fetchall()
+    except Exception:
+        return []
