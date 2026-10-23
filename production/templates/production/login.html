@@ -5,6 +5,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Login - Velmora Co. Manufacturing & Production</title>
+  <link rel="icon" type="image/png" href="{{ url_for('production.static', filename='images/velmora-logo.png') }}">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link
@@ -89,8 +90,9 @@
     }
 
     .brand-logo-img {
-      width: 180px;
+      width: 140px;
       height: auto;
+      object-fit: contain;
       margin-bottom: 12px;
       filter: drop-shadow(0 4px 12px rgba(0, 0, 0, 0.35));
     }

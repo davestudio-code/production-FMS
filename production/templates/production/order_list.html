@@ -33,19 +33,16 @@
 
 <div class="card">
     <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; flex-wrap: wrap; gap: 12px;">
-        <form method="GET" action="{{ url_for('production.orderList') }}" class="toolBar" style="margin-bottom: 0;">
-            <input type="text" name="q" value="{{ searchQuery }}" placeholder="Search by product name or order ID..." style="width: 280px;">
-            <select name="status" style="width: 190px;">
+        <form class="toolBar" style="margin-bottom: 0;" onsubmit="return false;">
+            <input type="text" id="orderSearchInput" placeholder="Search by product name or order ID..." style="width: 280px;" oninput="filterOrdersTable()">
+            <select id="orderStatusSelect" style="width: 190px;" onchange="filterOrdersTable()">
                 <option value="">All Lifecycle Stages</option>
-                <option value="Draft" {% if statusFilter == 'Draft' %}selected{% endif %}>Draft</option>
-                <option value="Released" {% if statusFilter == 'Released' %}selected{% endif %}>Released</option>
-                <option value="In Progress" {% if statusFilter == 'In Progress' %}selected{% endif %}>In Progress</option>
-                <option value="Completed" {% if statusFilter == 'Completed' %}selected{% endif %}>Completed</option>
+                <option value="Draft">Draft</option>
+                <option value="Released">Released</option>
+                <option value="In Progress">In Progress</option>
+                <option value="Completed">Completed</option>
             </select>
-            <button type="submit" class="actionButton secondary" style="padding: 8px 14px; font-size: 13px;">Filter</button>
-            {% if searchQuery or statusFilter %}
-            <a href="{{ url_for('production.orderList') }}" class="actionButton secondary" style="padding: 8px 14px; font-size: 13px; text-decoration: none;">Reset</a>
-            {% endif %}
+            <button type="button" id="orderResetBtn" class="actionButton secondary" style="padding: 8px 14px; font-size: 13px; display: none;" onclick="resetOrdersFilter()">Reset</button>
         </form>
         {% if session.get('role') == 'prodManager' %}
         <button type="button" class="actionButton" onclick="openModal('createOrderModal')">+ New Production Order</button>
@@ -68,7 +65,7 @@
             </thead>
             <tbody>
                 {% for ord in orders %}
-                <tr>
+                <tr class="orderRow" data-status="{{ ord.status }}" data-search="po-{{ ord.orderID }} {{ ord.furnitureName|lower }} {{ ord.furnitureType|lower }} {{ ord.orderType|lower }}">
                     <td><b>#PO-{{ ord.orderID }}</b></td>
                     <td>
                         <b>{{ ord.furnitureName }}</b>
@@ -111,14 +108,15 @@
                 {% else %}
                 <tr>
                     <td colspan="8" style="text-align: center; color: var(--mt); padding: 28px;">
-                        {% if searchQuery or statusFilter %}
-                            No production orders match your filter criteria.
-                        {% else %}
-                            No production orders created yet. Click '+ New Production Order' to begin.
-                        {% endif %}
+                        No production orders created yet. Click '+ New Production Order' to begin.
                     </td>
                 </tr>
                 {% endfor %}
+                <tr id="ordersEmptyRow" style="display: none;">
+                    <td colspan="8" style="text-align: center; color: var(--mt); padding: 28px;">
+                        No production orders match your filter criteria.
+                    </td>
+                </tr>
             </tbody>
         </table>
     </div>
@@ -233,5 +231,40 @@ function onSalesOrderSelected() {
         }
     }
 }
+
+window.filterOrdersTable = function() {
+    const q = (document.getElementById('orderSearchInput')?.value || '').toLowerCase().trim();
+    const status = (document.getElementById('orderStatusSelect')?.value || '').trim();
+    const resetBtn = document.getElementById('orderResetBtn');
+    if (resetBtn) {
+        resetBtn.style.display = (q || status) ? 'inline-block' : 'none';
+    }
+    const rows = document.querySelectorAll('tr.orderRow');
+    let visibleCount = 0;
+    rows.forEach(function(row) {
+        const rowStatus = row.dataset.status || '';
+        const rowSearch = row.dataset.search || '';
+        const matchStatus = !status || rowStatus === status;
+        const matchSearch = !q || rowSearch.includes(q);
+        if (matchStatus && matchSearch) {
+            row.style.display = '';
+            visibleCount++;
+        } else {
+            row.style.display = 'none';
+        }
+    });
+    const emptyRow = document.getElementById('ordersEmptyRow');
+    if (emptyRow) {
+        emptyRow.style.display = (visibleCount === 0 && rows.length > 0) ? '' : 'none';
+    }
+};
+
+window.resetOrdersFilter = function() {
+    const qInput = document.getElementById('orderSearchInput');
+    const statusSelect = document.getElementById('orderStatusSelect');
+    if (qInput) qInput.value = '';
+    if (statusSelect) statusSelect.value = '';
+    window.filterOrdersTable();
+};
 </script>
 {% endblock %}

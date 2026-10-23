@@ -1,4 +1,4 @@
-@import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@600;700&family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap');
 
 * {
     box-sizing: border-box;
@@ -46,7 +46,7 @@ nav {
 }
 
 .navBrand {
-    padding: 0 8px 14px;
+    padding: 2px 4px 14px;
     border-bottom: 1px solid rgba(246, 238, 218, 0.2);
     margin-bottom: 10px;
     display: flex;
@@ -55,18 +55,73 @@ nav {
     flex-shrink: 0;
 }
 
+.navBrandLink {
+    display: flex;
+    align-items: center;
+    gap: 11px;
+    text-decoration: none;
+    min-width: 0;
+    padding: 6px 6px;
+    border-radius: 10px;
+    transition: background 0.15s ease;
+}
+
+.navBrandLink:hover {
+    background: rgba(246, 238, 218, 0.08);
+}
+
+.navBrandLink:active,
+.navBrandLink:focus,
+.navBrandLink.active {
+    background: transparent !important;
+    box-shadow: none !important;
+    color: inherit !important;
+}
+
+.brandMarkTile {
+    width: 38px;
+    height: 38px;
+    border-radius: 9px;
+    background: #F6EEDA;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    box-shadow: 0 2px 5px rgba(0, 0, 0, 0.16), inset 0 0 0 1px rgba(255, 255, 255, 0.45);
+}
+
+.brandMarkImg {
+    width: 26px;
+    height: 16px;
+    object-fit: contain;
+    filter: brightness(0) saturate(100%) invert(28%) sepia(25%) saturate(1000%) hue-rotate(43deg);
+}
+
+.navBrandText {
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
+}
+
 .navBrand h1 {
-    font-size: 17px;
+    font-family: 'Cormorant Garamond', Georgia, serif;
+    font-size: 21.5px;
+    letter-spacing: 0.8px;
     color: var(--pt);
     margin: 0;
     font-weight: 700;
+    line-height: 1;
+    text-transform: lowercase;
 }
 
 .navBrand span {
-    font-size: 12px;
-    color: rgba(246, 238, 218, 0.75);
+    font-size: 9.5px;
+    letter-spacing: 1.1px;
+    text-transform: uppercase;
+    color: #D8E3BF;
     display: block;
-    margin-top: 2px;
+    margin-top: 3px;
+    font-weight: 600;
 }
 
 .hamburgerBtn {
@@ -119,7 +174,7 @@ nav {
     border-radius: 4px;
 }
 
-nav a {
+.navLinksContainer a {
     display: flex;
     align-items: center;
     padding: 7px 12px;
@@ -131,29 +186,79 @@ nav a {
     transition: all 0.15s ease;
 }
 
-nav a:hover {
+.navLinksContainer a:hover {
     background: rgba(246, 238, 218, 0.18);
 }
 
-nav a.active {
+.navLinksContainer a.active {
     background: var(--pt);
     color: var(--tx);
     font-weight: 700;
     box-shadow: 0 2px 6px rgba(0, 0, 0, 0.08);
 }
 
-.topProgressBar {
-    position: fixed;
-    top: 0;
-    left: 0;
-    height: 3px;
-    width: 0%;
-    background: linear-gradient(90deg, var(--p), var(--s), #b5c78a);
-    box-shadow: 0 0 8px rgba(102, 117, 76, 0.6);
-    z-index: 99999;
-    opacity: 0;
-    transition: width 0.18s ease, opacity 0.15s ease;
-    pointer-events: none;
+.skeletonContainer {
+    animation: fadeInSkeleton 0.15s ease;
+}
+
+@keyframes fadeInSkeleton {
+    from {
+        opacity: 0.4;
+    }
+    to {
+        opacity: 1;
+    }
+}
+
+.skeletonBlock {
+    background: linear-gradient(90deg, rgba(213, 199, 170, 0.3) 25%, rgba(246, 238, 218, 0.8) 50%, rgba(213, 199, 170, 0.3) 75%);
+    background-size: 200% 100%;
+    animation: skeletonShimmer 1.4s infinite;
+    border-radius: 6px;
+}
+
+@keyframes skeletonShimmer {
+    0% {
+        background-position: 200% 0;
+    }
+    100% {
+        background-position: -200% 0;
+    }
+}
+
+.skeletonTitle {
+    width: 250px;
+    height: 28px;
+    margin-bottom: 8px;
+}
+
+.skeletonSubtitle {
+    width: 380px;
+    height: 14px;
+}
+
+.skeletonButton {
+    width: 86px;
+    height: 32px;
+    border-radius: 8px;
+}
+
+.skeletonMetricGrid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+    gap: 16px;
+    margin-bottom: 22px;
+}
+
+.skeletonCard {
+    background: var(--cd);
+    border: 1px solid var(--bd);
+    border-radius: 12px;
+    box-shadow: var(--sh);
+}
+
+.skeletonMetricCard {
+    padding: 18px 20px;
 }
 
 main {
@@ -582,7 +687,7 @@ button.danger {
         display: flex;
     }
 
-    nav a {
+    .navLinksContainer a {
         width: 100%;
         padding: 10px 14px;
         font-size: 13.5px;

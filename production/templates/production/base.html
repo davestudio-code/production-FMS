@@ -3,18 +3,23 @@
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>ERP Production Team</title>
+    <title>Velmora Co. &middot; Production ERP</title>
+    <link rel="icon" type="image/png" href="{{ url_for('production.static', filename='images/velmora-logo.png') }}">
     <link rel="stylesheet" href="{{ url_for('production.static', filename='css/style.css') }}">
 </head>
 <body>
-    <div id="topProgressBar" class="topProgressBar"></div>
     <div class="container">
         <nav>
             <div class="navBrand">
-                <div>
-                    <h1>Furniture ERP</h1>
-                    <span>Team 3 &middot; Production</span>
-                </div>
+                <a href="{{ url_for('production.index') }}" class="navBrandLink">
+                    <div class="brandMarkTile">
+                        <img src="{{ url_for('production.static', filename='images/velmora-logo.png') }}" alt="Velmora Co." class="brandMarkImg">
+                    </div>
+                    <div class="navBrandText">
+                        <h1>velmora co.</h1>
+                        <span>Manufacturing &middot; Production</span>
+                    </div>
+                </a>
                 <button id="hamburgerBtn" class="hamburgerBtn" onclick="toggleMobileNav()" aria-label="Toggle navigation">
                     <span class="hamburgerBar"></span>
                     <span class="hamburgerBar"></span>
@@ -313,9 +318,52 @@
         }
 
         document.addEventListener('DOMContentLoaded', function() {
-            const navLinks = document.querySelectorAll('nav a');
+            const navLinks = document.querySelectorAll('.navLinksContainer a');
             const mainContainer = document.querySelector('main');
-            const topBar = document.getElementById('topProgressBar');
+
+            function getSkeletonHtml() {
+                return `
+                    <div class="skeletonContainer">
+                        <div class="headerRow">
+                            <div>
+                                <div class="skeletonBlock skeletonTitle"></div>
+                                <div class="skeletonBlock skeletonSubtitle"></div>
+                            </div>
+                            <div class="skeletonBlock skeletonButton"></div>
+                        </div>
+                        <div class="skeletonMetricGrid">
+                            <div class="skeletonCard skeletonMetricCard">
+                                <div class="skeletonBlock" style="width: 70px; height: 12px; margin-bottom: 10px;"></div>
+                                <div class="skeletonBlock" style="width: 50px; height: 26px;"></div>
+                            </div>
+                            <div class="skeletonCard skeletonMetricCard">
+                                <div class="skeletonBlock" style="width: 70px; height: 12px; margin-bottom: 10px;"></div>
+                                <div class="skeletonBlock" style="width: 50px; height: 26px;"></div>
+                            </div>
+                            <div class="skeletonCard skeletonMetricCard">
+                                <div class="skeletonBlock" style="width: 70px; height: 12px; margin-bottom: 10px;"></div>
+                                <div class="skeletonBlock" style="width: 50px; height: 26px;"></div>
+                            </div>
+                            <div class="skeletonCard skeletonMetricCard">
+                                <div class="skeletonBlock" style="width: 70px; height: 12px; margin-bottom: 10px;"></div>
+                                <div class="skeletonBlock" style="width: 50px; height: 26px;"></div>
+                            </div>
+                        </div>
+                        <div class="skeletonCard" style="padding: 20px;">
+                            <div style="display: flex; gap: 12px; margin-bottom: 18px;">
+                                <div class="skeletonBlock" style="width: 240px; height: 36px; border-radius: 8px;"></div>
+                                <div class="skeletonBlock" style="width: 140px; height: 36px; border-radius: 8px;"></div>
+                            </div>
+                            <div class="skeletonBlock" style="width: 100%; height: 34px; margin-bottom: 12px; border-radius: 6px;"></div>
+                            <div class="skeletonBlock" style="width: 100%; height: 44px; margin-bottom: 10px; opacity: 0.85;"></div>
+                            <div class="skeletonBlock" style="width: 100%; height: 44px; margin-bottom: 10px; opacity: 0.7;"></div>
+                            <div class="skeletonBlock" style="width: 100%; height: 44px; margin-bottom: 10px; opacity: 0.55;"></div>
+                            <div class="skeletonBlock" style="width: 100%; height: 44px; margin-bottom: 10px; opacity: 0.4;"></div>
+                            <div class="skeletonBlock" style="width: 100%; height: 44px; opacity: 0.25;"></div>
+                        </div>
+                    </div>
+                `;
+            }
 
             function applyTabHtml(pageHtml, targetUrl, shouldPushState) {
                 const domParser = new DOMParser();
@@ -353,20 +401,9 @@
 
             async function loadTabContent(targetUrl, shouldPushState = true) {
                 closeMobileNav();
-                if (topBar) {
-                    topBar.style.width = '35%';
-                    topBar.style.opacity = '1';
-                }
 
                 if (tabHtmlCache.has(targetUrl)) {
                     applyTabHtml(tabHtmlCache.get(targetUrl), targetUrl, shouldPushState);
-                    if (topBar) {
-                        topBar.style.width = '100%';
-                        setTimeout(function() {
-                            topBar.style.opacity = '0';
-                            topBar.style.width = '0%';
-                        }, 200);
-                    }
                     fetch(targetUrl, { headers: { 'X-Requested-With': 'XMLHttpRequest' } })
                         .then(function(res) { return res.ok ? res.text() : null; })
                         .then(function(freshHtml) {
@@ -379,8 +416,19 @@
                     return;
                 }
 
+                navLinks.forEach(link => {
+                    if (link.href === targetUrl || link.getAttribute('href') === targetUrl) {
+                        link.classList.add('active');
+                    } else {
+                        link.classList.remove('active');
+                    }
+                });
+
+                if (mainContainer) {
+                    mainContainer.innerHTML = getSkeletonHtml();
+                }
+
                 try {
-                    if (topBar) topBar.style.width = '70%';
                     const response = await fetch(targetUrl);
                     if (!response.ok) {
                         window.location.href = targetUrl;
@@ -391,14 +439,6 @@
                     applyTabHtml(pageHtml, targetUrl, shouldPushState);
                 } catch (loadError) {
                     window.location.href = targetUrl;
-                } finally {
-                    if (topBar) {
-                        topBar.style.width = '100%';
-                        setTimeout(function() {
-                            topBar.style.opacity = '0';
-                            topBar.style.width = '0%';
-                        }, 200);
-                    }
                 }
             }
 
@@ -419,6 +459,23 @@
                     }
                 });
             });
+
+            const brandLink = document.querySelector('.navBrandLink');
+            if (brandLink) {
+                brandLink.addEventListener('mouseenter', function() {
+                    prefetchTab(this.href);
+                });
+                brandLink.addEventListener('touchstart', function() {
+                    prefetchTab(this.href);
+                }, { passive: true });
+                brandLink.addEventListener('click', function(event) {
+                    const targetHref = this.getAttribute('href');
+                    if (targetHref && !targetHref.startsWith('#')) {
+                        event.preventDefault();
+                        loadTabContent(this.href);
+                    }
+                });
+            }
 
             window.addEventListener('popstate', function(event) {
                 if (event.state && event.state.targetUrl) {

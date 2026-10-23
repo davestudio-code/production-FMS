@@ -10,18 +10,15 @@
 
 <div class="card">
     <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; flex-wrap: wrap; gap: 12px;">
-        <form method="GET" action="{{ url_for('production.furnitureList') }}" class="toolBar" style="margin-bottom: 0;">
-            <input type="text" name="q" value="{{ searchQuery }}" placeholder="Search product name..." style="width: 260px;">
-            <select name="category" onchange="this.form.submit()">
+        <form class="toolBar" style="margin-bottom: 0;" onsubmit="return false;">
+            <input type="text" id="furnitureSearchInput" placeholder="Search product name..." style="width: 260px;" oninput="filterFurnitureTable()">
+            <select id="furnitureCategorySelect" onchange="filterFurnitureTable()">
                 <option value="">All Categories</option>
                 {% for cat in categories %}
-                <option value="{{ cat }}" {{ 'selected' if selectedCategory == cat else '' }}>{{ cat }}</option>
+                <option value="{{ cat }}">{{ cat }}</option>
                 {% endfor %}
             </select>
-            <button type="submit" class="actionButton secondary" style="padding: 7px 14px; font-size: 13px;">Filter</button>
-            {% if searchQuery or selectedCategory %}
-            <a href="{{ url_for('production.furnitureList') }}" class="actionButton secondary" style="padding: 7px 14px; font-size: 13px; text-decoration: none;">Reset</a>
-            {% endif %}
+            <button type="button" id="furnitureResetBtn" class="actionButton secondary" style="padding: 7px 14px; font-size: 13px; display: none;" onclick="resetFurnitureFilter()">Reset</button>
         </form>
         {% if session.get('role') == 'prodManager' %}
         <button type="button" class="actionButton" onclick="openModal('addFurnitureModal')">+ Add New Product</button>
@@ -41,7 +38,7 @@
             </thead>
             <tbody>
                 {% for item in furnitureItems %}
-                <tr>
+                <tr class="furnitureRow" data-category="{{ item.furnitureType }}" data-search="{{ item.furnitureID }} {{ item.furnitureName|lower }}">
                     <td><b>#{{ item.furnitureID }}</b></td>
                     <td><b>{{ item.furnitureName }}</b></td>
                     <td>
@@ -65,6 +62,9 @@
                     <td colspan="5" style="text-align: center; color: var(--mt); padding: 24px;">No products found. Click '+ Add New Product' to register one.</td>
                 </tr>
                 {% endfor %}
+                <tr id="furnitureEmptyRow" style="display: none;">
+                    <td colspan="5" style="text-align: center; color: var(--mt); padding: 24px;">No products match your filter criteria.</td>
+                </tr>
             </tbody>
         </table>
     </div>
@@ -146,5 +146,40 @@
         document.getElementById('editSellingPrice').value = price;
         openModal('editFurnitureModal');
     }
+
+    window.filterFurnitureTable = function() {
+        const q = (document.getElementById('furnitureSearchInput')?.value || '').toLowerCase().trim();
+        const cat = (document.getElementById('furnitureCategorySelect')?.value || '').trim();
+        const resetBtn = document.getElementById('furnitureResetBtn');
+        if (resetBtn) {
+            resetBtn.style.display = (q || cat) ? 'inline-block' : 'none';
+        }
+        const rows = document.querySelectorAll('tr.furnitureRow');
+        let visibleCount = 0;
+        rows.forEach(function(row) {
+            const rowCat = row.dataset.category || '';
+            const rowSearch = row.dataset.search || '';
+            const matchCat = !cat || rowCat === cat;
+            const matchSearch = !q || rowSearch.includes(q);
+            if (matchCat && matchSearch) {
+                row.style.display = '';
+                visibleCount++;
+            } else {
+                row.style.display = 'none';
+            }
+        });
+        const emptyRow = document.getElementById('furnitureEmptyRow');
+        if (emptyRow) {
+            emptyRow.style.display = (visibleCount === 0 && rows.length > 0) ? '' : 'none';
+        }
+    };
+
+    window.resetFurnitureFilter = function() {
+        const qInput = document.getElementById('furnitureSearchInput');
+        const catSelect = document.getElementById('furnitureCategorySelect');
+        if (qInput) qInput.value = '';
+        if (catSelect) catSelect.value = '';
+        window.filterFurnitureTable();
+    };
 </script>
 {% endblock %}

@@ -161,7 +161,7 @@
 <div class="printHeader">
     <h1 style="margin: 0; font-size: 22px;">Production Performance &amp; Material Analytics Report</h1>
     <div style="font-size: 12px; color: #666666; margin-top: 4px;">
-        Team 3 Production &amp; Manufacturing Management System &middot; Generated on Live Database
+        Velmora Co. Production &amp; Manufacturing Management System &middot; Generated on Live Database
     </div>
 </div>
 
@@ -215,25 +215,15 @@
     </div>
 
     <div class="card">
-        <form method="GET" action="{{ url_for('production.reportView') }}" class="toolBar" style="margin-bottom: 22px;">
-            <select name="status" style="width: 220px;">
-                <option value="" {% if currentFilter=='All' %}selected{% endif %}>All Lifecycle Stages ({{
-                    summary.totalOrders }})</option>
-                <option value="In Progress" {% if currentFilter=='In Progress' %}selected{% endif %}>In Progress ({{
-                    summary.inProgressOrders }})</option>
-                <option value="Completed" {% if currentFilter=='Completed' %}selected{% endif %}>Completed ({{
-                    summary.completedOrders }})</option>
-                <option value="Released" {% if currentFilter=='Released' %}selected{% endif %}>Released ({{
-                    summary.releasedOrders }})</option>
-                <option value="Draft" {% if currentFilter=='Draft' %}selected{% endif %}>Draft ({{ summary.draftOrders
-                    }})</option>
+        <form class="toolBar" style="margin-bottom: 22px;" onsubmit="return false;">
+            <select id="reportStatusSelect" style="width: 220px;" onchange="filterReportOrders()">
+                <option value="">All Lifecycle Stages ({{ summary.totalOrders }})</option>
+                <option value="In Progress">In Progress ({{ summary.inProgressOrders }})</option>
+                <option value="Completed">Completed ({{ summary.completedOrders }})</option>
+                <option value="Released">Released ({{ summary.releasedOrders }})</option>
+                <option value="Draft">Draft ({{ summary.draftOrders }})</option>
             </select>
-            <button type="submit" class="actionButton secondary"
-                style="padding: 8px 14px; font-size: 13px;">Filter</button>
-            {% if currentFilter and currentFilter != 'All' %}
-            <a href="{{ url_for('production.reportView') }}" class="actionButton secondary"
-                style="padding: 8px 14px; font-size: 13px; text-decoration: none;">Reset</a>
-            {% endif %}
+            <button type="button" id="reportResetBtn" class="actionButton secondary" style="padding: 8px 14px; font-size: 13px; display: none;" onclick="resetReportFilter()">Reset</button>
         </form>
 
         <div class="headerRow" style="margin-bottom: 14px;">
@@ -241,8 +231,7 @@
                 <h3 style="margin: 0;">Production Orders Performance Ledger</h3>
                 <small style="color: var(--mt);">Real-time progress, scheduled timelines, and batch cost audit</small>
             </div>
-            <span class="statusBadge {{ 'completed' if currentFilter == 'Completed' else 'inProgress' }}">{{
-                reportRows|length }} {{ 'Batch' if reportRows|length == 1 else 'Batches' }}</span>
+            <span id="reportBatchBadge" class="statusBadge inProgress">{{ reportRows|length }} {{ 'Batch' if reportRows|length == 1 else 'Batches' }}</span>
         </div>
 
         <div class="tableContainer">
@@ -261,7 +250,7 @@
                 </thead>
                 <tbody>
                     {% for r in reportRows %}
-                    <tr>
+                    <tr class="reportOrderRow" data-status="{{ r.status }}">
                         <td data-label="Order">
                             <div>
                                 <a href="{{ url_for('production.orderDetail', orderID=r.order_id) }}"
@@ -322,10 +311,15 @@
                     {% else %}
                     <tr>
                         <td colspan="8" style="text-align: center; color: var(--mt); padding: 28px;">
-                            No production orders found matching status filter "{{ currentFilter }}".
+                            No production orders recorded yet.
                         </td>
                     </tr>
                     {% endfor %}
+                    <tr id="reportEmptyRow" style="display: none;">
+                        <td colspan="8" style="text-align: center; color: var(--mt); padding: 28px;">
+                            No production orders match your filter criteria.
+                        </td>
+                    </tr>
                 </tbody>
             </table>
         </div>
@@ -704,6 +698,37 @@
         auditPages.quality = 1;
         applyAuditFilters();
     }
+
+    window.filterReportOrders = function() {
+        const status = (document.getElementById('reportStatusSelect')?.value || '').trim();
+        const resetBtn = document.getElementById('reportResetBtn');
+        if (resetBtn) {
+            resetBtn.style.display = status ? 'inline-block' : 'none';
+        }
+        const rows = document.querySelectorAll('tr.reportOrderRow');
+        let visibleCount = 0;
+        rows.forEach(function(row) {
+            const rowStatus = row.dataset.status || '';
+            const match = !status || rowStatus === status;
+            row.style.display = match ? '' : 'none';
+            if (match) visibleCount++;
+        });
+        const emptyRow = document.getElementById('reportEmptyRow');
+        if (emptyRow) {
+            emptyRow.style.display = (visibleCount === 0 && rows.length > 0) ? '' : 'none';
+        }
+        const badge = document.getElementById('reportBatchBadge');
+        if (badge) {
+            badge.textContent = `${visibleCount} ${visibleCount === 1 ? 'Batch' : 'Batches'}`;
+            badge.className = 'statusBadge ' + (status === 'Completed' ? 'completed' : 'inProgress');
+        }
+    };
+
+    window.resetReportFilter = function() {
+        const statusSelect = document.getElementById('reportStatusSelect');
+        if (statusSelect) statusSelect.value = '';
+        window.filterReportOrders();
+    };
 
     document.addEventListener('DOMContentLoaded', function () {
         const urlParams = new URLSearchParams(window.location.search);
