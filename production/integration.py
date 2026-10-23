@@ -1,5 +1,6 @@
 from decimal import Decimal
 from production.db import openTransaction
+from production.cache import getCached, setCached, invalidateKeys
 
 def get_material_stock(materialID, conn=None):
     with openTransaction(conn) as connection:
@@ -27,6 +28,7 @@ def deduct_material_stock(materialID, quantity, conn=None):
             row = cursor.fetchone()
             if not row:
                 raise ValueError(f"Insufficient stock to deduct {deductQty} for material ID {materialID}.")
+            invalidateKeys("materials_all")
             return Decimal(str(row["current_stock"]))
 
 def add_finished_goods_stock(furnitureID, quantity, conn=None):
@@ -88,6 +90,11 @@ def get_finished_goods_stock(furnitureID, conn=None):
             return int(row["quantity"]) if row and row.get("quantity") is not None else 0
 
 def get_pending_sales_orders(conn=None):
+    if conn is None:
+        cached = getCached("pending_sales_orders")
+        if cached is not None:
+            return cached
+
     try:
         with openTransaction(conn) as connection:
             with connection.cursor() as cursor:
@@ -110,6 +117,9 @@ def get_pending_sales_orders(conn=None):
                        OR so.status IS NULL
                     ORDER BY so.order_id DESC, oi.order_item_id ASC;
                 """)
-                return cursor.fetchall()
+                res = cursor.fetchall()
+                if conn is None:
+                    setCached("pending_sales_orders", res)
+                return res
     except Exception:
         return []

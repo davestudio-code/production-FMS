@@ -1,5 +1,6 @@
 from decimal import Decimal
 from production.db import openTransaction
+from production.cache import getCached, setCached
 
 class Material:
     def __init__(self, data=None):
@@ -20,6 +21,11 @@ class Material:
 
     @classmethod
     def getAll(cls, conn=None):
+        if conn is None:
+            cached = getCached("materials_all")
+            if cached is not None:
+                return cached
+
         with openTransaction(conn) as connection:
             with connection.cursor() as cursor:
                 cursor.execute(
@@ -35,10 +41,20 @@ class Material:
                     """
                 )
                 rows = cursor.fetchall()
-                return [cls(row) for row in rows]
+                result = [cls(row) for row in rows]
+                if conn is None:
+                    setCached("materials_all", result)
+                return result
 
     @classmethod
     def getByID(cls, materialID, conn=None):
+        if conn is None:
+            cached = getCached("materials_all")
+            if cached is not None:
+                for mat in cached:
+                    if mat.materialID == materialID:
+                        return mat
+
         with openTransaction(conn) as connection:
             with connection.cursor() as cursor:
                 cursor.execute(

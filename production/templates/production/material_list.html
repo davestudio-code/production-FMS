@@ -4,7 +4,8 @@
 <div class="headerRow">
     <div>
         <h2>Inventory Stock (Raw Materials)</h2>
-        <span style="color: var(--mt); font-size: 13.5px;">Read-only live warehouse stock fetched directly from Team 2 Inventory</span>
+        <span style="color: var(--mt); font-size: 13.5px;">Read-only live warehouse stock fetched directly from Team 2
+            Inventory</span>
     </div>
 </div>
 
@@ -52,16 +53,18 @@
                         <b style="font-size: 14.5px;">{{ mat.quantityOnHand }}</b> {{ mat.unit }}
                     </td>
                     <td>
-                        {% if mat.quantityOnHand <= 20 %}
-                            <span class="statusBadge alert">&excl; Low Stock (Shortage Risk)</span>
-                        {% else %}
-                            <span class="statusBadge released">&check; Available for Production</span>
-                        {% endif %}
+                        {% if mat.quantityOnHand <= 20 %} <span class="statusBadge alert">&excl; Low Stock (Shortage
+                            Risk)</span>
+                            {% else %}
+                            <span class="statusBadge released">Available for Production</span>
+                            {% endif %}
                     </td>
                 </tr>
                 {% else %}
                 <tr>
-                    <td colspan="{{ '6' if session.get('role') == 'prodManager' else '5' }}" style="text-align: center; color: var(--mt); padding: 24px;">No inventory stock data retrieved from Team 2 yet.</td>
+                    <td colspan="{{ '6' if session.get('role') == 'prodManager' else '5' }}"
+                        style="text-align: center; color: var(--mt); padding: 24px;">No inventory stock data retrieved
+                        from Team 2 yet.</td>
                 </tr>
                 {% endfor %}
             </tbody>

@@ -6,25 +6,27 @@
         <h2>Product Master Catalog</h2>
         <span style="color: var(--mt); font-size: 13.5px;">Finished furniture designs, classifications, and target selling prices</span>
     </div>
-    {% if session.get('role') == 'prodManager' %}
-    <button class="actionButton" onclick="openModal('addFurnitureModal')">+ Add New Product</button>
-    {% endif %}
 </div>
 
 <div class="card">
-    <form method="GET" action="{{ url_for('production.furnitureList') }}" class="toolBar">
-        <input type="text" name="q" value="{{ searchQuery }}" placeholder="Search product name..." style="width: 260px;">
-        <select name="category" onchange="this.form.submit()">
-            <option value="">All Categories</option>
-            {% for cat in categories %}
-            <option value="{{ cat }}" {{ 'selected' if selectedCategory == cat else '' }}>{{ cat }}</option>
-            {% endfor %}
-        </select>
-        <button type="submit" class="actionButton secondary" style="padding: 7px 14px; font-size: 13px;">Filter</button>
-        {% if searchQuery or selectedCategory %}
-        <a href="{{ url_for('production.furnitureList') }}" class="actionButton secondary" style="padding: 7px 14px; font-size: 13px; text-decoration: none;">Reset</a>
+    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; flex-wrap: wrap; gap: 12px;">
+        <form method="GET" action="{{ url_for('production.furnitureList') }}" class="toolBar" style="margin-bottom: 0;">
+            <input type="text" name="q" value="{{ searchQuery }}" placeholder="Search product name..." style="width: 260px;">
+            <select name="category" onchange="this.form.submit()">
+                <option value="">All Categories</option>
+                {% for cat in categories %}
+                <option value="{{ cat }}" {{ 'selected' if selectedCategory == cat else '' }}>{{ cat }}</option>
+                {% endfor %}
+            </select>
+            <button type="submit" class="actionButton secondary" style="padding: 7px 14px; font-size: 13px;">Filter</button>
+            {% if searchQuery or selectedCategory %}
+            <a href="{{ url_for('production.furnitureList') }}" class="actionButton secondary" style="padding: 7px 14px; font-size: 13px; text-decoration: none;">Reset</a>
+            {% endif %}
+        </form>
+        {% if session.get('role') == 'prodManager' %}
+        <button type="button" class="actionButton" onclick="openModal('addFurnitureModal')">+ Add New Product</button>
         {% endif %}
-    </form>
+    </div>
 
     <div class="tableContainer">
         <table>

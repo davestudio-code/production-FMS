@@ -6,9 +6,6 @@
         <h2>Production Orders</h2>
         <span style="color: var(--mt); font-size: 13.5px;">Track order lifecycle: Draft &rarr; Released &rarr; In Progress &rarr; Completed</span>
     </div>
-    {% if session.get('role') == 'prodManager' %}
-    <button class="actionButton" onclick="openModal('createOrderModal')">+ New Production Order</button>
-    {% endif %}
 </div>
 
 <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); gap: 14px; margin-bottom: 20px;">
@@ -35,20 +32,25 @@
 </div>
 
 <div class="card">
-    <form method="GET" action="{{ url_for('production.orderList') }}" class="toolBar" style="margin-bottom: 16px;">
-        <input type="text" name="q" value="{{ searchQuery }}" placeholder="Search by product name or order ID..." style="width: 280px;">
-        <select name="status" style="width: 190px;">
-            <option value="">All Lifecycle Stages</option>
-            <option value="Draft" {% if statusFilter == 'Draft' %}selected{% endif %}>Draft</option>
-            <option value="Released" {% if statusFilter == 'Released' %}selected{% endif %}>Released</option>
-            <option value="In Progress" {% if statusFilter == 'In Progress' %}selected{% endif %}>In Progress</option>
-            <option value="Completed" {% if statusFilter == 'Completed' %}selected{% endif %}>Completed</option>
-        </select>
-        <button type="submit" class="actionButton secondary" style="padding: 8px 14px; font-size: 13px;">Filter</button>
-        {% if searchQuery or statusFilter %}
-        <a href="{{ url_for('production.orderList') }}" class="actionButton secondary" style="padding: 8px 14px; font-size: 13px; text-decoration: none;">Reset</a>
+    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; flex-wrap: wrap; gap: 12px;">
+        <form method="GET" action="{{ url_for('production.orderList') }}" class="toolBar" style="margin-bottom: 0;">
+            <input type="text" name="q" value="{{ searchQuery }}" placeholder="Search by product name or order ID..." style="width: 280px;">
+            <select name="status" style="width: 190px;">
+                <option value="">All Lifecycle Stages</option>
+                <option value="Draft" {% if statusFilter == 'Draft' %}selected{% endif %}>Draft</option>
+                <option value="Released" {% if statusFilter == 'Released' %}selected{% endif %}>Released</option>
+                <option value="In Progress" {% if statusFilter == 'In Progress' %}selected{% endif %}>In Progress</option>
+                <option value="Completed" {% if statusFilter == 'Completed' %}selected{% endif %}>Completed</option>
+            </select>
+            <button type="submit" class="actionButton secondary" style="padding: 8px 14px; font-size: 13px;">Filter</button>
+            {% if searchQuery or statusFilter %}
+            <a href="{{ url_for('production.orderList') }}" class="actionButton secondary" style="padding: 8px 14px; font-size: 13px; text-decoration: none;">Reset</a>
+            {% endif %}
+        </form>
+        {% if session.get('role') == 'prodManager' %}
+        <button type="button" class="actionButton" onclick="openModal('createOrderModal')">+ New Production Order</button>
         {% endif %}
-    </form>
+    </div>
 
     <div class="tableContainer">
         <table>

@@ -1,5 +1,6 @@
 from decimal import Decimal
 from production.db import openTransaction
+from production.cache import getCached, setCached, invalidateKeys
 
 class Furniture:
     def __init__(self, data=None):
@@ -17,6 +18,11 @@ class Furniture:
 
     @classmethod
     def getAll(cls, searchQuery=None, category=None, conn=None):
+        if not searchQuery and not category and conn is None:
+            cached = getCached("furniture_all")
+            if cached is not None:
+                return cached
+
         with openTransaction(conn) as connection:
             with connection.cursor() as cursor:
                 sql = "SELECT furniture_id, furniture_name, furniture_type, selling_price FROM prod_furniture WHERE 1=1"
@@ -30,15 +36,26 @@ class Furniture:
                 sql += " ORDER BY furniture_id ASC"
                 cursor.execute(sql, tuple(params))
                 rows = cursor.fetchall()
-                return [cls(row) for row in rows]
+                result = [cls(row) for row in rows]
+                if not searchQuery and not category and conn is None:
+                    setCached("furniture_all", result)
+                return result
 
     @classmethod
     def getCategories(cls, conn=None):
+        if conn is None:
+            cached = getCached("furniture_categories")
+            if cached is not None:
+                return cached
+
         with openTransaction(conn) as connection:
             with connection.cursor() as cursor:
                 cursor.execute("SELECT DISTINCT furniture_type FROM prod_furniture WHERE furniture_type IS NOT NULL AND furniture_type != '' ORDER BY furniture_type ASC")
                 rows = cursor.fetchall()
-                return [row["furniture_type"] for row in rows]
+                result = [row["furniture_type"] for row in rows]
+                if conn is None:
+                    setCached("furniture_categories", result)
+                return result
 
     @classmethod
     def getByID(cls, furnitureID, conn=None):
@@ -70,6 +87,7 @@ class Furniture:
                     (cleanName, cleanType, priceVal)
                 )
                 row = cursor.fetchone()
+                invalidateKeys("furniture_all", "furniture_categories")
                 return cls(row)
 
     @classmethod
@@ -84,6 +102,7 @@ class Furniture:
                     (cleanName, cleanType, priceVal, furnitureID)
                 )
                 row = cursor.fetchone()
+                invalidateKeys("furniture_all", "furniture_categories")
                 return cls(row) if row else None
 
     @classmethod
@@ -119,4 +138,5 @@ class Furniture:
         with openTransaction(conn) as connection:
             with connection.cursor() as cursor:
                 cursor.execute("DELETE FROM prod_furniture WHERE furniture_id = %s", (furnitureID,))
+                invalidateKeys("furniture_all", "furniture_categories")
                 return True

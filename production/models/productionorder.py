@@ -1,6 +1,7 @@
 from datetime import date
 from decimal import Decimal
 from production.db import openTransaction
+from production.cache import getCached, setCached, invalidateKeys
 from .billofmaterials import BillOfMaterials
 
 class ProductionOrder:
@@ -49,6 +50,11 @@ class ProductionOrder:
 
     @classmethod
     def getAll(cls, statusFilter=None, searchQuery=None, conn=None):
+        if not statusFilter and not searchQuery and conn is None:
+            cached = getCached("orders_all")
+            if cached is not None:
+                return cached
+
         query = """
             SELECT po.order_id, po.furniture_id, f.furniture_name, f.furniture_type,
                    po.sales_order_item_id, po.planned_quantity, po.order_date, po.planned_start_date,
@@ -74,7 +80,10 @@ class ProductionOrder:
             with connection.cursor() as cursor:
                 cursor.execute(query, tuple(params))
                 rows = cursor.fetchall()
-                return [cls(row) for row in rows]
+                result = [cls(row) for row in rows]
+                if not statusFilter and not searchQuery and conn is None:
+                    setCached("orders_all", result)
+                return result
 
     @classmethod
     def getPlanningOrders(cls, statusFilter=None, searchQuery=None, conn=None):
@@ -121,6 +130,11 @@ class ProductionOrder:
 
     @classmethod
     def getSummaryCounts(cls, conn=None):
+        if conn is None:
+            cached = getCached("orders_summary")
+            if cached is not None:
+                return cached
+
         query = """
             SELECT
                 COUNT(*) AS total_count,
@@ -134,13 +148,16 @@ class ProductionOrder:
             with connection.cursor() as cursor:
                 cursor.execute(query)
                 row = cursor.fetchone()
-                return {
+                result = {
                     "total": row["total_count"] if row else 0,
                     "draft": row["draft_count"] if row else 0,
                     "released": row["released_count"] if row else 0,
                     "inProgress": row["in_progress_count"] if row else 0,
                     "completed": row["completed_count"] if row else 0
                 }
+                if conn is None:
+                    setCached("orders_summary", result)
+                return result
 
     @classmethod
     def createOrder(cls, furnitureID, plannedQuantity, plannedStartDate=None, dueDate=None, salesOrderItemID=None, conn=None):
@@ -169,6 +186,7 @@ class ProductionOrder:
                     (furnitureID, salesOrderItemID, plannedQuantity, plannedStartDate, dueDate)
                 )
                 newID = cursor.fetchone()["order_id"]
+                invalidateKeys("orders_all", "orders_summary")
                 return newID
 
     @classmethod
@@ -197,6 +215,7 @@ class ProductionOrder:
                     "UPDATE prod_productionorder SET status = %s WHERE order_id = %s",
                     (newStatus, orderID)
                 )
+                invalidateKeys("orders_all", "orders_summary")
                 return True
 
     @classmethod
@@ -215,6 +234,7 @@ class ProductionOrder:
                     """,
                     (plannedStartDate, dueDate, orderID)
                 )
+                invalidateKeys("orders_all", "orders_summary")
                 return True
 
     @classmethod
@@ -264,4 +284,5 @@ class ProductionOrder:
                     "DELETE FROM prod_productionorder WHERE order_id = %s AND status = 'Draft'",
                     (orderID,)
                 )
+                invalidateKeys("orders_all", "orders_summary")
                 return True

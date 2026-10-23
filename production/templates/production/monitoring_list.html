@@ -256,7 +256,7 @@
                             </div>
                             <div style="font-size: 11px; font-weight: 600; color: var(--mt); margin-top: 3px;">
                                 {% if mon.progress >= 100 %}
-                                &check; QA Passed & Completed
+                                QA Passed & Completed
                                 {% elif mon.progress >= 90 %}
                                 Stage 4: Ready for QA
                                 {% elif mon.progress >= 75 %}
@@ -305,7 +305,7 @@
         </form>
     </div>
     {% else %}
-    <span class="statusBadge completed">&check; 100% QA Passed</span>
+    <span class="statusBadge completed">100% QA Passed</span>
     {% endif %}
     </td>
     </tr>

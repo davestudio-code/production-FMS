@@ -7,6 +7,7 @@
     <link rel="stylesheet" href="{{ url_for('production.static', filename='css/style.css') }}">
 </head>
 <body>
+    <div id="topProgressBar" class="topProgressBar"></div>
     <div class="container">
         <nav>
             <div class="navBrand">
@@ -67,6 +68,17 @@
             {% block content %}{% endblock %}
         </main>
     </div>
+
+    <template id="refreshBtnTemplate">
+        <button id="refreshSyncBtn" class="refreshSyncBtn" onclick="triggerGlobalRefresh(this)" title="Fetch latest live data from database">
+            <svg class="refreshIconSvg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                <polyline points="23 4 23 10 17 10"></polyline>
+                <polyline points="1 20 1 14 7 14"></polyline>
+                <path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"></path>
+            </svg>
+            <span>Refresh</span>
+        </button>
+    </template>
 
     <div id="toastContainer" class="toastContainer" aria-live="polite"></div>
 
@@ -261,56 +273,144 @@
             openModal('scheduleModal');
         }
 
+        const tabHtmlCache = new Map();
+
+        function prefetchTab(targetUrl) {
+            if (!targetUrl || targetUrl.startsWith('#') || tabHtmlCache.has(targetUrl)) return;
+            fetch(targetUrl, { headers: { 'X-Requested-With': 'XMLHttpRequest' } })
+                .then(function(res) { return res.ok ? res.text() : null; })
+                .then(function(html) {
+                    if (html) tabHtmlCache.set(targetUrl, html);
+                })
+                .catch(function() {});
+        }
+
+        async function triggerGlobalRefresh(btn) {
+            if (btn) {
+                btn.classList.add('spinning');
+                btn.disabled = true;
+            }
+            tabHtmlCache.clear();
+            try {
+                const response = await fetch("{{ url_for('production.refreshCache') }}", {
+                    method: 'POST',
+                    headers: { 'X-Requested-With': 'XMLHttpRequest' }
+                });
+                showToast('Live database synchronized.', 'success');
+                if (typeof window.loadTabContent === 'function') {
+                    await window.loadTabContent(window.location.href, false);
+                } else {
+                    window.location.reload();
+                }
+            } catch (err) {
+                window.location.reload();
+            } finally {
+                if (btn) {
+                    btn.classList.remove('spinning');
+                    btn.disabled = false;
+                }
+            }
+        }
+
         document.addEventListener('DOMContentLoaded', function() {
             const navLinks = document.querySelectorAll('nav a');
             const mainContainer = document.querySelector('main');
+            const topBar = document.getElementById('topProgressBar');
+
+            function applyTabHtml(pageHtml, targetUrl, shouldPushState) {
+                const domParser = new DOMParser();
+                const parsedDocument = domParser.parseFromString(pageHtml, 'text/html');
+                const incomingMain = parsedDocument.querySelector('main');
+
+                if (incomingMain && mainContainer) {
+                    mainContainer.innerHTML = incomingMain.innerHTML;
+                    document.title = parsedDocument.title;
+
+                    mainContainer.querySelectorAll('script').forEach(function(oldScript) {
+                        const newScript = document.createElement('script');
+                        Array.from(oldScript.attributes).forEach(function(attr) {
+                            newScript.setAttribute(attr.name, attr.value);
+                        });
+                        newScript.textContent = oldScript.textContent;
+                        oldScript.parentNode.replaceChild(newScript, oldScript);
+                    });
+
+                    if (shouldPushState) {
+                        history.pushState({ targetUrl: targetUrl }, '', targetUrl);
+                    }
+
+                    navLinks.forEach(link => {
+                        if (link.href === targetUrl || link.getAttribute('href') === targetUrl) {
+                            link.classList.add('active');
+                        } else {
+                            link.classList.remove('active');
+                        }
+                    });
+
+                    mountRefreshButton();
+                }
+            }
 
             async function loadTabContent(targetUrl, shouldPushState = true) {
                 closeMobileNav();
+                if (topBar) {
+                    topBar.style.width = '35%';
+                    topBar.style.opacity = '1';
+                }
+
+                if (tabHtmlCache.has(targetUrl)) {
+                    applyTabHtml(tabHtmlCache.get(targetUrl), targetUrl, shouldPushState);
+                    if (topBar) {
+                        topBar.style.width = '100%';
+                        setTimeout(function() {
+                            topBar.style.opacity = '0';
+                            topBar.style.width = '0%';
+                        }, 200);
+                    }
+                    fetch(targetUrl, { headers: { 'X-Requested-With': 'XMLHttpRequest' } })
+                        .then(function(res) { return res.ok ? res.text() : null; })
+                        .then(function(freshHtml) {
+                            if (freshHtml && freshHtml !== tabHtmlCache.get(targetUrl)) {
+                                tabHtmlCache.set(targetUrl, freshHtml);
+                                applyTabHtml(freshHtml, targetUrl, false);
+                            }
+                        })
+                        .catch(function() {});
+                    return;
+                }
+
                 try {
+                    if (topBar) topBar.style.width = '70%';
                     const response = await fetch(targetUrl);
                     if (!response.ok) {
                         window.location.href = targetUrl;
                         return;
                     }
                     const pageHtml = await response.text();
-                    const domParser = new DOMParser();
-                    const parsedDocument = domParser.parseFromString(pageHtml, 'text/html');
-                    const incomingMain = parsedDocument.querySelector('main');
-
-                    if (incomingMain && mainContainer) {
-                        mainContainer.innerHTML = incomingMain.innerHTML;
-                        document.title = parsedDocument.title;
-
-                        mainContainer.querySelectorAll('script').forEach(function(oldScript) {
-                            const newScript = document.createElement('script');
-                            Array.from(oldScript.attributes).forEach(function(attr) {
-                                newScript.setAttribute(attr.name, attr.value);
-                            });
-                            newScript.textContent = oldScript.textContent;
-                            oldScript.parentNode.replaceChild(newScript, oldScript);
-                        });
-
-                        if (shouldPushState) {
-                            history.pushState({ targetUrl: targetUrl }, '', targetUrl);
-                        }
-
-                        navLinks.forEach(link => {
-                            if (link.href === targetUrl || link.getAttribute('href') === targetUrl) {
-                                link.classList.add('active');
-                            } else {
-                                link.classList.remove('active');
-                            }
-                        });
-                    } else {
-                        window.location.href = targetUrl;
-                    }
+                    tabHtmlCache.set(targetUrl, pageHtml);
+                    applyTabHtml(pageHtml, targetUrl, shouldPushState);
                 } catch (loadError) {
                     window.location.href = targetUrl;
+                } finally {
+                    if (topBar) {
+                        topBar.style.width = '100%';
+                        setTimeout(function() {
+                            topBar.style.opacity = '0';
+                            topBar.style.width = '0%';
+                        }, 200);
+                    }
                 }
             }
 
+            window.loadTabContent = loadTabContent;
+
             navLinks.forEach(link => {
+                link.addEventListener('mouseenter', function() {
+                    prefetchTab(this.href);
+                });
+                link.addEventListener('touchstart', function() {
+                    prefetchTab(this.href);
+                }, { passive: true });
                 link.addEventListener('click', function(event) {
                     const targetHref = this.getAttribute('href');
                     if (targetHref && !targetHref.startsWith('#')) {
@@ -327,6 +427,20 @@
                     loadTabContent(window.location.href, false);
                 }
             });
+
+            function mountRefreshButton() {
+                const mainHeader = document.querySelector('main .headerRow');
+                if (!mainHeader || mainHeader.querySelector('#refreshSyncBtn')) return;
+                const tmpl = document.getElementById('refreshBtnTemplate');
+                if (!tmpl) return;
+                const clone = tmpl.content.cloneNode(true);
+                const btn = clone.querySelector('#refreshSyncBtn');
+                if (btn) {
+                    mainHeader.appendChild(btn);
+                }
+            }
+
+            mountRefreshButton();
         });
     </script>
 </body>

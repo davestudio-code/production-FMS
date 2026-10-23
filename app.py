@@ -13,13 +13,10 @@ def root():
 @app.teardown_appcontext
 def closeRequestContextDb(error=None):
     from flask import g
+    from production.db import releaseConnection
     conn = getattr(g, "dbConnection", None)
-    if conn is not None and conn.closed == 0:
-        if error:
-            conn.rollback()
-        else:
-            conn.commit()
-        conn.close()
+    if conn is not None:
+        releaseConnection(conn, error=bool(error))
         g.dbConnection = None
 
 if __name__ == "__main__":

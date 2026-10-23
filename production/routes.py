@@ -1,4 +1,4 @@
-from flask import Blueprint, render_template, request, redirect, url_for, flash, session
+from flask import Blueprint, render_template, request, redirect, url_for, flash, session, jsonify
 from decimal import Decimal, InvalidOperation
 from datetime import date
 from psycopg2.errors import UniqueViolation
@@ -14,6 +14,7 @@ from .models.monitoring import ProductionMonitoring
 from .models.productionoutput import ProductionOutput
 from .models.productioncost import ProductionCost
 from . import integration
+from .cache import clearAllCache, invalidateKeys
 
 productionBlueprint = Blueprint(
     "production",
@@ -60,6 +61,14 @@ def logout():
     session.clear()
     flash("You have been signed out successfully.", "info")
     return redirect(url_for("production.login"))
+
+@productionBlueprint.route("/refresh", methods=["POST", "GET"])
+def refreshCache():
+    clearAllCache()
+    if request.headers.get("X-Requested-With") == "XMLHttpRequest" or request.is_json:
+        return jsonify({"status": "success", "message": "Live database synchronized."})
+    flash("Live database synchronized.", "success")
+    return redirect(request.referrer or url_for("production.index"))
 
 def getDatabaseStatus():
     try:
@@ -474,6 +483,7 @@ def createOrder():
             dueDate=parsedDueDate,
             salesOrderItemID=salesOrderItemID
         )
+        invalidateKeys("pending_sales_orders")
         flash(f"Production Order #PO-{newOrderID} created successfully in Draft status.", "success")
     except ValueError as valErr:
         flash(str(valErr), "warning")
@@ -487,6 +497,7 @@ def createOrder():
 def deleteOrder(orderID):
     try:
         ProductionOrder.deleteOrder(orderID)
+        invalidateKeys("pending_sales_orders")
         flash(f"Draft Production Order #PO-{orderID} deleted successfully.", "success")
     except ValueError as valErr:
         flash(str(valErr), "warning")
@@ -598,8 +609,9 @@ def requirementList():
             rawReqs = bom.calculateRequirements(batchQty)
             hasBOM = len(rawReqs) > 0
 
+            matsMap = {m.materialID: m for m in Material.getAll()}
             for req in rawReqs:
-                mat = Material.getByID(req["materialID"])
+                mat = matsMap.get(req["materialID"])
                 onHand = mat.currentStock if mat else Decimal("0.000")
                 required = req["batchQuantity"]
                 shortage = max(Decimal("0.000"), required - onHand)
@@ -659,9 +671,10 @@ def releaseOrder(orderID):
             flash(f"Cannot release order: No BOM recipe components defined for '{order.furnitureName}'.", "warning")
             return redirect(url_for("production.requirementList", order_id=orderID))
 
+        matsMap = {m.materialID: m for m in Material.getAll()}
         shortageList = []
         for r in reqs:
-            mat = Material.getByID(r["materialID"])
+            mat = matsMap.get(r["materialID"])
             onHand = mat.currentStock if mat else Decimal("0.000")
             if onHand < r["batchQuantity"]:
                 shortQty = r["batchQuantity"] - onHand
@@ -684,8 +697,11 @@ def issuanceList():
     try:
         allOrders = ProductionOrder.getAll()
         releasedOrders = [o for o in allOrders if o.status == "Released"]
+        bomCache = {}
         for o in releasedOrders:
-            bom = BillOfMaterials.getByFurnitureID(o.furnitureID, autoCreate=False)
+            if o.furnitureID not in bomCache:
+                bomCache[o.furnitureID] = BillOfMaterials.getByFurnitureID(o.furnitureID, autoCreate=False)
+            bom = bomCache[o.furnitureID]
             if bom:
                 o.requirements = bom.calculateRequirements(Decimal(str(o.plannedQuantity)))
             else:
