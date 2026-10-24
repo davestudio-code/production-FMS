@@ -51,7 +51,8 @@
                     <th>Labor Cost (₱)</th>
                     <th>{{ summary.overheadPercent }}% Overhead</th>
                     <th>Total Batch Cost</th>
-                    <th>Cost / Unit</th>
+                    <th>Cost / Planned Unit</th>
+                    <th>Cost / Good Unit</th>
                     <th>Action</th>
                 </tr>
             </thead>
@@ -94,8 +95,16 @@
                     <td data-label="Total Cost">
                         <b style="color: var(--p); font-size: 14px;">₱{{ "{:,.2f}".format(ord.totalCost) }}</b>
                     </td>
-                    <td data-label="Unit Cost">
-                        <span style="font-weight: 600;">₱{{ "{:,.2f}".format(ord.unitCost) }}</span>
+                    <td data-label="Planned Unit Cost">
+                        <span style="font-weight: 500;">₱{{ "{:,.2f}".format(ord.unitCost) }}</span>
+                    </td>
+                    <td data-label="Good Unit Cost">
+                        {% if ord.costPerGoodUnit is not none %}
+                        <span style="font-weight: 700; color: #526638;">₱{{ "{:,.2f}".format(ord.costPerGoodUnit) }}</span>
+                        <small style="display: block; font-size: 11px; color: var(--mt);">({{ ord.passedUnits }} passed)</small>
+                        {% else %}
+                        <span style="color: var(--mt); font-style: italic;">n/a</span>
+                        {% endif %}
                     </td>
                     <td data-label="Action">
                         {% if ord.hasCostSheet %}

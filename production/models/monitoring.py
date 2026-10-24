@@ -3,6 +3,15 @@ from decimal import Decimal
 from production.db import openTransaction
 
 class ProductionMonitoring:
+    STAGE_LABELS = {
+        25: "Stage 1: Cutting & Sizing",
+        50: "Stage 2: Joinery & Assembly",
+        75: "Stage 3: Sanding & Finishing",
+        90: "Stage 4: Ready for QA Inspection",
+        100: "QA Passed & Completed"
+    }
+    REWORK_STAGE_PROGRESS = 75.0
+
     def __init__(self, data=None):
         if data:
             self.monitoringID = data.get("monitoring_id")
@@ -15,6 +24,7 @@ class ProductionMonitoring:
             self.plannedQuantity = data.get("planned_quantity", 0)
             self.orderStatus = data.get("order_status", "")
             self.dueDate = data.get("due_date")
+            self.reworkCount = int(data.get("rework_count", 0)) if data.get("rework_count") is not None else 0
         else:
             self.monitoringID = None
             self.orderID = None
@@ -25,6 +35,7 @@ class ProductionMonitoring:
             self.plannedQuantity = 0
             self.orderStatus = ""
             self.dueDate = None
+            self.reworkCount = 0
 
     @property
     def formattedStartDate(self):
@@ -78,6 +89,7 @@ class ProductionMonitoring:
                            pm.progress,
                            pm.start_date,
                            pm.completion_date,
+                           COALESCE(pm.rework_count, 0) AS rework_count,
                            po.planned_quantity,
                            po.status AS order_status,
                            po.due_date,
@@ -100,6 +112,7 @@ class ProductionMonitoring:
                            pm.progress,
                            pm.start_date,
                            pm.completion_date,
+                           COALESCE(pm.rework_count, 0) AS rework_count,
                            po.planned_quantity,
                            po.status AS order_status,
                            po.due_date,
@@ -122,6 +135,7 @@ class ProductionMonitoring:
                            pm.progress,
                            pm.start_date,
                            pm.completion_date,
+                           COALESCE(pm.rework_count, 0) AS rework_count,
                            po.planned_quantity,
                            po.status AS order_status,
                            po.due_date,
@@ -144,7 +158,23 @@ class ProductionMonitoring:
                     SET progress = %s,
                         completion_date = CASE WHEN %s >= 100.0 THEN CURRENT_DATE ELSE NULL END
                     WHERE monitoring_id = %s
-                    RETURNING monitoring_id, order_id, progress, start_date, completion_date
+                    RETURNING monitoring_id, order_id, progress, start_date, completion_date, rework_count
                 """, (val, val, monitoringID))
+                row = cursor.fetchone()
+                return cls(row) if row else None
+
+    @classmethod
+    def updateProgressAndRework(cls, monitoringID, progressVal, reworkCount, conn=None):
+        val = max(0.0, min(100.0, float(progressVal)))
+        with openTransaction(conn) as connection:
+            with connection.cursor() as cursor:
+                cursor.execute("""
+                    UPDATE prod_productionmonitoring
+                    SET progress = %s,
+                        rework_count = %s,
+                        completion_date = CASE WHEN %s >= 100.0 THEN CURRENT_DATE ELSE NULL END
+                    WHERE monitoring_id = %s
+                    RETURNING monitoring_id, order_id, progress, start_date, completion_date, rework_count
+                """, (val, reworkCount, val, monitoringID))
                 row = cursor.fetchone()
                 return cls(row) if row else None

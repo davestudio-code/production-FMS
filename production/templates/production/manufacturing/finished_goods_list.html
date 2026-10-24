@@ -30,6 +30,30 @@
     </div>
 </div>
 
+{% if needsAttentionOrders %}
+<!-- Diagnostic list: should normally be empty -->
+<div class="card" style="margin-bottom: 24px; border-left: 4px solid #c97a3e;">
+    <div class="headerRow" style="margin-bottom: 8px;">
+        <div>
+            <h4 style="margin: 0; color: #a25622;">Orders Needing Attention (0 Units Pending QA)</h4>
+            <small style="color: var(--mt);">Diagnostic list (should normally be empty): these orders are marked 'In Progress' at 90%+ but all planned units have already been inspected (passed or failed). Review them to finalize their order status.</small>
+        </div>
+        <span class="statusBadge alert">{{ needsAttentionOrders | length }} Needs Review</span>
+    </div>
+    <div style="display: flex; flex-direction: column; gap: 8px;">
+        {% for ord in needsAttentionOrders %}
+        <div style="display: flex; justify-content: space-between; align-items: center; padding: 8px 12px; background: #fbf7ef; border: 1px solid var(--bd); border-radius: 6px;">
+            <div>
+                <a href="/production/orders/{{ ord.orderID }}" style="color: var(--p); font-weight: 700; text-decoration: none; font-size: 13.5px;">Order #PO-{{ ord.orderID }}</a>
+                &middot; <b>{{ ord.furnitureName }}</b> (Planned: {{ ord.plannedQuantity }}, Passed: {{ ord.alreadyPassed }}, Scrapped: {{ ord.alreadyFailed }})
+            </div>
+            <a href="/production/orders/{{ ord.orderID }}" class="btn btnSecondary" style="font-size: 12px; padding: 4px 10px;">View Order</a>
+        </div>
+        {% endfor %}
+    </div>
+</div>
+{% endif %}
+
 <div class="card" style="margin-bottom: 24px;">
     <div class="headerRow" style="margin-bottom: 14px;">
         <div>
@@ -49,7 +73,9 @@
                     <th>Furniture Product</th>
                     <th>Assembly Progress</th>
                     <th>Target Due Date</th>
-                    <th class="updateCell">Perform Quality Inspection</th>
+                    <th>Pending QA</th>
+                    <th>Reworks</th>
+                    <th style="text-align: right;">Action</th>
                 </tr>
             </thead>
             <tbody>
@@ -64,7 +90,7 @@
                     </td>
                     <td data-label="Product">
                         <div>
-                            <b>{{ ord.furnitureName }}</b> &middot; {{ ord.plannedQuantity }} units
+                            <b>{{ ord.furnitureName }}</b> &middot; {{ ord.plannedQuantity }} unit{% if ord.plannedQuantity != 1 %}s{% endif %}
                         </div>
                     </td>
                     <td data-label="Progress">
@@ -83,18 +109,24 @@
                         <span style="color: var(--mt); font-size: 12.5px;">No Date</span>
                         {% endif %}
                     </td>
-                    <td data-label="QA Action" class="updateCell">
+                    <td data-label="Pending">
+                        <b>{{ ord.pendingInspectionQty }}</b> unit{% if ord.pendingInspectionQty != 1 %}s{% endif %}
+                    </td>
+                    <td data-label="Reworks">
+                        <span style="font-size: 12.5px; font-weight: 600;">{{ ord.reworkCount or 0 }}/2</span>
+                    </td>
+                    <td data-label="Action" style="text-align: right;">
                         {% if session.get('role') == 'prodManager' %}
-                        <form method="POST" action="/production/finished-goods/inspect/{{ ord.orderID }}"
-                            class="updateFormRow">
-                            <input type="hidden" name="quantity" value="{{ ord.plannedQuantity }}">
-                            <select name="qualityStatus" class="stageSelect">
-                                <option value="Passed">Pass &amp; Stock (+{{ ord.plannedQuantity }} units)</option>
-                                <option value="Rework">Request Rework (Rollback to 75%)</option>
-                                <option value="Failed">Reject &amp; Fail Inspection</option>
-                            </select>
-                            <button type="submit" class="btn btnPrimary stageSaveBtn">Submit QA</button>
-                        </form>
+                        <button type="button" class="btn btnPrimary qaInspectBtn"
+                            data-order-id="{{ ord.orderID }}"
+                            data-furniture-name="{{ ord.furnitureName }}"
+                            data-pending-qty="{{ ord.pendingInspectionQty }}"
+                            data-passed-qty="{{ ord.alreadyPassed }}"
+                            data-failed-qty="{{ ord.alreadyFailed }}"
+                            data-rework-count="{{ ord.reworkCount or 0 }}"
+                            data-inspect-url="{{ url_for('production.recordInspection', orderID=ord.orderID) }}">
+                            Inspect
+                        </button>
                         {% else %}
                         <span style="font-size: 12.5px; color: var(--mt); font-style: italic;">Awaiting Manager Sign-Off</span>
                         {% endif %}
@@ -102,7 +134,7 @@
                 </tr>
                 {% else %}
                 <tr>
-                    <td colspan="5" style="text-align: center; color: var(--mt); padding: 28px;">
+                    <td colspan="7" style="text-align: center; color: var(--mt); padding: 28px;">
                         No orders currently awaiting quality inspection. Orders reach QA here once updated to 90% in
                         Production Monitoring.
                     </td>
@@ -112,5 +144,304 @@
         </table>
     </div>
 </div>
+
+<div class="card">
+    <div class="headerRow" style="margin-bottom: 14px;">
+        <div>
+            <h3 style="margin: 0;">Inspection History</h3>
+            <small style="color: var(--mt);">Authoritative record of quality inspection outcomes, reasons, and inspectors.</small>
+        </div>
+    </div>
+
+    <div class="tableContainer">
+        <table class="monitoringTable">
+            <thead>
+                <tr>
+                    <th>Date</th>
+                    <th>Order</th>
+                    <th>Product</th>
+                    <th>Status</th>
+                    <th>Quantity</th>
+                    <th>Reason</th>
+                    <th>Inspector</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for out in outputRecords %}
+                <tr>
+                    <td data-label="Date">{{ out.formattedInspectionDate }}</td>
+                    <td data-label="Order">
+                        <a href="/production/orders/{{ out.orderID }}" style="color: var(--p); font-weight: 700; text-decoration: none;">Order #PO-{{ out.orderID }}</a>
+                    </td>
+                    <td data-label="Product">{{ out.furnitureName }}</td>
+                    <td data-label="Status">
+                        {% if out.qualityStatus == 'Passed' %}
+                        <span class="statusBadge completed">Passed</span>
+                        {% elif out.qualityStatus == 'Rework' %}
+                        <span class="statusBadge inProgress">Rework</span>
+                        {% elif out.qualityStatus == 'Failed' %}
+                        <span class="statusBadge cancelled">Failed</span>
+                        {% else %}
+                        <span class="statusBadge draft">{{ out.qualityStatus }}</span>
+                        {% endif %}
+                    </td>
+                    <td data-label="Quantity"><b>{{ out.quantity }}</b> unit{% if out.quantity != 1 %}s{% endif %}</td>
+                    <td data-label="Reason">
+                        {% if out.reason %}
+                        <span style="font-size: 12.5px;">{{ out.reason }}</span>
+                        {% else %}
+                        <span style="color: var(--mt); font-size: 12px;">-</span>
+                        {% endif %}
+                    </td>
+                    <td data-label="Inspector">
+                        <span style="font-size: 12.5px; font-weight: 500;">{{ out.recordedBy }}</span>
+                    </td>
+                </tr>
+                {% else %}
+                <tr>
+                    <td colspan="7" style="text-align: center; color: var(--mt); padding: 24px;">No quality inspection records logged yet.</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<div id="qaModalOverlay" class="qaModalOverlay" role="dialog" aria-modal="true" aria-labelledby="qaModalTitle">
+    <div class="qaModalCard">
+        <div class="qaModalHeader">
+            <div>
+                <h3 id="qaModalTitle" class="qaModalTitle">Quality Inspection</h3>
+                <div id="qaModalSubtitle" class="qaModalSubtitle"></div>
+            </div>
+            <button type="button" id="qaModalCloseBtn" class="qaModalClose" aria-label="Close modal">&times;</button>
+        </div>
+
+        <div id="qaSummaryLine" class="qaSummaryLine"></div>
+
+        <form id="qaModalForm" method="POST" action="">
+            <div class="qaFieldGroup" style="margin-bottom: 12px;">
+                <div class="qaGridInputs">
+                    <div class="qaFieldGroup">
+                        <div style="display: flex; justify-content: space-between; align-items: center;">
+                            <label for="qaPassedInput">Passed</label>
+                            <button type="button" id="qaPassAllBtn" class="qaPassAllLink">Pass all</button>
+                        </div>
+                        <input type="number" id="qaPassedInput" name="passedQuantity" min="0" step="1" inputmode="numeric" placeholder="0" class="qaNumberInput">
+                    </div>
+                    <div class="qaFieldGroup">
+                        <label for="qaReworkInput">Rework</label>
+                        <input type="number" id="qaReworkInput" name="reworkQuantity" min="0" step="1" inputmode="numeric" placeholder="0" class="qaNumberInput">
+                        <small id="qaReworkLimitNote" style="display: none; color: #9a4a3a; font-size: 10.5px; font-weight: 600;">Max reworks reached (2/2)</small>
+                    </div>
+                    <div class="qaFieldGroup">
+                        <label for="qaFailedInput">Failed</label>
+                        <input type="number" id="qaFailedInput" name="failedQuantity" min="0" step="1" inputmode="numeric" placeholder="0" class="qaNumberInput">
+                    </div>
+                </div>
+            </div>
+
+            <div id="qaTotalDisplay" class="qaTotalDisplay invalid" style="margin-bottom: 10px;">Total entered: 0 / 0</div>
+
+            <div id="qaReasonGroup" class="qaFieldGroup" style="display: none; margin-bottom: 12px;">
+                <label for="qaReasonInput">Reason (Mandatory for Rework / Scrap)</label>
+                <input type="text" id="qaReasonInput" name="reason" maxlength="255" placeholder="Reason for rework or scrap" class="qaReasonInput">
+            </div>
+
+            <div id="qaScrapConfirmBox" class="qaScrapConfirmBox" style="display: none; margin-bottom: 14px;">
+                <input type="checkbox" name="scrapConfirmed" id="qaScrapConfirmCheckbox">
+                <label for="qaScrapConfirmCheckbox">I understand these units will be scrapped</label>
+            </div>
+
+            <div class="qaModalActions">
+                <button type="button" id="qaModalCancelBtn" class="btn btnSecondary">Cancel</button>
+                <button type="submit" id="qaModalSubmitBtn" class="btn btnPrimary" disabled>Submit QA</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<script>
+var qaModalOverlay = document.getElementById('qaModalOverlay');
+var qaModalForm = document.getElementById('qaModalForm');
+var qaModalTitle = document.getElementById('qaModalTitle');
+var qaModalSubtitle = document.getElementById('qaModalSubtitle');
+var qaSummaryLine = document.getElementById('qaSummaryLine');
+var qaPassedInput = document.getElementById('qaPassedInput');
+var qaReworkInput = document.getElementById('qaReworkInput');
+var qaFailedInput = document.getElementById('qaFailedInput');
+var qaPassAllBtn = document.getElementById('qaPassAllBtn');
+var qaReworkLimitNote = document.getElementById('qaReworkLimitNote');
+var qaTotalDisplay = document.getElementById('qaTotalDisplay');
+var qaReasonGroup = document.getElementById('qaReasonGroup');
+var qaReasonInput = document.getElementById('qaReasonInput');
+var qaScrapConfirmBox = document.getElementById('qaScrapConfirmBox');
+var qaScrapConfirmCheckbox = document.getElementById('qaScrapConfirmCheckbox');
+var qaModalSubmitBtn = document.getElementById('qaModalSubmitBtn');
+var qaModalCloseBtn = document.getElementById('qaModalCloseBtn');
+var qaModalCancelBtn = document.getElementById('qaModalCancelBtn');
+
+var currentPendingQty = 0;
+var currentReworkCount = 0;
+var lastFocusedBtn = null;
+
+function updateModalState() {
+    if (!currentPendingQty || currentPendingQty <= 0) {
+        if (qaModalSubmitBtn) {
+            qaModalSubmitBtn.disabled = true;
+        }
+        return;
+    }
+
+    var passedVal = parseInt(qaPassedInput.value || 0, 10);
+    var reworkVal = parseInt(qaReworkInput.value || 0, 10);
+    var failedVal = parseInt(qaFailedInput.value || 0, 10);
+
+    if (isNaN(passedVal) || passedVal < 0) passedVal = 0;
+    if (isNaN(reworkVal) || reworkVal < 0) reworkVal = 0;
+    if (isNaN(failedVal) || failedVal < 0) failedVal = 0;
+
+    var totalEntered = passedVal + reworkVal + failedVal;
+    qaTotalDisplay.textContent = 'Total entered: ' + totalEntered + ' / ' + currentPendingQty;
+
+    if (totalEntered === currentPendingQty) {
+        qaTotalDisplay.className = 'qaTotalDisplay valid';
+    } else {
+        qaTotalDisplay.className = 'qaTotalDisplay invalid';
+    }
+
+    var needsReason = (reworkVal > 0 || failedVal > 0);
+    qaReasonGroup.style.display = needsReason ? 'flex' : 'none';
+
+    var hasFailed = (failedVal > 0);
+    qaScrapConfirmBox.style.display = hasFailed ? 'flex' : 'none';
+
+    var isValidTotal = (totalEntered === currentPendingQty);
+    var isReasonValid = !needsReason || (qaReasonInput.value.trim().length > 0);
+    var isScrapConfirmed = !hasFailed || qaScrapConfirmCheckbox.checked;
+
+    qaModalSubmitBtn.disabled = !(isValidTotal && isReasonValid && isScrapConfirmed);
+}
+
+function openQAModal(btn) {
+    lastFocusedBtn = btn;
+    var orderID = btn.dataset.orderId;
+    var furnitureName = btn.dataset.furnitureName;
+    currentPendingQty = parseInt(btn.dataset.pendingQty || 0, 10);
+    var alreadyPassed = parseInt(btn.dataset.passedQty || 0, 10);
+    var alreadyFailed = parseInt(btn.dataset.failedQty || 0, 10);
+    currentReworkCount = parseInt(btn.dataset.reworkCount || 0, 10);
+
+    qaModalForm.action = btn.dataset.inspectUrl;
+    qaModalTitle.textContent = 'Quality Inspection - Order #PO-' + orderID;
+    qaModalSubtitle.textContent = furnitureName;
+    qaSummaryLine.textContent = currentPendingQty + ' pending, ' + alreadyPassed + ' passed, ' + alreadyFailed + ' scrapped so far';
+
+    qaPassedInput.value = '';
+    qaPassedInput.max = currentPendingQty;
+    qaReworkInput.value = '';
+    qaReworkInput.max = currentPendingQty;
+    qaFailedInput.value = '';
+    qaFailedInput.max = currentPendingQty;
+    qaReasonInput.value = '';
+    qaScrapConfirmCheckbox.checked = false;
+
+    if (currentReworkCount >= 2) {
+        qaReworkInput.disabled = true;
+        qaReworkInput.value = '0';
+        qaReworkLimitNote.style.display = 'block';
+    } else {
+        qaReworkInput.disabled = false;
+        qaReworkLimitNote.style.display = 'none';
+    }
+
+    document.body.style.overflow = 'hidden';
+    qaModalOverlay.style.display = 'flex';
+    updateModalState();
+    qaPassedInput.focus();
+}
+
+function closeQAModal() {
+    qaModalOverlay.style.display = 'none';
+    document.body.style.overflow = '';
+    if (lastFocusedBtn) {
+        lastFocusedBtn.focus();
+    }
+}
+
+document.querySelectorAll('.qaInspectBtn').forEach(function(btn) {
+    btn.addEventListener('click', function() {
+        openQAModal(this);
+    });
+});
+
+if (qaPassAllBtn) {
+    qaPassAllBtn.addEventListener('click', function() {
+        qaPassedInput.value = currentPendingQty;
+        qaReworkInput.value = '0';
+        qaFailedInput.value = '0';
+        updateModalState();
+    });
+}
+
+[qaPassedInput, qaReworkInput, qaFailedInput, qaReasonInput].forEach(function(input) {
+    if (input) {
+        input.addEventListener('input', updateModalState);
+    }
+});
+
+if (qaScrapConfirmCheckbox) {
+    qaScrapConfirmCheckbox.addEventListener('change', updateModalState);
+}
+
+if (qaModalCloseBtn) {
+    qaModalCloseBtn.addEventListener('click', closeQAModal);
+}
+
+if (qaModalCancelBtn) {
+    qaModalCancelBtn.addEventListener('click', closeQAModal);
+}
+
+qaModalOverlay.addEventListener('click', function(e) {
+    if (e.target === qaModalOverlay) {
+        closeQAModal();
+    }
+});
+
+document.addEventListener('keydown', function(e) {
+    if (e.key === 'Escape' && qaModalOverlay.style.display === 'flex') {
+        closeQAModal();
+    }
+    if (e.key === 'Tab' && qaModalOverlay.style.display === 'flex') {
+        var focusables = qaModalOverlay.querySelectorAll('button:not([disabled]), input:not([disabled]), [tabindex]:not([tabindex="-1"])');
+        if (focusables.length === 0) return;
+        var first = focusables[0];
+        var last = focusables[focusables.length - 1];
+        if (e.shiftKey && document.activeElement === first) {
+            e.preventDefault();
+            last.focus();
+        } else if (!e.shiftKey && document.activeElement === last) {
+            e.preventDefault();
+            first.focus();
+        }
+    }
+});
+
+if (qaModalForm) {
+    qaModalForm.addEventListener('submit', function() {
+        if (qaModalSubmitBtn) {
+            qaModalSubmitBtn.disabled = true;
+            qaModalSubmitBtn.textContent = 'Submitting...';
+        }
+    });
+}
+
+window.addEventListener('pageshow', function() {
+    if (qaModalSubmitBtn) {
+        qaModalSubmitBtn.textContent = 'Submit QA';
+        updateModalState();
+    }
+});
+</script>
 
 {% endblock %}

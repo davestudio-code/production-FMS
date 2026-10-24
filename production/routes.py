@@ -848,18 +848,33 @@ def updateMonitoringProgress(monitoringID):
 def finishedGoodsList():
     try:
         allMonitoring = ProductionMonitoring.getAll()
-        pendingOrders = [m for m in allMonitoring if m.orderStatus == "In Progress" and m.progress >= 90.0]
+        activeCandidateOrders = [m for m in allMonitoring if m.orderStatus == "In Progress" and m.progress >= 90.0]
+        pendingOrders = []
+        needsAttentionOrders = []
+        for m in activeCandidateOrders:
+            summaryCounts = ProductionOutput.getOrderInspectionSummary(m.orderID)
+            m.alreadyPassed = summaryCounts["passed"]
+            m.alreadyFailed = summaryCounts["failed"]
+            m.pendingInspectionQty = max(0, int(m.plannedQuantity) - m.alreadyPassed - m.alreadyFailed)
+            if m.pendingInspectionQty > 0:
+                pendingOrders.append(m)
+            else:
+                needsAttentionOrders.append(m)
+
         outputRecords = ProductionOutput.getAll()
+        passedOrderIDs = {o.orderID for o in outputRecords if o.qualityStatus == "Passed"}
+        reworkOrdersCount = sum(1 for m in allMonitoring if m.orderStatus == "In Progress" and (m.reworkCount or 0) > 0 and m.progress < 90.0)
         summary = {
             "pending": len(pendingOrders),
-            "passed": sum(1 for o in outputRecords if o.qualityStatus == "Passed"),
-            "rework": sum(1 for o in outputRecords if o.qualityStatus == "Rework"),
+            "passed": len(passedOrderIDs),
+            "rework": reworkOrdersCount,
             "failed": sum(1 for o in outputRecords if o.qualityStatus == "Failed"),
             "totalUnits": sum(o.quantity for o in outputRecords if o.qualityStatus == "Passed")
         }
     except Exception as err:
         flash(f"Failed to load quality inspection records: {str(err)}", "error")
         pendingOrders = []
+        needsAttentionOrders = []
         outputRecords = []
         summary = {"pending": 0, "passed": 0, "rework": 0, "failed": 0, "totalUnits": 0}
 
@@ -867,6 +882,7 @@ def finishedGoodsList():
         "production/manufacturing/finished_goods_list.html",
         activeTab="finishedGoods",
         pendingOrders=pendingOrders,
+        needsAttentionOrders=needsAttentionOrders,
         outputRecords=outputRecords,
         summary=summary
     )
@@ -874,54 +890,154 @@ def finishedGoodsList():
 @productionBlueprint.route("/finished-goods/inspect/<int:orderID>", methods=["POST"])
 @roles_required("prodManager")
 def recordInspection(orderID):
-    statusChoice = request.form.get("qualityStatus", "Passed").strip()
-    qtyRaw = request.form.get("quantity", "").strip()
+    passedRaw = request.form.get("passedQuantity", "").strip()
+    failedRaw = request.form.get("failedQuantity", "").strip()
+    reworkRaw = request.form.get("reworkQuantity", "").strip()
+    reason = request.form.get("reason", "").strip()
+    scrapConfirmed = request.form.get("scrapConfirmed", "").strip()
 
-    if statusChoice not in ProductionOutput.VALID_STATUSES:
-        flash("Invalid quality inspection status selected.", "error")
+    for rawVal in [passedRaw, failedRaw, reworkRaw]:
+        if rawVal and (len(rawVal) > 6 or not rawVal.isdecimal()):
+            flash("Quantities must be non-negative whole numbers up to 6 digits.", "error")
+            return redirect(url_for("production.finishedGoodsList"))
+
+    passedQty = int(passedRaw) if passedRaw else 0
+    failedQty = int(failedRaw) if failedRaw else 0
+    reworkQty = int(reworkRaw) if reworkRaw else 0
+
+    if passedQty < 0 or failedQty < 0 or reworkQty < 0:
+        flash("Quantities cannot be negative numbers.", "error")
+        return redirect(url_for("production.finishedGoodsList"))
+
+    if len(reason) > 255:
+        flash("Inspection reason cannot exceed 255 characters.", "error")
+        return redirect(url_for("production.finishedGoodsList"))
+
+    if (failedQty > 0 or reworkQty > 0) and not reason:
+        flash("A reason is mandatory when recording Failed or Rework units.", "error")
+        return redirect(url_for("production.finishedGoodsList"))
+
+    if failedQty > 0 and scrapConfirmed != "on":
+        flash("Please confirm that failed units will be scrapped.", "warning")
         return redirect(url_for("production.finishedGoodsList"))
 
     try:
-        order = ProductionOrder.getByID(orderID)
-        if not order:
-            flash("Production order not found.", "error")
-            return redirect(url_for("production.finishedGoodsList"))
-
-        if order.status != "In Progress":
-            flash(f"Order #PO-{orderID} is '{order.status}'. Quality inspection is only allowed for 'In Progress' orders.", "warning")
-            return redirect(url_for("production.finishedGoodsList"))
-
-        monitoring = ProductionMonitoring.getByOrderID(orderID)
-        if not monitoring or monitoring.progress < 90.0:
-            currentProg = int(round(monitoring.progress)) if monitoring else 0
-            flash(f"Order #PO-{orderID} assembly is at {currentProg}%. Workshop assembly must reach at least 90% before inspection.", "warning")
-            return redirect(url_for("production.finishedGoodsList"))
-
-        inspectQty = int(qtyRaw) if qtyRaw else int(order.plannedQuantity)
-        if inspectQty < 1:
-            flash("Inspected quantity must be at least 1 unit.", "error")
-            return redirect(url_for("production.finishedGoodsList"))
-
         with openTransaction() as conn:
-            ProductionOutput.recordOutput(
-                orderID=orderID,
-                furnitureID=order.furnitureID,
-                quantity=inspectQty,
-                qualityStatus=statusChoice,
-                recordedBy=session.get("employee_name", "Dave Cagalitan"),
-                conn=conn
-            )
+            with conn.cursor() as cursor:
+                cursor.execute("""
+                    SELECT po.order_id, po.furniture_id, po.planned_quantity, po.status, f.furniture_name
+                    FROM prod_productionorder po
+                    JOIN prod_furniture f ON po.furniture_id = f.furniture_id
+                    WHERE po.order_id = %s
+                    FOR UPDATE
+                """, (orderID,))
+                orderRow = cursor.fetchone()
 
-            if statusChoice == "Passed":
-                ProductionMonitoring.updateProgress(monitoring.monitoringID, 100.0, conn=conn)
-                ProductionOrder.updateStatus(orderID, "Completed", conn=conn)
-                integration.add_finished_goods_stock(order.furnitureID, inspectQty, conn=conn)
-                flash(f"Quality inspection PASSED for Order #PO-{orderID}! {inspectQty} units of '{order.furnitureName}' transferred to Finished Goods inventory.", "success")
-            elif statusChoice == "Rework":
-                ProductionMonitoring.updateProgress(monitoring.monitoringID, 75.0, conn=conn)
-                flash(f"Order #PO-{orderID} marked for REWORK. Assembly progress rolled back to 75% for workshop correction.", "warning")
-            elif statusChoice == "Failed":
-                flash(f"Order #PO-{orderID} recorded as FAILED inspection. {inspectQty} units rejected.", "error")
+                if not orderRow:
+                    flash("Production order not found.", "error")
+                    return redirect(url_for("production.finishedGoodsList"))
+
+                if orderRow["status"] != "In Progress":
+                    flash(f"Order #PO-{orderID} is '{orderRow['status']}'. Quality inspection is only allowed for 'In Progress' orders.", "warning")
+                    return redirect(url_for("production.finishedGoodsList"))
+
+                cursor.execute("""
+                    SELECT monitoring_id, progress, COALESCE(rework_count, 0) AS rework_count
+                    FROM prod_productionmonitoring
+                    WHERE order_id = %s
+                    FOR UPDATE
+                """, (orderID,))
+                monitoringRow = cursor.fetchone()
+
+                if not monitoringRow or float(monitoringRow["progress"]) < 90.0:
+                    currentProg = int(round(float(monitoringRow["progress"]))) if monitoringRow else 0
+                    flash(f"Order #PO-{orderID} assembly is at {currentProg}%. Workshop assembly must reach at least 90% before inspection.", "warning")
+                    return redirect(url_for("production.finishedGoodsList"))
+
+                cursor.execute("""
+                    SELECT 
+                        COALESCE(SUM(CASE WHEN quality_status = 'Passed' THEN quantity ELSE 0 END), 0) AS total_passed,
+                        COALESCE(SUM(CASE WHEN quality_status = 'Failed' THEN quantity ELSE 0 END), 0) AS total_failed
+                    FROM prod_productionoutput
+                    WHERE order_id = %s
+                """, (orderID,))
+                countsRow = cursor.fetchone()
+                alreadyPassed = int(countsRow["total_passed"])
+                alreadyFailed = int(countsRow["total_failed"])
+                plannedQty = int(orderRow["planned_quantity"])
+                pendingQty = plannedQty - alreadyPassed - alreadyFailed
+
+                totalInspect = passedQty + failedQty + reworkQty
+                if pendingQty <= 0 or totalInspect != pendingQty:
+                    flash("Pending units changed, please refresh and try again.", "error")
+                    return redirect(url_for("production.finishedGoodsList"))
+
+                currentReworks = int(monitoringRow["rework_count"])
+                if reworkQty > 0 and currentReworks >= 2:
+                    flash(f"Order #PO-{orderID} has reached maximum allowed reworks (2). Units must either Pass or be marked as Failed/Scrapped.", "error")
+                    return redirect(url_for("production.finishedGoodsList"))
+
+                inspectorName = session.get("employee_name", "Dave Cagalitan")
+                rawUserID = session.get("user_id")
+                inspectorID = int(rawUserID) if (rawUserID and str(rawUserID).isdecimal()) else None
+
+                if passedQty > 0:
+                    ProductionOutput.recordOutput(
+                        orderID=orderID,
+                        furnitureID=orderRow["furniture_id"],
+                        quantity=passedQty,
+                        qualityStatus="Passed",
+                        recordedBy=inspectorName,
+                        reason=None,
+                        inspectorID=inspectorID,
+                        conn=conn
+                    )
+                    integration.add_finished_goods_stock(orderRow["furniture_id"], passedQty, conn=conn)
+
+                if reworkQty > 0:
+                    ProductionOutput.recordOutput(
+                        orderID=orderID,
+                        furnitureID=orderRow["furniture_id"],
+                        quantity=reworkQty,
+                        qualityStatus="Rework",
+                        recordedBy=inspectorName,
+                        reason=reason,
+                        inspectorID=inspectorID,
+                        conn=conn
+                    )
+                    reworkProgress = ProductionMonitoring.REWORK_STAGE_PROGRESS
+                    ProductionMonitoring.updateProgressAndRework(
+                        monitoringRow["monitoring_id"],
+                        reworkProgress,
+                        currentReworks + 1,
+                        conn=conn
+                    )
+
+                if failedQty > 0:
+                    ProductionOutput.recordOutput(
+                        orderID=orderID,
+                        furnitureID=orderRow["furniture_id"],
+                        quantity=failedQty,
+                        qualityStatus="Failed",
+                        recordedBy=inspectorName,
+                        reason=reason,
+                        inspectorID=inspectorID,
+                        conn=conn
+                    )
+
+                unitWord = "unit" if failedQty == 1 else "units"
+                if reworkQty == 0:
+                    ProductionMonitoring.updateProgress(monitoringRow["monitoring_id"], 100.0, conn=conn)
+                    ProductionOrder.updateStatus(orderID, "Completed", conn=conn)
+                    msg = f"Order #PO-{orderID} finalized: {passedQty} passed & stocked to Finished Goods"
+                    if failedQty > 0:
+                        msg += f", {failedQty} {unitWord} scrapped"
+                    flash(msg + ".", "success")
+                else:
+                    msg = f"Order #PO-{orderID} QA submitted: {passedQty} passed, {reworkQty} returned to workshop (Rework #{currentReworks + 1}/2 at {int(ProductionMonitoring.REWORK_STAGE_PROGRESS)}%)"
+                    if failedQty > 0:
+                        msg += f", {failedQty} {unitWord} scrapped"
+                    flash(msg + ".", "warning")
 
     except ValueError as valErr:
         flash(str(valErr), "warning")
@@ -958,6 +1074,10 @@ def costingList():
                 o.unitCost = (o.totalCost / Decimal(str(o.plannedQuantity))).quantize(Decimal("0.01")) if o.plannedQuantity else Decimal("0.00")
                 o.costDate = None
                 o.formattedCostDate = "-"
+
+            goodCost, passedUnits = ProductionCost.calculateCostPerGoodUnit(o.orderID, o.totalCost)
+            o.costPerGoodUnit = goodCost
+            o.passedUnits = passedUnits
 
         allCostRecords = ProductionCost.getAll()
         totalRecordedCost = sum(c.totalCost for c in allCostRecords)

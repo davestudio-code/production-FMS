@@ -403,7 +403,7 @@ h3 {
     color: #ffffff;
 }
 
-.statusBadge.alert, .statusBadge.failed {
+.statusBadge.alert, .statusBadge.failed, .statusBadge.cancelled {
     background: #eed2cc;
     color: #9a4a3a;
 }

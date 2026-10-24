@@ -41,6 +41,22 @@ class ProductionCost:
             return (self.totalCost / Decimal(str(self.plannedQuantity))).quantize(Decimal("0.01"))
         return Decimal("0.00")
 
+    @classmethod
+    def calculateCostPerGoodUnit(cls, orderID, totalCost, conn=None):
+        with openTransaction(conn) as connection:
+            with connection.cursor() as cursor:
+                cursor.execute("""
+                    SELECT COALESCE(SUM(quantity), 0) AS passed_units
+                    FROM prod_productionoutput
+                    WHERE order_id = %s AND quality_status = 'Passed'
+                """, (orderID,))
+                row = cursor.fetchone()
+                passedUnits = int(row["passed_units"]) if row else 0
+                if passedUnits <= 0:
+                    return None, 0
+                goodCost = (Decimal(str(totalCost)) / Decimal(str(passedUnits))).quantize(Decimal("0.01"))
+                return goodCost, passedUnits
+
     @property
     def formattedCostDate(self):
         if not self.costDate:
