@@ -329,7 +329,7 @@
                             <td data-label="Dispatched Quantity" style="text-align: right; font-weight: 600;">
                                 {{ "{:,.3f}".format(iss.quantityIssued).rstrip('0').rstrip('.') }} {{ iss.unit }}
                             </td>
-                            <td data-label="Issue Date">{{ iss.issueDate }}</td>
+                            <td data-label="Issue Date">{{ iss.issueDate|date_fmt }}</td>
                             <td data-label="Issued By">
                                 <span style="font-weight: 500; color: var(--tx);">{{ iss.recordedBy or 'Dave Cagalitan'
                                     }}</span>

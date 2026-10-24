@@ -68,6 +68,24 @@
             </tbody>
         </table>
     </div>
+    <div class="auditPagination" id="furniturePagination" style="margin-top: 14px; padding-top: 12px; border-top: 1px solid var(--bd);">
+        <div style="display: flex; align-items: center; gap: 12px; flex-wrap: wrap;">
+            <span class="auditPaginationInfo" id="furniturePageInfo"></span>
+            <div style="display: inline-flex; align-items: center; gap: 6px;">
+                <label style="font-size: 12px; color: var(--mt);">Per page:</label>
+                <select id="furniturePageSize" onchange="changeFurniturePageSize(this.value)" style="padding: 4px 8px; font-size: 12px; border-radius: 6px;">
+                    <option value="10" selected>10</option>
+                    <option value="25">25</option>
+                    <option value="50">50</option>
+                </select>
+            </div>
+        </div>
+        <div class="auditPaginationControls">
+            <button type="button" class="actionButton secondary" id="furniturePrevBtn" onclick="changeFurniturePage(-1)" style="padding: 5px 12px; font-size: 12px;">&larr; Prev</button>
+            <span id="furniturePageIndicator" style="font-size: 12.5px; font-weight: 600; color: var(--tx);"></span>
+            <button type="button" class="actionButton secondary" id="furnitureNextBtn" onclick="changeFurniturePage(1)" style="padding: 5px 12px; font-size: 12px;">Next &rarr;</button>
+        </div>
+    </div>
 </div>
 
 <div id="addFurnitureModal" class="modalOverlay">

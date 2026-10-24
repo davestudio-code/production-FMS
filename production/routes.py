@@ -24,6 +24,21 @@ productionBlueprint = Blueprint(
     static_folder="static"
 )
 
+@productionBlueprint.app_template_filter("date_fmt")
+def dateFmtFilter(val):
+    if not val:
+        return ""
+    if hasattr(val, "strftime"):
+        return val.strftime("%b. %d, %Y")
+    try:
+        from datetime import datetime, date
+        s = str(val).strip()
+        if "T" in s or " " in s:
+            return datetime.fromisoformat(s).strftime("%b. %d, %Y")
+        return date.fromisoformat(s).strftime("%b. %d, %Y")
+    except Exception:
+        return str(val)
+
 @productionBlueprint.before_request
 def requireLogin():
     if request.endpoint in ("production.login", "production.logout", "production.static", "production.loginpageStatic", "production.featureStatic"):
@@ -597,21 +612,37 @@ def requirementList():
         flash(f"Failed to load production orders: {str(err)}", "error")
         allOrders = []
 
-    activeOrdersList = [o for o in allOrders if o.status != "Completed"]
-    if not activeOrdersList:
-        activeOrdersList = allOrders
+    filterType = request.args.get("filter", "active").strip().lower()
+    if filterType not in ("active", "all"):
+        filterType = "active"
+
+    needsActionOrders = [o for o in allOrders if o.status in ("Draft", "Released")]
+    displayedOrders = needsActionOrders if filterType == "active" else allOrders
+    if not displayedOrders and filterType == "active":
+        displayedOrders = allOrders
 
     orderIDParam = request.args.get("order_id", "").strip()
     selectedOrder = None
 
     if orderIDParam and orderIDParam.isdigit():
-        try:
-            selectedOrder = ProductionOrder.getByID(int(orderIDParam))
-        except Exception:
-            selectedOrder = None
+        targetID = int(orderIDParam)
+        selectedOrder = next((o for o in allOrders if o.orderID == targetID), None)
 
-    if not selectedOrder and activeOrdersList:
-        selectedOrder = activeOrdersList[0]
+    if not selectedOrder and displayedOrders:
+        selectedOrder = displayedOrders[0]
+
+    reservedMap = {}
+    otherReleased = [o for o in allOrders if o.status == "Released" and (not selectedOrder or o.orderID != selectedOrder.orderID)]
+    for ro in otherReleased:
+        try:
+            roBom = BillOfMaterials.getByFurnitureID(ro.furnitureID, autoCreate=False)
+            if roBom:
+                roReqs = roBom.calculateRequirements(Decimal(str(ro.plannedQuantity)))
+                for r in roReqs:
+                    mid = r["materialID"]
+                    reservedMap[mid] = reservedMap.get(mid, Decimal("0.000")) + r["batchQuantity"]
+        except Exception:
+            pass
 
     requirementsList = []
     hasShortage = False
@@ -628,11 +659,23 @@ def requirementList():
 
             matsMap = {m.materialID: m for m in Material.getAll()}
             for req in rawReqs:
-                mat = matsMap.get(req["materialID"])
+                mid = req["materialID"]
+                mat = matsMap.get(mid)
+                itemCode = mat.itemCode if mat and mat.itemCode else f"RM-{mid:03d}"
                 onHand = mat.currentStock if mat else Decimal("0.000")
+                reserved = reservedMap.get(mid, Decimal("0.000"))
+                availableNet = max(Decimal("0.000"), onHand - reserved)
                 required = req["batchQuantity"]
-                shortage = max(Decimal("0.000"), required - onHand)
-                isShort = onHand < required
+
+                if selectedOrder.status == "Draft":
+                    isShort = availableNet < required
+                    shortage = max(Decimal("0.000"), required - availableNet)
+                elif selectedOrder.status == "Released":
+                    isShort = onHand < required
+                    shortage = max(Decimal("0.000"), required - onHand)
+                else:
+                    isShort = False
+                    shortage = Decimal("0.000")
 
                 if isShort:
                     hasShortage = True
@@ -641,12 +684,15 @@ def requirementList():
                 totalEstimatedCost += req["batchCost"]
 
                 requirementsList.append({
-                    "materialID": req["materialID"],
+                    "materialID": mid,
+                    "itemCode": itemCode,
                     "materialName": req["materialName"],
                     "unit": req["unit"],
                     "quantityRequired": req["quantityRequired"],
                     "requiredQuantity": required,
                     "onHandQuantity": onHand,
+                    "reservedQuantity": reserved,
+                    "availableNet": availableNet,
                     "shortageQuantity": shortage,
                     "isShort": isShort,
                     "unitCost": req["unitCost"],
@@ -658,7 +704,12 @@ def requirementList():
     return render_template(
         "production/materials/requirement.html",
         activeTab="requirement",
-        activeOrders=allOrders,
+        filterType=filterType,
+        needsActionCount=len(needsActionOrders),
+        allOrdersCount=len(allOrders),
+        displayedOrders=displayedOrders,
+        activeOrders=displayedOrders,
+        allOrders=allOrders,
         selectedOrder=selectedOrder,
         requirementsList=requirementsList,
         hasShortage=hasShortage,
@@ -1209,10 +1260,10 @@ def reportView():
         allOrders = []
         for r in rawOrders:
             item = dict(r)
-            item["formattedOrderDate"] = item["order_date"].strftime("%b %d, %Y") if item.get("order_date") else "-"
-            item["formattedDueDate"] = item["due_date"].strftime("%b %d, %Y") if item.get("due_date") else "-"
-            item["formattedStartDate"] = item["actual_start_date"].strftime("%b %d, %Y") if item.get("actual_start_date") else (item["planned_start_date"].strftime("%b %d, %Y") if item.get("planned_start_date") else "-")
-            item["formattedCompletionDate"] = item["completion_date"].strftime("%b %d, %Y") if item.get("completion_date") else ("In Progress" if item["status"] == "In Progress" else "-")
+            item["formattedOrderDate"] = item["order_date"].strftime("%b. %d, %Y") if item.get("order_date") else "-"
+            item["formattedDueDate"] = item["due_date"].strftime("%b. %d, %Y") if item.get("due_date") else "-"
+            item["formattedStartDate"] = item["actual_start_date"].strftime("%b. %d, %Y") if item.get("actual_start_date") else (item["planned_start_date"].strftime("%b. %d, %Y") if item.get("planned_start_date") else "-")
+            item["formattedCompletionDate"] = item["completion_date"].strftime("%b. %d, %Y") if item.get("completion_date") else ("In Progress" if item["status"] == "In Progress" else "-")
             qty = Decimal(str(item.get("planned_quantity") or 0))
             price = Decimal(str(item.get("selling_price") or 0))
             item["estimatedValue"] = qty * price
@@ -1263,7 +1314,7 @@ def reportView():
                 activityDates.append(o.inspectionDate)
         if activityDates:
             latest = max(activityDates)
-            lastActivity = latest.strftime("%b %d, %Y") if hasattr(latest, "strftime") else str(latest)
+            lastActivity = latest.strftime("%b. %d, %Y") if hasattr(latest, "strftime") else str(latest)
         else:
             lastActivity = "-"
 

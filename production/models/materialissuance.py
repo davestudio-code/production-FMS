@@ -25,6 +25,15 @@ class MaterialIssuance:
             self.unit = ""
             self.furnitureName = ""
 
+    @property
+    def formattedIssueDate(self):
+        if not self.issueDate:
+            return "-"
+        try:
+            return self.issueDate.strftime("%b. %d, %Y")
+        except AttributeError:
+            return str(self.issueDate)
+
     @classmethod
     def recordIssuance(cls, orderID, materialID, quantityIssued, recordedBy=None, conn=None):
         qtyVal = Decimal(str(quantityIssued))

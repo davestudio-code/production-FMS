@@ -48,6 +48,33 @@ class ProductionOrder:
             return "Overdue"
         return "On Schedule"
 
+    @property
+    def formattedOrderDate(self):
+        if not self.orderDate:
+            return "-"
+        try:
+            return self.orderDate.strftime("%b. %d, %Y")
+        except AttributeError:
+            return str(self.orderDate)
+
+    @property
+    def formattedPlannedStartDate(self):
+        if not self.plannedStartDate:
+            return "-"
+        try:
+            return self.plannedStartDate.strftime("%b. %d, %Y")
+        except AttributeError:
+            return str(self.plannedStartDate)
+
+    @property
+    def formattedDueDate(self):
+        if not self.dueDate:
+            return "-"
+        try:
+            return self.dueDate.strftime("%b. %d, %Y")
+        except AttributeError:
+            return str(self.dueDate)
+
     @classmethod
     def getAll(cls, statusFilter=None, searchQuery=None, conn=None):
         if not statusFilter and not searchQuery and conn is None:

@@ -146,11 +146,21 @@
 </div>
 
 <div class="card">
-    <div class="headerRow" style="margin-bottom: 14px;">
+    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 14px; flex-wrap: wrap; gap: 12px;">
         <div>
             <h3 style="margin: 0;">Inspection History</h3>
             <small style="color: var(--mt);">Authoritative record of quality inspection outcomes, reasons, and inspectors.</small>
         </div>
+        <form class="toolBar" style="margin-bottom: 0;" onsubmit="return false;">
+            <input type="text" id="qaHistorySearchInput" placeholder="Search order, product, inspector..." style="width: 250px;" oninput="filterQAHistoryTable()">
+            <select id="qaHistoryStatusSelect" style="width: 150px;" onchange="filterQAHistoryTable()">
+                <option value="">All Outcomes</option>
+                <option value="Passed">Passed</option>
+                <option value="Rework">Rework</option>
+                <option value="Failed">Failed</option>
+            </select>
+            <button type="button" id="qaHistoryResetBtn" class="actionButton secondary" style="padding: 7px 14px; font-size: 13px; display: none;" onclick="resetQAHistoryFilter()">Reset</button>
+        </form>
     </div>
 
     <div class="tableContainer">
@@ -168,7 +178,7 @@
             </thead>
             <tbody>
                 {% for out in outputRecords %}
-                <tr>
+                <tr class="qaHistoryRow" data-status="{{ out.qualityStatus }}" data-search="po-{{ out.orderID }} {{ out.furnitureName|lower }} {{ out.recordedBy|lower }} {{ (out.reason or '')|lower }}">
                     <td data-label="Date">{{ out.formattedInspectionDate }}</td>
                     <td data-label="Order">
                         <a href="/production/orders/{{ out.orderID }}" style="color: var(--p); font-weight: 700; text-decoration: none;">Order #PO-{{ out.orderID }}</a>
@@ -202,8 +212,29 @@
                     <td colspan="7" style="text-align: center; color: var(--mt); padding: 24px;">No quality inspection records logged yet.</td>
                 </tr>
                 {% endfor %}
+                <tr id="qaHistoryEmptyRow" style="display: none;">
+                    <td colspan="7" style="text-align: center; color: var(--mt); padding: 24px;">No quality inspection records match your filter criteria.</td>
+                </tr>
             </tbody>
         </table>
+    </div>
+    <div class="auditPagination" id="qaHistoryPagination" style="margin-top: 14px; padding-top: 12px; border-top: 1px solid var(--bd);">
+        <div style="display: flex; align-items: center; gap: 12px; flex-wrap: wrap;">
+            <span class="auditPaginationInfo" id="qaHistoryPageInfo"></span>
+            <div style="display: inline-flex; align-items: center; gap: 6px;">
+                <label style="font-size: 12px; color: var(--mt);">Per page:</label>
+                <select id="qaHistoryPageSize" onchange="changeQAHistoryPageSize(this.value)" style="padding: 4px 8px; font-size: 12px; border-radius: 6px;">
+                    <option value="10" selected>10</option>
+                    <option value="25">25</option>
+                    <option value="50">50</option>
+                </select>
+            </div>
+        </div>
+        <div class="auditPaginationControls">
+            <button type="button" class="actionButton secondary" id="qaHistoryPrevBtn" onclick="changeQAHistoryPage(-1)" style="padding: 5px 12px; font-size: 12px;">&larr; Prev</button>
+            <span id="qaHistoryPageIndicator" style="font-size: 12.5px; font-weight: 600; color: var(--tx);"></span>
+            <button type="button" class="actionButton secondary" id="qaHistoryNextBtn" onclick="changeQAHistoryPage(1)" style="padding: 5px 12px; font-size: 12px;">Next &rarr;</button>
+        </div>
     </div>
 </div>
 
@@ -441,6 +472,117 @@ window.addEventListener('pageshow', function() {
         qaModalSubmitBtn.textContent = 'Submit QA';
         updateModalState();
     }
+});
+
+let currentQAHistoryPage = 1;
+let qaHistoryPageSize = 10;
+
+window.filterQAHistoryTable = function(resetPage = true) {
+    if (resetPage) {
+        currentQAHistoryPage = 1;
+    }
+    const q = (document.getElementById('qaHistorySearchInput')?.value || '').toLowerCase().trim();
+    const status = (document.getElementById('qaHistoryStatusSelect')?.value || '').trim();
+    const resetBtn = document.getElementById('qaHistoryResetBtn');
+    if (resetBtn) {
+        resetBtn.style.display = (q || status) ? 'inline-block' : 'none';
+    }
+    const allRows = Array.from(document.querySelectorAll('tr.qaHistoryRow'));
+    const matchingRows = allRows.filter(function(row) {
+        const rowStatus = row.dataset.status || '';
+        const rowSearch = row.dataset.search || '';
+        const matchStatus = !status || rowStatus === status;
+        const matchSearch = !q || rowSearch.includes(q);
+        return matchStatus && matchSearch;
+    });
+
+    const totalCount = matchingRows.length;
+    const totalPages = Math.ceil(totalCount / qaHistoryPageSize) || 1;
+    if (currentQAHistoryPage > totalPages) currentQAHistoryPage = totalPages;
+    if (currentQAHistoryPage < 1) currentQAHistoryPage = 1;
+
+    const startIndex = (currentQAHistoryPage - 1) * qaHistoryPageSize;
+    const endIndex = Math.min(startIndex + qaHistoryPageSize, totalCount);
+
+    allRows.forEach(function(row) {
+        row.style.display = 'none';
+    });
+
+    for (let i = startIndex; i < endIndex; i++) {
+        matchingRows[i].style.display = '';
+    }
+
+    const emptyRow = document.getElementById('qaHistoryEmptyRow');
+    if (emptyRow) {
+        emptyRow.style.display = (totalCount === 0 && allRows.length > 0) ? '' : 'none';
+    }
+
+    const pageInfo = document.getElementById('qaHistoryPageInfo');
+    if (pageInfo) {
+        if (totalCount === 0) {
+            pageInfo.textContent = 'Showing 0 records';
+        } else {
+            pageInfo.textContent = `Showing ${startIndex + 1}–${endIndex} of ${totalCount} record${totalCount === 1 ? '' : 's'}`;
+        }
+    }
+
+    const pageIndicator = document.getElementById('qaHistoryPageIndicator');
+    if (pageIndicator) {
+        pageIndicator.textContent = `Page ${currentQAHistoryPage} of ${totalPages}`;
+    }
+
+    const prevBtn = document.getElementById('qaHistoryPrevBtn');
+    if (prevBtn) {
+        prevBtn.disabled = currentQAHistoryPage <= 1;
+        prevBtn.style.opacity = currentQAHistoryPage <= 1 ? '0.5' : '1';
+        prevBtn.style.cursor = currentQAHistoryPage <= 1 ? 'default' : 'pointer';
+    }
+
+    const nextBtn = document.getElementById('qaHistoryNextBtn');
+    if (nextBtn) {
+        nextBtn.disabled = currentQAHistoryPage >= totalPages;
+        nextBtn.style.opacity = currentQAHistoryPage >= totalPages ? '0.5' : '1';
+        nextBtn.style.cursor = currentQAHistoryPage >= totalPages ? 'default' : 'pointer';
+    }
+
+    const paginationContainer = document.getElementById('qaHistoryPagination');
+    if (paginationContainer) {
+        paginationContainer.style.display = allRows.length === 0 ? 'none' : 'flex';
+    }
+};
+
+window.changeQAHistoryPage = function(delta) {
+    currentQAHistoryPage += delta;
+    window.filterQAHistoryTable(false);
+};
+
+window.changeQAHistoryPageSize = function(newSize) {
+    const parsed = parseInt(newSize, 10);
+    if (!isNaN(parsed) && parsed > 0) {
+        qaHistoryPageSize = parsed;
+        currentQAHistoryPage = 1;
+        window.filterQAHistoryTable(false);
+    }
+};
+
+window.resetQAHistoryFilter = function() {
+    const qInput = document.getElementById('qaHistorySearchInput');
+    const statusSelect = document.getElementById('qaHistoryStatusSelect');
+    if (qInput) qInput.value = '';
+    if (statusSelect) statusSelect.value = '';
+    currentQAHistoryPage = 1;
+    window.filterQAHistoryTable(true);
+};
+
+if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', function() {
+        window.filterQAHistoryTable(true);
+    });
+} else {
+    window.filterQAHistoryTable(true);
+}
+window.addEventListener('pageshow', function() {
+    window.filterQAHistoryTable(false);
 });
 </script>
 

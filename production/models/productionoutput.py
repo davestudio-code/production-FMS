@@ -35,7 +35,7 @@ class ProductionOutput:
         if not self.inspectionDate:
             return "-"
         try:
-            return self.inspectionDate.strftime("%b %d, %Y")
+            return self.inspectionDate.strftime("%b. %d, %Y")
         except AttributeError:
             return str(self.inspectionDate)
 

@@ -73,8 +73,8 @@
                             {{ ord.status }}
                         </span>
                     </td>
-                    <td>{{ ord.plannedStartDate or '—' }}</td>
-                    <td><b>{{ ord.dueDate or '—' }}</b></td>
+                    <td>{{ ord.plannedStartDate|date_fmt or '—' }}</td>
+                    <td><b>{{ ord.dueDate|date_fmt or '—' }}</b></td>
                     <td>
                         {% if ord.scheduleHealth == 'Overdue' %}
                         <span class="statusBadge"

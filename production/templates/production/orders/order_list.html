@@ -57,8 +57,7 @@
                     <th>Furniture Product</th>
                     <th>Order Type</th>
                     <th>Batch Quantity</th>
-                    <th>Order Date</th>
-                    <th>Planned Timeline</th>
+                    <th>Timeline</th>
                     <th>Status</th>
                     <th>Actions</th>
                 </tr>
@@ -77,13 +76,13 @@
                         </span>
                     </td>
                     <td><b>{{ ord.plannedQuantity }} units</b></td>
-                    <td>{{ ord.orderDate }}</td>
                     <td>
                         {% if ord.plannedStartDate or ord.dueDate %}
-                            {{ ord.plannedStartDate or '—' }} &rarr; {{ ord.dueDate or '—' }}
+                            <b>{{ ord.plannedStartDate|date_fmt or '—' }} &rarr; {{ ord.dueDate|date_fmt or '—' }}</b>
                         {% else %}
                             <span style="color: var(--mt); font-size: 12.5px;">Not Scheduled</span>
                         {% endif %}
+                        <span style="display: block; font-size: 11.5px; color: var(--mt); margin-top: 2px;">Ordered: {{ ord.orderDate|date_fmt }}</span>
                     </td>
                     <td>
                         <span class="statusBadge {{ 'completed' if ord.status == 'Completed' else ('inProgress' if ord.status == 'In Progress' else ('released' if ord.status == 'Released' else 'draft')) }}">
@@ -107,18 +106,36 @@
                 </tr>
                 {% else %}
                 <tr>
-                    <td colspan="8" style="text-align: center; color: var(--mt); padding: 28px;">
+                    <td colspan="7" style="text-align: center; color: var(--mt); padding: 28px;">
                         No production orders created yet. Click '+ New Production Order' to begin.
                     </td>
                 </tr>
                 {% endfor %}
                 <tr id="ordersEmptyRow" style="display: none;">
-                    <td colspan="8" style="text-align: center; color: var(--mt); padding: 28px;">
+                    <td colspan="7" style="text-align: center; color: var(--mt); padding: 28px;">
                         No production orders match your filter criteria.
                     </td>
                 </tr>
             </tbody>
         </table>
+    </div>
+    <div class="auditPagination" id="ordersPagination" style="margin-top: 14px; padding-top: 12px; border-top: 1px solid var(--bd);">
+        <div style="display: flex; align-items: center; gap: 12px; flex-wrap: wrap;">
+            <span class="auditPaginationInfo" id="ordersPageInfo"></span>
+            <div style="display: inline-flex; align-items: center; gap: 6px;">
+                <label style="font-size: 12px; color: var(--mt);">Per page:</label>
+                <select id="ordersPageSize" onchange="changeOrdersPageSize(this.value)" style="padding: 4px 8px; font-size: 12px; border-radius: 6px;">
+                    <option value="10" selected>10</option>
+                    <option value="25">25</option>
+                    <option value="50">50</option>
+                </select>
+            </div>
+        </div>
+        <div class="auditPaginationControls">
+            <button type="button" class="actionButton secondary" id="ordersPrevBtn" onclick="changeOrdersPage(-1)" style="padding: 5px 12px; font-size: 12px;">&larr; Prev</button>
+            <span id="ordersPageIndicator" style="font-size: 12.5px; font-weight: 600; color: var(--tx);"></span>
+            <button type="button" class="actionButton secondary" id="ordersNextBtn" onclick="changeOrdersPage(1)" style="padding: 5px 12px; font-size: 12px;">Next &rarr;</button>
+        </div>
     </div>
 </div>
 

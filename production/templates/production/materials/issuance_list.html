@@ -31,7 +31,7 @@
                         <span class="statusBadge released">Released</span>
                     </div>
                     <span style="color: var(--mt); font-size: 13px;">Batch Size: <b>{{ order.plannedQuantity }}
-                            units</b> &middot; Ordered: {{ order.orderDate }}</span>
+                            units</b> &middot; Ordered: {{ order.orderDate|date_fmt }}</span>
                 </div>
                 {% if session.get('role') == 'prodManager' %}
                 <form method="POST" action="/production/issuance/issue/{{ order.orderID }}"

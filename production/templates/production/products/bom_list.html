@@ -9,7 +9,7 @@
 </div>
 
 <div class="card" style="margin-bottom: 20px;">
-    <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 14px;">
+    <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 14px;{% if selectedFurniture %} padding-bottom: 16px; border-bottom: 1px solid var(--bd); margin-bottom: 16px;{% endif %}">
         <div style="display: flex; gap: 12px; align-items: center; flex-wrap: wrap;">
             <label style="font-weight: 600; font-size: 13.5px;">Product Recipe:</label>
             <select id="recipeSelect" onchange="window.location.href='/production/bom?furniture_id=' + this.value" style="min-width: 280px;">
@@ -25,146 +25,194 @@
             <a href="/production/furniture" class="actionButton secondary" style="padding: 6px 12px; font-size: 12.5px; text-decoration: none;">+ Add Product in Product Master</a>
             {% endif %}
         </div>
-        {% if selectedFurniture and session.get('role') == 'prodManager' %}
-        <div style="display: flex; align-items: center; gap: 8px; background: rgba(102, 117, 76, 0.08); padding: 8px 16px; border-radius: 8px; border: 1px solid rgba(102, 117, 76, 0.2);">
-            <span style="font-size: 12.5px; color: var(--mt);">Standard Unit Cost:</span>
-            <b style="font-size: 16px; color: var(--p);">₱{{ "{:,.2f}".format(unitTotalCost) }}</b>
+
+        {% if selectedFurniture %}
+        <div style="display: flex; align-items: center; gap: 8px;">
+            <a href="/production/furniture" class="actionButton secondary" style="padding: 6px 12px; font-size: 12.5px; text-decoration: none;">View in Product Master &rarr;</a>
         </div>
         {% endif %}
     </div>
-</div>
 
-{% if selectedFurniture %}
-<div class="card" style="margin-bottom: 20px;">
-    <div class="headerRow" style="margin-bottom: 14px;">
+    {% if selectedFurniture %}
+    <div class="headerRow" style="margin-bottom: 14px; align-items: center;">
         <div>
-            <h3 style="font-size: 15px; margin: 0;">Standard Recipe: {{ selectedFurniture.furnitureName }}</h3>
-            <span style="color: var(--mt); font-size: 12.5px;">Required materials per 1 finished unit</span>
+            <h3 style="font-size: 16px; margin: 0 0 4px;">Recipe &bull; {{ selectedFurniture.furnitureName }}</h3>
+            <span style="color: var(--mt); font-size: 12.5px;">Standard manufacturing recipe &bull; Basis: 1 Finished Unit</span>
+        </div>
+
+        {% if session.get('role') == 'prodManager' %}
+        <div style="display: flex; align-items: center; gap: 8px; background: rgba(102, 117, 76, 0.08); padding: 7px 14px; border-radius: 8px; border: 1px solid rgba(102, 117, 76, 0.25);">
+            <span style="font-size: 12px; color: var(--mt);">Standard Unit Cost:</span>
+            <b style="font-size: 15px; color: var(--p);">₱{{ "{:,.2f}".format(unitTotalCost) }}</b>
+        </div>
+        {% endif %}
+    </div>
+
+    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 14px; padding: 14px 0; border-top: 1px solid var(--bd); border-bottom: 1px solid var(--bd); margin-bottom: 16px;">
+        <div>
+            <span style="font-size: 11.5px; color: var(--mt); display: block; text-transform: uppercase;">Recipe Components</span>
+            <b style="font-size: 15px; color: var(--p);">{{ bomItems|length }} {{ 'item' if bomItems|length == 1 else 'items' }}</b>
+        </div>
+        <div>
+            <span style="font-size: 11.5px; color: var(--mt); display: block; text-transform: uppercase;">Standard Unit Cost</span>
+            <b style="font-size: 15px; color: var(--p);">₱{{ "{:,.2f}".format(unitTotalCost) }}</b>
+        </div>
+        <div>
+            <span style="font-size: 11.5px; color: var(--mt); display: block; text-transform: uppercase;">Product Category</span>
+            <b style="font-size: 15px;">{{ selectedFurniture.furnitureType }}</b>
+        </div>
+        <div>
+            <span style="font-size: 11.5px; color: var(--mt); display: block; text-transform: uppercase;">Recipe Basis</span>
+            <b style="font-size: 15px;">1 finished unit</b>
         </div>
     </div>
 
-    <div class="tableContainer">
-        <table>
-            <thead>
-                <tr>
-                    <th>#</th>
-                    <th>Material</th>
-                    <th>Unit</th>
-                    <th>Qty / Unit</th>
-                    {% if session.get('role') == 'prodManager' %}
-                    <th>Unit Cost</th>
-                    <th>Subtotal</th>
-                    <th>Action</th>
-                    {% endif %}
-                </tr>
-            </thead>
-            <tbody>
-                {% for item in bomItems %}
-                <tr>
-                    <td><b>#{{ item.bomItemID }}</b></td>
-                    <td><b>{{ item.materialName }}</b></td>
-                    <td>{{ item.unit }}</td>
-                    <td>{{ "{:,.3f}".format(item.quantityRequired).rstrip('0').rstrip('.') or '0' }}</td>
-                    {% if session.get('role') == 'prodManager' %}
-                    <td>₱{{ "{:,.2f}".format(item.unitCost) }}</td>
-                    <td>₱{{ "{:,.2f}".format(item.quantityRequired * item.unitCost) }}</td>
-                    <td>
-                        <form method="POST" action="/production/bom/items/delete/{{ item.bomItemID }}" style="display: inline;" onsubmit="return confirm('Remove \'{{ item.materialName|replace('\'', '\\\'') }}\' from this BOM?');">
-                            <input type="hidden" name="furnitureID" value="{{ selectedFurniture.furnitureID }}">
-                            <button type="submit" class="actionButton secondary" style="padding: 4px 10px; font-size: 12px; color: #9a4a3a; border-color: #e2bcb3;">Remove</button>
-                        </form>
-                    </td>
-                    {% endif %}
-                </tr>
-                {% else %}
-                <tr>
-                    <td colspan="{{ '7' if session.get('role') == 'prodManager' else '4' }}" style="text-align: center; color: var(--mt); padding: 20px;">No material components in this recipe yet.</td>
-                </tr>
-                {% endfor %}
-            </tbody>
-        </table>
-    </div>
-
-    {% if session.get('role') == 'prodManager' %}
-    <div style="margin-top: 18px; padding-top: 16px; border-top: 1px solid var(--bd);">
-        <form method="POST" action="/production/bom/items/add">
-            <input type="hidden" name="furnitureID" value="{{ selectedFurniture.furnitureID }}">
-            <div style="display: flex; gap: 12px; flex-wrap: wrap; align-items: flex-end;">
-                <div class="formGroup" style="flex: 1; min-width: 260px; margin-bottom: 0;">
-                    <label style="font-size: 12px; font-weight: 600;">+ Add Raw Material</label>
-                    <select name="materialID" required style="font-size: 13.5px;">
-                        <option value="">-- Choose Material --</option>
-                        {% for mat in materials %}
-                        <option value="{{ mat.materialID }}">{{ mat.materialName }} ({{ mat.unit }} &ndash; ₱{{ "{:,.2f}".format(mat.unitCost) }})</option>
-                        {% endfor %}
-                    </select>
-                </div>
-                <div class="formGroup" style="width: 160px; margin-bottom: 0;">
-                    <label style="font-size: 12px; font-weight: 600;">Qty / Unit</label>
-                    <input type="number" name="quantityRequired" placeholder="e.g. 2.5" min="0.001" step="0.001" required style="font-size: 13.5px;">
-                </div>
-                <button type="submit" class="actionButton" style="height: 38px; padding: 0 18px; font-size: 13px;">Add</button>
-            </div>
-        </form>
-    </div>
-    {% endif %}
-
-    <div style="margin-top: 28px; padding-top: 22px; border-top: 1.5px solid var(--bd);">
-        <div class="headerRow" style="margin-bottom: 14px; align-items: center;">
+    <div style="margin-top: 10px;">
+        <div class="headerRow" style="margin-bottom: 12px;">
             <div>
-                <h3 style="font-size: 15px; margin: 0 0 4px;">Batch Requirement Calculator</h3>
-                <span style="color: var(--mt); font-size: 12.5px;">Simulate total raw material demand for batch production</span>
+                <h3 style="font-size: 15px; margin: 0;">Standard Recipe Components</h3>
+                <span style="color: var(--mt); font-size: 12.5px;">Required materials and standard cost per 1 finished unit</span>
             </div>
-            {% if session.get('role') == 'prodManager' %}
-            <div style="display: flex; align-items: center; gap: 8px; background: rgba(102, 117, 76, 0.08); padding: 8px 16px; border-radius: 8px; border: 1px solid rgba(102, 117, 76, 0.2);">
-                <span style="font-size: 12.5px; color: var(--mt);">Batch Total Cost:</span>
-                <b style="font-size: 16px; color: var(--p);">₱{{ "{:,.2f}".format(batchTotalCost) }}</b>
-            </div>
-            {% endif %}
         </div>
-
-        <form method="GET" action="/production/bom" style="display: flex; gap: 10px; align-items: center; margin-bottom: 16px; flex-wrap: wrap;">
-            <input type="hidden" name="furniture_id" value="{{ selectedFurniture.furnitureID }}">
-            <label style="font-size: 13px; font-weight: 600;">Batch Size (Units to Produce):</label>
-            <input type="number" name="batch_qty" value="{{ batchQuantity }}" min="1" step="1" style="width: 90px; font-weight: 700; padding: 6px 12px; font-size: 13.5px;">
-            <button type="submit" class="actionButton secondary" style="padding: 7px 14px; font-size: 13px;">Calculate Preview</button>
-        </form>
 
         <div class="tableContainer">
             <table>
                 <thead>
                     <tr>
-                        <th>Material</th>
-                        <th>Unit</th>
-                        <th>Required (Per 1 Unit)</th>
-                        <th>Required for Batch ({{ batchQuantity }} units)</th>
+                        <th style="width: 110px;">ITEM ID</th>
+                        <th>Raw Material</th>
+                        <th style="text-align: right;">Qty / Unit</th>
                         {% if session.get('role') == 'prodManager' %}
-                        <th>Unit Cost</th>
-                        <th>Batch Component Cost</th>
+                        <th style="text-align: right;">Unit Cost</th>
+                        <th style="text-align: right;">Line Total</th>
+                        <th style="text-align: center; width: 90px;">Action</th>
                         {% endif %}
                     </tr>
                 </thead>
                 <tbody>
-                    {% for req in requirements %}
+                    {% for item in bomItems %}
                     <tr>
-                        <td><b>{{ req.materialName }}</b></td>
-                        <td>{{ req.unit }}</td>
-                        <td>{{ "{:,.3f}".format(req.quantityRequired).rstrip('0').rstrip('.') or '0' }}</td>
-                        <td><b>{{ "{:,.3f}".format(req.batchQuantity).rstrip('0').rstrip('.') or '0' }}</b></td>
+                        <td><span style="font-family: monospace; font-size: 12.5px; font-weight: 600;">{{ item.itemCode }}</span></td>
+                        <td><b>{{ item.materialName }}</b></td>
+                        <td style="text-align: right;">{{ "{:,.3f}".format(item.quantityRequired).rstrip('0').rstrip('.') or '0' }} {{ item.unit }}</td>
                         {% if session.get('role') == 'prodManager' %}
-                        <td>₱{{ "{:,.2f}".format(req.unitCost) }}</td>
-                        <td>₱{{ "{:,.2f}".format(req.batchCost) }}</td>
+                        <td style="text-align: right; color: var(--mt);">₱{{ "{:,.2f}".format(item.unitCost) }}</td>
+                        <td style="text-align: right;"><b>₱{{ "{:,.2f}".format(item.quantityRequired * item.unitCost) }}</b></td>
+                        <td style="text-align: center;">
+                            <form method="POST" action="/production/bom/items/delete/{{ item.bomItemID }}" style="display: inline;" onsubmit="return confirm('Remove \'{{ item.materialName|replace('\'', '\\\'') }}\' from this BOM?');">
+                                <input type="hidden" name="furnitureID" value="{{ selectedFurniture.furnitureID }}">
+                                <button type="submit" class="actionButton secondary" style="padding: 4px 10px; font-size: 12px; color: #9a4a3a; border-color: rgba(154, 74, 58, 0.3);">Remove</button>
+                            </form>
+                        </td>
                         {% endif %}
                     </tr>
                     {% else %}
                     <tr>
-                        <td colspan="{{ '6' if session.get('role') == 'prodManager' else '4' }}" style="text-align: center; color: var(--mt); padding: 18px;">Add components to the BOM above to calculate batch requirements.</td>
+                        <td colspan="{{ '6' if session.get('role') == 'prodManager' else '3' }}" style="text-align: center; color: var(--mt); padding: 24px;">No material components in this recipe yet.</td>
                     </tr>
                     {% endfor %}
                 </tbody>
+                {% if bomItems and session.get('role') == 'prodManager' %}
+                <tfoot>
+                    <tr style="background: rgba(0,0,0,0.02); font-weight: 700;">
+                        <td colspan="4" style="text-align: right; padding: 12px 14px; font-size: 13px; text-transform: uppercase; color: var(--mt);">Standard Recipe Total:</td>
+                        <td style="text-align: right; padding: 12px 14px; font-size: 14px; color: var(--p);">₱{{ "{:,.2f}".format(unitTotalCost) }}</td>
+                        <td></td>
+                    </tr>
+                </tfoot>
+                {% endif %}
             </table>
         </div>
+
+        {% if session.get('role') == 'prodManager' %}
+        <div style="margin-top: 18px; padding-top: 16px; border-top: 1px solid var(--bd);">
+            <form method="POST" action="/production/bom/items/add">
+                <input type="hidden" name="furnitureID" value="{{ selectedFurniture.furnitureID }}">
+                <div style="display: flex; gap: 12px; flex-wrap: wrap; align-items: flex-end;">
+                    <div class="formGroup" style="flex: 1; min-width: 260px; margin-bottom: 0;">
+                        <label style="font-size: 12px; font-weight: 600;">+ Add Raw Material</label>
+                        <select name="materialID" required style="font-size: 13.5px;">
+                            <option value="">-- Choose Material --</option>
+                            {% for mat in materials %}
+                            <option value="{{ mat.materialID }}">{{ mat.itemCode }} &ndash; {{ mat.materialName }} ({{ mat.unit }} &bull; ₱{{ "{:,.2f}".format(mat.unitCost) }})</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="formGroup" style="width: 160px; margin-bottom: 0;">
+                        <label style="font-size: 12px; font-weight: 600;">Qty / Unit</label>
+                        <input type="number" name="quantityRequired" placeholder="e.g. 2.5" min="0.001" step="0.001" required style="font-size: 13.5px;">
+                    </div>
+                    <button type="submit" class="actionButton" style="height: 38px; padding: 0 18px; font-size: 13px;">Add to Recipe</button>
+                </div>
+            </form>
+        </div>
+        {% endif %}
+
+        <div style="margin-top: 28px; padding-top: 22px; border-top: 1.5px solid var(--bd);">
+            <div class="headerRow" style="margin-bottom: 14px; align-items: center;">
+                <div>
+                    <h3 style="font-size: 15px; margin: 0 0 4px;">Batch Requirement Calculator</h3>
+                    <span style="color: var(--mt); font-size: 12.5px;">Simulate total raw material demand and cost for batch production</span>
+                </div>
+                {% if session.get('role') == 'prodManager' %}
+                <div style="display: flex; align-items: center; gap: 8px; background: rgba(102, 117, 76, 0.08); padding: 7px 14px; border-radius: 8px; border: 1px solid rgba(102, 117, 76, 0.25);">
+                    <span style="font-size: 12px; color: var(--mt);">Batch Total Cost:</span>
+                    <b style="font-size: 15px; color: var(--p);">₱{{ "{:,.2f}".format(batchTotalCost) }}</b>
+                </div>
+                {% endif %}
+            </div>
+
+            <form method="GET" action="/production/bom" style="display: flex; gap: 10px; align-items: center; margin-bottom: 16px; flex-wrap: wrap;">
+                <input type="hidden" name="furniture_id" value="{{ selectedFurniture.furnitureID }}">
+                <label style="font-size: 13px; font-weight: 600;">Batch Size (Units to Produce):</label>
+                <input type="number" name="batch_qty" value="{{ batchQuantity }}" min="1" step="1" style="width: 90px; font-weight: 700; padding: 6px 12px; font-size: 13.5px;">
+                <button type="submit" class="actionButton secondary" style="padding: 7px 14px; font-size: 13px;">Calculate Preview</button>
+            </form>
+
+            <div class="tableContainer">
+                <table>
+                    <thead>
+                        <tr>
+                            <th style="width: 110px;">ITEM ID</th>
+                            <th>Raw Material</th>
+                            <th style="text-align: right;">Qty / Unit</th>
+                            <th style="text-align: right;">Required for Batch ({{ batchQuantity }} {{ 'unit' if batchQuantity == 1 else 'units' }})</th>
+                            {% if session.get('role') == 'prodManager' %}
+                            <th style="text-align: right;">Unit Cost</th>
+                            <th style="text-align: right;">Line Total</th>
+                            {% endif %}
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for req in requirements %}
+                        <tr>
+                            <td><span style="font-family: monospace; font-size: 12.5px; font-weight: 600;">{{ req.itemCode }}</span></td>
+                            <td><b>{{ req.materialName }}</b></td>
+                            <td style="text-align: right;">{{ "{:,.3f}".format(req.quantityRequired).rstrip('0').rstrip('.') or '0' }} {{ req.unit }}</td>
+                            <td style="text-align: right;"><b>{{ "{:,.3f}".format(req.batchQuantity).rstrip('0').rstrip('.') or '0' }} {{ req.unit }}</b></td>
+                            {% if session.get('role') == 'prodManager' %}
+                            <td style="text-align: right; color: var(--mt);">₱{{ "{:,.2f}".format(req.unitCost) }}</td>
+                            <td style="text-align: right;"><b>₱{{ "{:,.2f}".format(req.batchCost) }}</b></td>
+                            {% endif %}
+                        </tr>
+                        {% else %}
+                        <tr>
+                            <td colspan="{{ '6' if session.get('role') == 'prodManager' else '4' }}" style="text-align: center; color: var(--mt); padding: 18px;">Add components to the BOM above to calculate batch requirements.</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                    {% if requirements and session.get('role') == 'prodManager' %}
+                    <tfoot>
+                        <tr style="background: rgba(0,0,0,0.02); font-weight: 700;">
+                            <td colspan="5" style="text-align: right; padding: 12px 14px; font-size: 13px; text-transform: uppercase; color: var(--mt);">Batch Total Cost:</td>
+                            <td style="text-align: right; padding: 12px 14px; font-size: 14px; color: var(--p);">₱{{ "{:,.2f}".format(batchTotalCost) }}</td>
+                        </tr>
+                    </tfoot>
+                    {% endif %}
+                </table>
+            </div>
+        </div>
     </div>
+    {% endif %}
 </div>
-{% endif %}
 {% endblock %}

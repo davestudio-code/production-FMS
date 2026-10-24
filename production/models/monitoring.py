@@ -42,7 +42,7 @@ class ProductionMonitoring:
         if not self.startDate:
             return "-"
         try:
-            return self.startDate.strftime("%b %d")
+            return self.startDate.strftime("%b. %d, %Y")
         except AttributeError:
             return str(self.startDate)
 
@@ -51,7 +51,7 @@ class ProductionMonitoring:
         if not self.dueDate:
             return None
         try:
-            return self.dueDate.strftime("%b %d")
+            return self.dueDate.strftime("%b. %d, %Y")
         except AttributeError:
             return str(self.dueDate)
 
@@ -60,7 +60,7 @@ class ProductionMonitoring:
         if not self.completionDate:
             return None
         try:
-            return self.completionDate.strftime("%b %d")
+            return self.completionDate.strftime("%b. %d, %Y")
         except AttributeError:
             return str(self.completionDate)
 

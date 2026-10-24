@@ -44,7 +44,7 @@ class BillOfMaterials:
                 cursor.execute(
                     """
                     SELECT bi.bom_item_id, bi.bom_id, bi.material_id, bi.quantity_required,
-                           im.item_name AS material_name, im.unit, rm.unit_cost
+                           im.item_code, im.item_name AS material_name, im.unit, rm.unit_cost
                     FROM prod_bomitem bi
                     JOIN raw_material rm ON bi.material_id = rm.raw_material_id
                     JOIN item_master im ON rm.item_id = im.item_id
@@ -97,6 +97,7 @@ class BillOfMaterials:
             calculatedList.append({
                 "bomItemID": item.bomItemID,
                 "materialID": item.materialID,
+                "itemCode": item.itemCode,
                 "materialName": item.materialName,
                 "unit": item.unit,
                 "unitCost": item.unitCost,

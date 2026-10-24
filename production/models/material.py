@@ -6,6 +6,7 @@ class Material:
     def __init__(self, data=None):
         if data:
             self.materialID = data.get("material_id")
+            self.itemCode = data.get("item_code") or f"RM-{self.materialID:03d}" if self.materialID else ""
             self.materialName = data.get("material_name")
             self.unit = data.get("unit")
             rawCost = data.get("unit_cost")
@@ -14,6 +15,7 @@ class Material:
             self.currentStock = Decimal(str(rawStock)) if rawStock is not None else Decimal("0.000")
         else:
             self.materialID = None
+            self.itemCode = ""
             self.materialName = ""
             self.unit = ""
             self.unitCost = Decimal("0.00")
@@ -31,6 +33,7 @@ class Material:
                 cursor.execute(
                     """
                     SELECT rm.raw_material_id AS material_id,
+                           im.item_code,
                            im.item_name AS material_name,
                            im.unit,
                            rm.unit_cost,
@@ -60,6 +63,7 @@ class Material:
                 cursor.execute(
                     """
                     SELECT rm.raw_material_id AS material_id,
+                           im.item_code,
                            im.item_name AS material_name,
                            im.unit,
                            rm.unit_cost,

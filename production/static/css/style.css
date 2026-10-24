@@ -374,43 +374,55 @@ h3 {
 .statusBadge {
     display: inline-flex;
     align-items: center;
+    justify-content: center;
     gap: 5px;
-    padding: 4px 12px;
+    height: 24px;
+    box-sizing: border-box;
+    padding: 0 10px;
     border-radius: 20px;
+    border: 1px solid transparent;
     background: var(--sd);
     color: var(--tx);
     font-weight: 600;
-    font-size: 12px;
+    font-size: 11.5px;
+    line-height: 1;
+    white-space: nowrap;
 }
 
 .statusBadge.draft {
-    background: #e7dfca;
-    color: #4a5436;
+    background: #f0ede6;
+    border-color: rgba(181, 143, 85, 0.3);
+    color: #705f42;
 }
 
 .statusBadge.released {
-    background: #d4e0b8;
-    color: #3b4928;
+    background: #eaf1f5;
+    border-color: rgba(74, 122, 148, 0.3);
+    color: #2d586e;
 }
 
 .statusBadge.inProgress {
-    background: #8E9B6D;
-    color: #ffffff;
+    background: #fdf5e6;
+    border-color: rgba(196, 137, 39, 0.3);
+    color: #8c5d12;
 }
 
 .statusBadge.completed {
-    background: #66754C;
-    color: #ffffff;
+    background: #eaf4eb;
+    border-color: rgba(102, 117, 76, 0.35);
+    color: #3d5225;
 }
 
 .statusBadge.alert, .statusBadge.failed, .statusBadge.cancelled {
-    background: #eed2cc;
+    background: #faebea;
+    border-color: rgba(154, 74, 58, 0.3);
     color: #9a4a3a;
 }
 
 .statusBadge.passed {
-    background: #d9e6c3;
-    color: #3b4d24;
+    background: #eaf4eb;
+    border-color: rgba(102, 117, 76, 0.35);
+    color: #3d5225;
 }
 
 .progressBar {

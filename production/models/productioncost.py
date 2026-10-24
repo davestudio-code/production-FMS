@@ -62,7 +62,7 @@ class ProductionCost:
         if not self.costDate:
             return "-"
         try:
-            return self.costDate.strftime("%b %d, %Y")
+            return self.costDate.strftime("%b. %d, %Y")
         except AttributeError:
             return str(self.costDate)
 

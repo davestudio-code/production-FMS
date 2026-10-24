@@ -6,6 +6,7 @@ class BOMItem:
             self.bomItemID = data.get("bom_item_id")
             self.bomID = data.get("bom_id")
             self.materialID = data.get("material_id")
+            self.itemCode = data.get("item_code") or (f"RM-{self.materialID:03d}" if self.materialID else "")
             rawQty = data.get("quantity_required")
             self.quantityRequired = Decimal(str(rawQty)) if rawQty is not None else Decimal("0.000")
             self.materialName = data.get("material_name", "")
@@ -16,6 +17,7 @@ class BOMItem:
             self.bomItemID = None
             self.bomID = None
             self.materialID = None
+            self.itemCode = ""
             self.quantityRequired = Decimal("0.000")
             self.materialName = ""
             self.unit = ""

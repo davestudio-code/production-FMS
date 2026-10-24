@@ -18,7 +18,7 @@
                 {{ order.orderType }}
             </span>
         </div>
-        <span style="color: var(--mt); font-size: 13.5px;">{{ order.furnitureName }} ({{ order.furnitureType }}) &bull; Ordered on {{ order.orderDate }}</span>
+        <span style="color: var(--mt); font-size: 13.5px;">{{ order.furnitureName }} ({{ order.furnitureType }}) &bull; Ordered on {{ order.orderDate|date_fmt }}</span>
     </div>
 
     {% if order.status == 'Draft' and session.get('role') == 'prodManager' %}
@@ -56,11 +56,11 @@
         </div>
         <div>
             <span style="font-size: 12px; color: var(--mt); display: block;">Planned Start Date</span>
-            <b style="font-size: 14.5px;">{{ order.plannedStartDate or 'Not Scheduled' }}</b>
+            <b style="font-size: 14.5px;">{{ order.plannedStartDate|date_fmt or 'Not Scheduled' }}</b>
         </div>
         <div>
             <span style="font-size: 12px; color: var(--mt); display: block;">Target Due Date</span>
-            <b style="font-size: 14.5px;">{{ order.dueDate or 'Not Scheduled' }}</b>
+            <b style="font-size: 14.5px;">{{ order.dueDate|date_fmt or 'Not Scheduled' }}</b>
         </div>
         {% if session.get('role') == 'prodManager' %}
         <div>

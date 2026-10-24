@@ -53,7 +53,7 @@
                     <td><b>Order #{{ order.orderID }}</b></td>
                     <td>{{ order.furnitureName }}</td>
                     <td>{{ order.plannedQuantity }} units</td>
-                    <td>{{ order.orderDate }}</td>
+                    <td>{{ order.orderDate|date_fmt }}</td>
                     <td>
                         <span class="statusBadge {{ 'completed' if order.status == 'Completed' else ('inProgress' if order.status == 'In Progress' else ('released' if order.status == 'Released' else 'draft')) }}">
                             {{ order.status }}
