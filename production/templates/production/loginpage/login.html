@@ -1,0 +1,86 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Login - Velmora Co. Manufacturing & Production</title>
+  <link rel="icon" type="image/png" href="/production/static/images/velmora-logo.png">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link
+    href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@500;600;700&family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap"
+    rel="stylesheet">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <link rel="stylesheet" href="/production/feature-static/loginpage/login.css">
+</head>
+
+<body>
+
+  <div class="login-container">
+    <div class="hero-panel">
+      <div class="hero-content">
+        <img src="/production/static/images/velmora-logo.png" alt="Velmora Co."
+          class="brand-logo-img">
+        <h1 class="brand-title">velmora co.</h1>
+        <p class="brand-tagline">Better Furniture, A Brighter Tomorrow</p>
+      </div>
+    </div>
+
+    <div class="form-panel">
+      <div class="form-header">
+        <h2>Welcome Back</h2>
+        <p>Log in to your account to continue</p>
+      </div>
+
+      {% with messages = get_flashed_messages(with_categories=true) %}
+      {% if messages %}
+      {% for category, message in messages %}
+      <div class="flash-alert flash-{{ category }}">
+        <i class="fas fa-info-circle"></i>
+        <span>{{ message }}</span>
+      </div>
+      {% endfor %}
+      {% endif %}
+      {% endwith %}
+
+      <form id="loginForm" method="POST" action="/production/login">
+        <div class="form-group">
+          <div class="input-pill">
+            <i class="fas fa-user input-icon"></i>
+            <input type="text" id="loginEmail" name="email" class="input-field" placeholder="Username or Email" required autofocus>
+          </div>
+        </div>
+
+        <div class="form-group">
+          <div class="input-pill">
+            <i class="fas fa-lock input-icon"></i>
+            <input type="password" id="loginPassword" name="password" class="input-field" placeholder="Password"
+              required>
+            <button type="button" class="toggle-password" id="togglePasswordBtn">
+              <i class="far fa-eye" id="togglePasswordIcon"></i>
+            </button>
+          </div>
+        </div>
+
+        <button type="submit" class="btn-submit">
+          <span>Login</span>
+          <i class="fas fa-arrow-right"></i>
+        </button>
+      </form>
+
+      <div class="form-footer">
+        <div class="footer-company">Velmora Co.</div>
+        <div class="footer-sub">Manufacturing & Production System</div>
+        <div class="ornament-container">
+          <img src="/production/static/images/ornament-divider.png" alt="Divider"
+            class="ornament-img">
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script src="/production/feature-static/loginpage/login.js"></script>
+</body>
+
+</html>

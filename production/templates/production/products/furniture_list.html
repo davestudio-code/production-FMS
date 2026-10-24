@@ -47,10 +47,10 @@
                     <td>₱{{ "{:,.2f}".format(item.sellingPrice) }}</td>
                     <td>
                         <div style="display: flex; gap: 8px; align-items: center;">
-                            <a href="{{ url_for('production.bomList') }}?furniture_id={{ item.furnitureID }}" class="actionButton secondary" style="padding: 5px 11px; font-size: 12px; text-decoration: none;">BOM Recipe</a>
+                            <a href="/production/bom?furniture_id={{ item.furnitureID }}" class="actionButton secondary" style="padding: 5px 11px; font-size: 12px; text-decoration: none;">BOM Recipe</a>
                             {% if session.get('role') == 'prodManager' %}
                             <button type="button" class="actionButton secondary" style="padding: 5px 11px; font-size: 12px;" onclick="openEditModal({{ item.furnitureID }}, '{{ item.furnitureName|replace('\'', '\\\'') }}', '{{ item.furnitureType|replace('\'', '\\\'') }}', '{{ item.sellingPrice }}')">Edit</button>
-                            <form method="POST" action="{{ url_for('production.deleteFurniture', furnitureID=item.furnitureID) }}" style="display: inline;" onsubmit="return confirm('Are you sure you want to delete \'{{ item.furnitureName|replace('\'', '\\\'') }}\'?');">
+                            <form method="POST" action="/production/furniture/delete/{{ item.furnitureID }}" style="display: inline;" onsubmit="return confirm('Are you sure you want to delete \'{{ item.furnitureName|replace('\'', '\\\'') }}\'?');">
                                 <button type="submit" class="actionButton secondary" style="padding: 5px 11px; font-size: 12px; color: #9a4a3a; border-color: #e2bcb3;">Delete</button>
                             </form>
                             {% endif %}
@@ -76,7 +76,7 @@
             <h3>Add Product to Master Catalog</h3>
             <button class="modalClose" onclick="closeModal('addFurnitureModal')">&times;</button>
         </div>
-        <form method="POST" action="{{ url_for('production.addFurniture') }}">
+        <form method="POST" action="/production/furniture/add">
             <div class="formGroup">
                 <label>Product Name</label>
                 <input type="text" name="furnitureName" placeholder="e.g. Dining Chair" required autofocus>
@@ -137,49 +137,5 @@
     </div>
 </div>
 
-<script>
-    function openEditModal(id, name, type, price) {
-        const form = document.getElementById('editFurnitureForm');
-        form.action = "{{ url_for('production.editFurniture', furnitureID=0) }}".replace('/0', '/' + id);
-        document.getElementById('editFurnitureName').value = name;
-        document.getElementById('editFurnitureType').value = type;
-        document.getElementById('editSellingPrice').value = price;
-        openModal('editFurnitureModal');
-    }
-
-    window.filterFurnitureTable = function() {
-        const q = (document.getElementById('furnitureSearchInput')?.value || '').toLowerCase().trim();
-        const cat = (document.getElementById('furnitureCategorySelect')?.value || '').trim();
-        const resetBtn = document.getElementById('furnitureResetBtn');
-        if (resetBtn) {
-            resetBtn.style.display = (q || cat) ? 'inline-block' : 'none';
-        }
-        const rows = document.querySelectorAll('tr.furnitureRow');
-        let visibleCount = 0;
-        rows.forEach(function(row) {
-            const rowCat = row.dataset.category || '';
-            const rowSearch = row.dataset.search || '';
-            const matchCat = !cat || rowCat === cat;
-            const matchSearch = !q || rowSearch.includes(q);
-            if (matchCat && matchSearch) {
-                row.style.display = '';
-                visibleCount++;
-            } else {
-                row.style.display = 'none';
-            }
-        });
-        const emptyRow = document.getElementById('furnitureEmptyRow');
-        if (emptyRow) {
-            emptyRow.style.display = (visibleCount === 0 && rows.length > 0) ? '' : 'none';
-        }
-    };
-
-    window.resetFurnitureFilter = function() {
-        const qInput = document.getElementById('furnitureSearchInput');
-        const catSelect = document.getElementById('furnitureCategorySelect');
-        if (qInput) qInput.value = '';
-        if (catSelect) catSelect.value = '';
-        window.filterFurnitureTable();
-    };
-</script>
+<script src="/production/feature-static/products/furniture_list.js"></script>
 {% endblock %}

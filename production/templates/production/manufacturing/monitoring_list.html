@@ -1,174 +1,7 @@
 {% extends "production/base.html" %}
 
 {% block content %}
-<style>
-    .monitoringTable {
-        width: 100%;
-        min-width: 720px;
-        border-collapse: collapse;
-    }
-
-    .monitoringTable th,
-    .monitoringTable td {
-        padding: 12px 14px;
-        vertical-align: middle;
-        text-align: left;
-    }
-
-    .updateCell {
-        width: 250px;
-        min-width: 250px;
-    }
-
-    .updateFormRow {
-        display: flex;
-        align-items: center;
-        gap: 8px;
-    }
-
-    .stageSelect {
-        flex: 1;
-        height: 36px;
-        padding: 0 10px;
-        font-size: 12px;
-        border-radius: 6px;
-        border: 1px solid var(--bd);
-        background: var(--cd);
-        color: var(--tx);
-    }
-
-    .stageSaveBtn {
-        height: 36px;
-        padding: 0 14px;
-        font-size: 12px;
-        font-weight: 600;
-    }
-
-    .progressTrack {
-        width: 110px;
-        height: 10px;
-        background: #e2d8bd;
-        border: 1px solid var(--bd);
-        border-radius: 6px;
-        overflow: hidden;
-        display: inline-block;
-        vertical-align: middle;
-    }
-
-    .progressFill {
-        display: block;
-        height: 100%;
-        background: #526638;
-        border-radius: 6px;
-        transition: width 0.3s ease;
-    }
-
-    .dueBadge {
-        display: inline-block;
-        font-size: 11px;
-        font-weight: 600;
-        padding: 2px 7px;
-        border-radius: 12px;
-        vertical-align: middle;
-        line-height: 1.3;
-    }
-
-    .dueBadge.overdue {
-        background: #eed2cc;
-        color: #9a4a3a;
-    }
-
-    .dueBadge.normal {
-        background: #e7dfca;
-        color: #4a5436;
-    }
-
-    @media (max-width: 640px) {
-        .tableContainer {
-            overflow-x: visible;
-        }
-
-        .monitoringTable {
-            min-width: 100%;
-            display: block;
-        }
-
-        .monitoringTable thead {
-            display: none;
-        }
-
-        .monitoringTable tbody,
-        .monitoringTable tr {
-            display: block;
-            width: 100%;
-        }
-
-        .monitoringTable tr {
-            background: var(--cd);
-            border: 1px solid var(--bd);
-            border-radius: 10px;
-            margin-bottom: 14px;
-            padding: 12px 14px;
-            box-shadow: var(--sh);
-        }
-
-        .monitoringTable td {
-            border-bottom: 1px solid rgba(213, 199, 170, 0.45);
-            padding: 9px 0;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            white-space: normal;
-            text-align: right;
-        }
-
-        .monitoringTable td::before {
-            content: attr(data-label);
-            font-weight: 600;
-            font-size: 11.5px;
-            color: var(--mt);
-            text-transform: uppercase;
-            letter-spacing: 0.5px;
-            text-align: left;
-            flex-shrink: 0;
-            margin-right: 12px;
-        }
-
-        .monitoringTable td:last-child {
-            border-bottom: none;
-            display: block;
-            padding-top: 10px;
-            text-align: left;
-        }
-
-        .monitoringTable td:last-child::before {
-            display: block;
-            margin-bottom: 6px;
-        }
-
-        .updateCell {
-            width: 100%;
-            min-width: 100%;
-        }
-
-        .updateFormRow {
-            flex-direction: column;
-            align-items: stretch;
-            gap: 8px;
-        }
-
-        .stageSelect,
-        .stageSaveBtn {
-            height: 42px;
-            font-size: 13.5px;
-            width: 100%;
-        }
-
-        .stageSaveBtn {
-            justify-content: center;
-        }
-    }
-</style>
+<link rel="stylesheet" href="/production/feature-static/manufacturing/monitoring.css">
 
 <div class="headerRow">
     <div>
@@ -219,7 +52,7 @@
                 <tr>
                     <td data-label="Order">
                         <div>
-                            <a href="{{ url_for('production.orderDetail', orderID=mon.orderID) }}"
+                            <a href="/production/orders/{{ mon.orderID }}"
                                 style="color: var(--p); font-weight: 700; text-decoration: none; font-size: 13.5px;">Order
                                 #PO-{{ mon.orderID }}</a>
                         </div>
@@ -273,7 +106,7 @@
                     </td>
                     <td data-label="Status" class="updateCell">
                         {% if mon.progress < 90 %} <form method="POST"
-                            action="{{ url_for('production.updateMonitoringProgress', monitoringID=mon.monitoringID) }}"
+                            action="/production/monitoring/update/{{ mon.monitoringID }}"
                             onsubmit="return confirmMilestoneSubmit(this, '{{ mon.orderID }}');" class="updateFormRow">
                             <select name="progress" class="stageSelect">
                                 <option value="25" {% if mon.progress|round|int <=25 %}selected{% endif %}>Stage 1:
@@ -294,7 +127,7 @@
                                     onclick="toggleRollbackForm('rollback_{{ mon.monitoringID }}')">Adjust</button>
     </div>
     <div id="rollback_{{ mon.monitoringID }}" style="display: none; margin-top: 6px;">
-        <form method="POST" action="{{ url_for('production.updateMonitoringProgress', monitoringID=mon.monitoringID) }}"
+        <form method="POST" action="/production/monitoring/update/{{ mon.monitoringID }}"
             class="updateFormRow">
             <select name="progress" class="stageSelect" style="height: 32px; font-size: 11.5px;">
                 <option value="50">Stage 2: Joinery & Assembly</option>
@@ -320,21 +153,5 @@
 </div>
 </div>
 
-<script>
-    function confirmMilestoneSubmit(form, orderId) {
-        const select = form.querySelector('select[name="progress"]');
-        const val = parseFloat(select ? select.value : 0);
-        if (val >= 90) {
-            return confirm("Confirm Workshop Assembly:\n\nAre you sure Order #PO-" + orderId + " has finished physical assembly and is ready for Quality Inspection (Feature 8)?");
-        }
-        return true;
-    }
-
-    function toggleRollbackForm(elementId) {
-        const el = document.getElementById(elementId);
-        if (el) {
-            el.style.display = (el.style.display === 'none' || el.style.display === '') ? 'flex' : 'none';
-        }
-    }
-</script>
+<script src="/production/feature-static/manufacturing/monitoring.js"></script>
 {% endblock %}

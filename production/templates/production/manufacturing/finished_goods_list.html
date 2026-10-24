@@ -1,154 +1,7 @@
 {% extends "production/base.html" %}
 
 {% block content %}
-<style>
-    .monitoringTable {
-        width: 100%;
-        min-width: 660px;
-        border-collapse: collapse;
-    }
-
-    .monitoringTable th,
-    .monitoringTable td {
-        padding: 12px 14px;
-        vertical-align: middle;
-        text-align: left;
-    }
-
-    .updateCell {
-        width: 280px;
-        min-width: 280px;
-    }
-
-    .updateFormRow {
-        display: flex;
-        align-items: center;
-        gap: 8px;
-    }
-
-    .stageSelect {
-        flex: 1;
-        height: 36px;
-        padding: 0 10px;
-        font-size: 12px;
-        border-radius: 6px;
-        border: 1px solid var(--bd);
-        background: var(--cd);
-        color: var(--tx);
-    }
-
-    .stageSaveBtn {
-        height: 36px;
-        padding: 0 14px;
-        font-size: 12px;
-        font-weight: 600;
-    }
-
-    .progressTrack {
-        width: 100px;
-        height: 10px;
-        background: #e2d8bd;
-        border: 1px solid var(--bd);
-        border-radius: 6px;
-        overflow: hidden;
-        display: inline-block;
-        vertical-align: middle;
-    }
-
-    .progressFill {
-        display: block;
-        height: 100%;
-        background: #526638;
-        border-radius: 6px;
-        transition: width 0.3s ease;
-    }
-
-    @media (max-width: 640px) {
-        .tableContainer {
-            overflow-x: visible;
-        }
-
-        .monitoringTable {
-            min-width: 100%;
-            display: block;
-        }
-
-        .monitoringTable thead {
-            display: none;
-        }
-
-        .monitoringTable tbody,
-        .monitoringTable tr {
-            display: block;
-            width: 100%;
-        }
-
-        .monitoringTable tr {
-            background: var(--cd);
-            border: 1px solid var(--bd);
-            border-radius: 10px;
-            margin-bottom: 14px;
-            padding: 12px 14px;
-            box-shadow: var(--sh);
-        }
-
-        .monitoringTable td {
-            border-bottom: 1px solid rgba(213, 199, 170, 0.45);
-            padding: 9px 0;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            text-align: right;
-            min-height: 42px;
-        }
-
-        .monitoringTable td::before {
-            content: attr(data-label);
-            font-weight: 700;
-            font-size: 11px;
-            text-transform: uppercase;
-            letter-spacing: 0.5px;
-            color: var(--mt);
-            text-align: left;
-            flex-shrink: 0;
-            margin-right: 12px;
-        }
-
-        .monitoringTable td:last-child {
-            border-bottom: none;
-            display: block;
-            padding-top: 10px;
-            text-align: left;
-        }
-
-        .monitoringTable td:last-child::before {
-            display: block;
-            margin-bottom: 6px;
-        }
-
-        .updateCell {
-            width: 100%;
-            min-width: 100%;
-        }
-
-        .updateFormRow {
-            flex-direction: column;
-            align-items: stretch;
-            gap: 8px;
-        }
-
-        .stageSelect,
-        .stageSaveBtn {
-            height: 42px;
-            font-size: 13.5px;
-            width: 100%;
-        }
-
-        .stageSaveBtn {
-            justify-content: center;
-        }
-    }
-</style>
+<link rel="stylesheet" href="/production/feature-static/manufacturing/finished_goods.css">
 
 <div class="headerRow">
     <div>
@@ -204,7 +57,7 @@
                 <tr>
                     <td data-label="Order">
                         <div>
-                            <a href="{{ url_for('production.orderDetail', orderID=ord.orderID) }}"
+                            <a href="/production/orders/{{ ord.orderID }}"
                                 style="color: var(--p); font-weight: 700; text-decoration: none; font-size: 13.5px;">Order
                                 #PO-{{ ord.orderID }}</a>
                         </div>
@@ -232,7 +85,7 @@
                     </td>
                     <td data-label="QA Action" class="updateCell">
                         {% if session.get('role') == 'prodManager' %}
-                        <form method="POST" action="{{ url_for('production.recordInspection', orderID=ord.orderID) }}"
+                        <form method="POST" action="/production/finished-goods/inspect/{{ ord.orderID }}"
                             class="updateFormRow">
                             <input type="hidden" name="quantity" value="{{ ord.plannedQuantity }}">
                             <select name="qualityStatus" class="stageSelect">

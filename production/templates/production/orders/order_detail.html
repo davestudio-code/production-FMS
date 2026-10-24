@@ -2,7 +2,7 @@
 
 {% block content %}
 <div style="margin-bottom: 14px;">
-    <a href="{{ url_for('production.orderList') }}" style="color: var(--p); text-decoration: none; font-size: 13px; font-weight: 600; display: inline-flex; align-items: center; gap: 6px;">
+    <a href="/production/orders" style="color: var(--p); text-decoration: none; font-size: 13px; font-weight: 600; display: inline-flex; align-items: center; gap: 6px;">
         &larr; Back to Production Orders
     </a>
 </div>
@@ -23,14 +23,14 @@
 
     {% if order.status == 'Draft' and session.get('role') == 'prodManager' %}
     <div style="display: flex; gap: 8px; align-items: center; flex-wrap: wrap;">
-        <a href="{{ url_for('production.requirementList', order_id=order.orderID) }}" class="actionButton" style="padding: 6px 12px; font-size: 12.5px; text-decoration: none;">Check Requirements & Release &rarr;</a>
-        <form method="POST" action="{{ url_for('production.deleteOrder', orderID=order.orderID) }}" onsubmit="return confirm('Are you sure you want to delete Draft Order #PO-{{ order.orderID }}?');" style="display: inline;">
+        <a href="/production/requirement?order_id={{ order.orderID }}" class="actionButton" style="padding: 6px 12px; font-size: 12.5px; text-decoration: none;">Check Requirements & Release &rarr;</a>
+        <form method="POST" action="/production/orders/delete/{{ order.orderID }}" onsubmit="return confirm('Are you sure you want to delete Draft Order #PO-{{ order.orderID }}?');" style="display: inline;">
             <button type="submit" class="actionButton secondary" style="color: #9a4a3a; border-color: #e2bcb3;">Delete Draft Order</button>
         </form>
     </div>
     {% elif order.status == 'Released' and session.get('role') == 'prodManager' %}
     <div style="display: flex; gap: 8px; align-items: center; flex-wrap: wrap;">
-        <a href="{{ url_for('production.issuanceList') }}" class="actionButton" style="padding: 6px 12px; font-size: 12.5px; text-decoration: none;">Issue Materials &rarr;</a>
+        <a href="/production/issuance" class="actionButton" style="padding: 6px 12px; font-size: 12.5px; text-decoration: none;">Issue Materials &rarr;</a>
     </div>
     {% endif %}
 </div>

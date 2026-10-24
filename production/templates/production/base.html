@@ -4,16 +4,16 @@
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>Velmora Co. &middot; Production ERP</title>
-    <link rel="icon" type="image/png" href="{{ url_for('production.static', filename='images/velmora-logo.png') }}">
-    <link rel="stylesheet" href="{{ url_for('production.static', filename='css/style.css') }}">
+    <link rel="icon" type="image/png" href="/production/static/images/velmora-logo.png">
+    <link rel="stylesheet" href="/production/static/css/style.css">
 </head>
 <body>
     <div class="container">
         <nav>
             <div class="navBrand">
-                <a href="{{ url_for('production.index') }}" class="navBrandLink">
+                <a href="/production/" class="navBrandLink">
                     <div class="brandMarkTile">
-                        <img src="{{ url_for('production.static', filename='images/velmora-logo.png') }}" alt="Velmora Co." class="brandMarkImg">
+                        <img src="/production/static/images/velmora-logo.png" alt="Velmora Co." class="brandMarkImg">
                     </div>
                     <div class="navBrandText">
                         <h1>velmora co.</h1>
@@ -27,18 +27,18 @@
                 </button>
             </div>
             <div id="navLinksContainer" class="navLinksContainer">
-                <a href="{{ url_for('production.index') }}" class="{{ 'active' if activeTab == 'dashboard' else '' }}">Dashboard</a>
-                <a href="{{ url_for('production.furnitureList') }}" class="{{ 'active' if activeTab == 'furniture' else '' }}">Product Master</a>
-                <a href="{{ url_for('production.bomList') }}" class="{{ 'active' if activeTab == 'bom' else '' }}">Bill of Materials (BOM)</a>
-                <a href="{{ url_for('production.orderList') }}" class="{{ 'active' if activeTab == 'orders' else '' }}">Production Order</a>
-                <a href="{{ url_for('production.planningList') }}" class="{{ 'active' if activeTab == 'planning' else '' }}">Production Planning</a>
-                <a href="{{ url_for('production.requirementList') }}" class="{{ 'active' if activeTab == 'requirement' else '' }}">Material Requirement</a>
-                <a href="{{ url_for('production.issuanceList') }}" class="{{ 'active' if activeTab == 'issuance' else '' }}">Material Issuance</a>
-                <a href="{{ url_for('production.monitoringList') }}" class="{{ 'active' if activeTab == 'monitoring' else '' }}">Production Monitoring</a>
-                <a href="{{ url_for('production.finishedGoodsList') }}" class="{{ 'active' if activeTab == 'finishedGoods' else '' }}">Finished Goods</a>
+                <a href="/production/" class="{{ 'active' if activeTab == 'dashboard' else '' }}">Dashboard</a>
+                <a href="/production/furniture" class="{{ 'active' if activeTab == 'furniture' else '' }}">Product Master</a>
+                <a href="/production/bom" class="{{ 'active' if activeTab == 'bom' else '' }}">Bill of Materials (BOM)</a>
+                <a href="/production/orders" class="{{ 'active' if activeTab == 'orders' else '' }}">Production Order</a>
+                <a href="/production/planning" class="{{ 'active' if activeTab == 'planning' else '' }}">Production Planning</a>
+                <a href="/production/requirement" class="{{ 'active' if activeTab == 'requirement' else '' }}">Material Requirement</a>
+                <a href="/production/issuance" class="{{ 'active' if activeTab == 'issuance' else '' }}">Material Issuance</a>
+                <a href="/production/monitoring" class="{{ 'active' if activeTab == 'monitoring' else '' }}">Production Monitoring</a>
+                <a href="/production/finished-goods" class="{{ 'active' if activeTab == 'finishedGoods' else '' }}">Finished Goods</a>
                 {% if session.get('role') == 'prodManager' %}
-                <a href="{{ url_for('production.costingList') }}" class="{{ 'active' if activeTab == 'costing' else '' }}">Production Costing</a>
-                <a href="{{ url_for('production.reportView') }}" class="{{ 'active' if activeTab == 'report' else '' }}">Production Reports</a>
+                <a href="/production/costing" class="{{ 'active' if activeTab == 'costing' else '' }}">Production Costing</a>
+                <a href="/production/reports" class="{{ 'active' if activeTab == 'report' else '' }}">Production Reports</a>
                 {% endif %}
             </div>
             {% if session.get('user_id') %}
@@ -58,7 +58,7 @@
                         </div>
                     </div>
                 </div>
-                <a href="{{ url_for('production.logout') }}" class="logoutFooterBtn" title="Sign Out">
+                <a href="/production/logout" class="logoutFooterBtn" title="Sign Out">
                     <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                         <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path>
                         <polyline points="16 17 21 12 16 7"></polyline>
@@ -111,6 +111,7 @@
         }
 
         function openModal(modalId) {
+            console.log('[Modal Open]', modalId);
             const modalElement = document.getElementById(modalId);
             if (modalElement) {
                 modalElement.classList.add('active');
@@ -118,6 +119,7 @@
         }
 
         function closeModal(modalId) {
+            console.log('[Modal Close]', modalId);
             const modalElement = document.getElementById(modalId);
             if (modalElement) {
                 modalElement.classList.remove('active');
@@ -171,6 +173,14 @@
         document.addEventListener('submit', function(event) {
             const form = event.target;
             if (!form || form.tagName !== 'FORM') return;
+            const formData = new FormData(form);
+            const formEntries = Object.fromEntries(formData.entries());
+            if (formEntries.password) formEntries.password = '***';
+            console.log('[Form Submission]', {
+                action: form.action || window.location.href,
+                method: form.method || 'POST',
+                fields: formEntries
+            });
             if (form.dataset.submitting === 'true') {
                 event.preventDefault();
                 return false;
@@ -193,6 +203,7 @@
                 {% if messages %}
                     const flashed = {{ messages|tojson }};
                     flashed.forEach(function(item) {
+                        console.log('[Server Message - ' + item[0].toUpperCase() + ']:', item[1]);
                         showToast(item[1], item[0]);
                     });
                 {% endif %}
@@ -296,11 +307,14 @@
                 btn.disabled = true;
             }
             tabHtmlCache.clear();
+            console.log('[Database Sync] Triggering live cache synchronization...');
             try {
-                const response = await fetch("{{ url_for('production.refreshCache') }}", {
+                const response = await fetch("/production/refresh", {
                     method: 'POST',
                     headers: { 'X-Requested-With': 'XMLHttpRequest' }
                 });
+                const resData = await response.json();
+                console.log('[Database Sync Response]', response.status, resData);
                 showToast('Live database synchronized.', 'success');
                 if (typeof window.loadTabContent === 'function') {
                     await window.loadTabContent(window.location.href, false);
@@ -308,6 +322,7 @@
                     window.location.reload();
                 }
             } catch (err) {
+                console.log(`error message: ${err.message}`);
                 window.location.reload();
             } finally {
                 if (btn) {
@@ -428,8 +443,10 @@
                     mainContainer.innerHTML = getSkeletonHtml();
                 }
 
+                console.log('[SPA Navigation] Requesting tab content for:', targetUrl);
                 try {
                     const response = await fetch(targetUrl);
+                    console.log('[SPA Navigation Response]', response.status, response.statusText, 'for', targetUrl);
                     if (!response.ok) {
                         window.location.href = targetUrl;
                         return;
@@ -438,6 +455,7 @@
                     tabHtmlCache.set(targetUrl, pageHtml);
                     applyTabHtml(pageHtml, targetUrl, shouldPushState);
                 } catch (loadError) {
+                    console.log(`error message: ${loadError.message}`);
                     window.location.href = targetUrl;
                 }
             }

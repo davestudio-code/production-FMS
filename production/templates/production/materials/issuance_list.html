@@ -34,7 +34,7 @@
                             units</b> &middot; Ordered: {{ order.orderDate }}</span>
                 </div>
                 {% if session.get('role') == 'prodManager' %}
-                <form method="POST" action="{{ url_for('production.issueOrderMaterials', orderID=order.orderID) }}"
+                <form method="POST" action="/production/issuance/issue/{{ order.orderID }}"
                     onsubmit="return confirm('Deduct required materials from inventory and start workshop production for Order #PO-{{ order.orderID }}?');">
                     <button type="submit" class="actionButton" style="padding: 9px 18px; font-size: 13px;">
                         Issue Materials &amp; Start Assembly &rarr;
@@ -69,7 +69,7 @@
         <p style="margin: 0 0 8px 0; font-size: 14px;">No production orders are currently waiting for material issuance.
         </p>
         <span style="font-size: 12.5px;">Orders must first be verified and approved in <a
-                href="{{ url_for('production.requirementList') }}" style="color: var(--p); font-weight: 600;">Material
+                href="/production/requirement" style="color: var(--p); font-weight: 600;">Material
                 Requirement</a> to transition from Draft &rarr; Released.</span>
     </div>
     {% endif %}

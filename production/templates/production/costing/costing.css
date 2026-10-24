@@ -1,0 +1,134 @@
+.costTable {
+    width: 100%;
+    min-width: 660px;
+    border-collapse: collapse;
+}
+
+.costTable th,
+.costTable td {
+    padding: 10px 12px;
+    vertical-align: middle;
+    text-align: left;
+}
+
+.costInput {
+    height: 34px;
+    padding: 0 8px;
+    font-size: 12px;
+    border-radius: 6px;
+    border: 1px solid var(--bd);
+    background: var(--cd);
+    color: var(--tx);
+    width: 85px;
+}
+
+.costSaveBtn {
+    height: 32px;
+    width: 92px;
+    padding: 0;
+    justify-content: center;
+    text-align: center;
+    font-size: 12px;
+    font-weight: 600;
+    white-space: nowrap;
+    border-radius: 6px;
+    cursor: pointer;
+}
+
+.actionButton.secondary.costSaveBtn {
+    background: transparent;
+    color: var(--tx);
+    border: 1px solid var(--bd);
+}
+
+.actionButton.secondary.costSaveBtn:hover {
+    border-color: var(--p);
+    color: var(--p);
+}
+
+.costFormRow {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+@media (max-width: 640px) {
+    .tableContainer {
+        overflow-x: visible;
+    }
+
+    .costTable {
+        min-width: 100%;
+        display: block;
+    }
+
+    .costTable thead {
+        display: none;
+    }
+
+    .costTable tbody,
+    .costTable tr {
+        display: block;
+        width: 100%;
+    }
+
+    .costTable tr {
+        background: var(--cd);
+        border: 1px solid var(--bd);
+        border-radius: 10px;
+        margin-bottom: 14px;
+        padding: 12px 14px;
+        box-shadow: var(--sh);
+    }
+
+    .costTable td {
+        border-bottom: 1px solid rgba(213, 199, 170, 0.45);
+        padding: 9px 0;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        text-align: right;
+        min-height: 42px;
+    }
+
+    .costTable td::before {
+        content: attr(data-label);
+        font-weight: 700;
+        font-size: 11px;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+        color: var(--mt);
+        text-align: left;
+        flex-shrink: 0;
+        margin-right: 12px;
+    }
+
+    .costTable td:last-child {
+        border-bottom: none;
+        display: block;
+        padding-top: 10px;
+        text-align: left;
+    }
+
+    .costTable td:last-child::before {
+        display: block;
+        margin-bottom: 6px;
+    }
+
+    .costFormRow {
+        flex-direction: column;
+        align-items: stretch;
+        gap: 8px;
+    }
+
+    .costInput,
+    .costSaveBtn {
+        height: 42px;
+        font-size: 13.5px;
+        width: 100%;
+    }
+
+    .costSaveBtn {
+        justify-content: center;
+    }
+}

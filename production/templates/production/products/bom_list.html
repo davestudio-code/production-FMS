@@ -12,7 +12,7 @@
     <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 14px;">
         <div style="display: flex; gap: 12px; align-items: center; flex-wrap: wrap;">
             <label style="font-weight: 600; font-size: 13.5px;">Product Recipe:</label>
-            <select id="recipeSelect" onchange="window.location.href='{{ url_for('production.bomList') }}?furniture_id=' + this.value" style="min-width: 280px;">
+            <select id="recipeSelect" onchange="window.location.href='/production/bom?furniture_id=' + this.value" style="min-width: 280px;">
                 {% for f in furnitureItems %}
                     <option value="{{ f.furnitureID }}" {{ 'selected' if selectedFurniture and selectedFurniture.furnitureID == f.furnitureID else '' }}>
                         {{ f.furnitureName }} ({{ f.furnitureType }})
@@ -22,7 +22,7 @@
                 {% endfor %}
             </select>
             {% if not furnitureItems %}
-            <a href="{{ url_for('production.furnitureList') }}" class="actionButton secondary" style="padding: 6px 12px; font-size: 12.5px; text-decoration: none;">+ Add Product in Product Master</a>
+            <a href="/production/furniture" class="actionButton secondary" style="padding: 6px 12px; font-size: 12.5px; text-decoration: none;">+ Add Product in Product Master</a>
             {% endif %}
         </div>
         {% if selectedFurniture and session.get('role') == 'prodManager' %}
@@ -69,7 +69,7 @@
                     <td>₱{{ "{:,.2f}".format(item.unitCost) }}</td>
                     <td>₱{{ "{:,.2f}".format(item.quantityRequired * item.unitCost) }}</td>
                     <td>
-                        <form method="POST" action="{{ url_for('production.removeBomItem', bomItemID=item.bomItemID) }}" style="display: inline;" onsubmit="return confirm('Remove \'{{ item.materialName|replace('\'', '\\\'') }}\' from this BOM?');">
+                        <form method="POST" action="/production/bom/items/delete/{{ item.bomItemID }}" style="display: inline;" onsubmit="return confirm('Remove \'{{ item.materialName|replace('\'', '\\\'') }}\' from this BOM?');">
                             <input type="hidden" name="furnitureID" value="{{ selectedFurniture.furnitureID }}">
                             <button type="submit" class="actionButton secondary" style="padding: 4px 10px; font-size: 12px; color: #9a4a3a; border-color: #e2bcb3;">Remove</button>
                         </form>
@@ -87,7 +87,7 @@
 
     {% if session.get('role') == 'prodManager' %}
     <div style="margin-top: 18px; padding-top: 16px; border-top: 1px solid var(--bd);">
-        <form method="POST" action="{{ url_for('production.addBomItem') }}">
+        <form method="POST" action="/production/bom/items/add">
             <input type="hidden" name="furnitureID" value="{{ selectedFurniture.furnitureID }}">
             <div style="display: flex; gap: 12px; flex-wrap: wrap; align-items: flex-end;">
                 <div class="formGroup" style="flex: 1; min-width: 260px; margin-bottom: 0;">
@@ -123,7 +123,7 @@
             {% endif %}
         </div>
 
-        <form method="GET" action="{{ url_for('production.bomList') }}" style="display: flex; gap: 10px; align-items: center; margin-bottom: 16px; flex-wrap: wrap;">
+        <form method="GET" action="/production/bom" style="display: flex; gap: 10px; align-items: center; margin-bottom: 16px; flex-wrap: wrap;">
             <input type="hidden" name="furniture_id" value="{{ selectedFurniture.furnitureID }}">
             <label style="font-size: 13px; font-weight: 600;">Batch Size (Units to Produce):</label>
             <input type="number" name="batch_qty" value="{{ batchQuantity }}" min="1" step="1" style="width: 90px; font-weight: 700; padding: 6px 12px; font-size: 13.5px;">

@@ -1,4 +1,5 @@
-from flask import Blueprint, render_template, request, redirect, url_for, flash, session, jsonify
+import os
+from flask import Blueprint, render_template, request, redirect, url_for, flash, session, jsonify, send_from_directory
 from decimal import Decimal, InvalidOperation
 from datetime import date
 from psycopg2.errors import UniqueViolation
@@ -25,7 +26,7 @@ productionBlueprint = Blueprint(
 
 @productionBlueprint.before_request
 def requireLogin():
-    if request.endpoint in ("production.login", "production.logout", "production.static"):
+    if request.endpoint in ("production.login", "production.logout", "production.static", "production.loginpageStatic", "production.featureStatic"):
         return
     if not session.get("user_id"):
         return redirect(url_for("production.login", next=request.path))
@@ -39,8 +40,10 @@ def login():
         password = request.form.get("password", "")
         user_record, error_message = authenticate_credentials(email, password)
         if error_message:
+            if request.headers.get("X-Requested-With") == "XMLHttpRequest" or request.is_json:
+                return jsonify({"success": False, "error": error_message}), 401
             flash(error_message, "danger")
-            return render_template("production/login.html")
+            return render_template("production/loginpage/login.html")
         session["user_id"] = user_record.get("user_id") or user_record.get("employee_id") or user_record.get("auth_user_id")
         session["email"] = user_record.get("email")
         name = user_record.get("name") or ""
@@ -51,10 +54,21 @@ def login():
         session["position"] = user_record.get("position_name")
         flash(f"Welcome back, {session['employee_name']}!", "success")
         next_page = request.args.get("next")
-        if next_page and next_page.startswith("/production") and not next_page.startswith("/production/logout") and not next_page.startswith("/production/login"):
-            return redirect(next_page)
-        return redirect(url_for("production.index"))
-    return render_template("production/login.html")
+        next_url = next_page if (next_page and next_page.startswith("/production") and not next_page.startswith("/production/logout") and not next_page.startswith("/production/login")) else url_for("production.index")
+        if request.headers.get("X-Requested-With") == "XMLHttpRequest" or request.is_json:
+            return jsonify({"success": True, "redirect": next_url, "user": session["employee_name"]}), 200
+        return redirect(next_url)
+    return render_template("production/loginpage/login.html")
+
+@productionBlueprint.route("/feature-static/<path:filename>")
+def featureStatic(filename):
+    folder = os.path.join(os.path.dirname(__file__), "templates", "production")
+    return send_from_directory(folder, filename)
+
+@productionBlueprint.route("/loginpage-static/<path:filename>")
+def loginpageStatic(filename):
+    folder = os.path.join(os.path.dirname(__file__), "templates", "production", "loginpage")
+    return send_from_directory(folder, filename)
 
 @productionBlueprint.route("/logout")
 def logout():
@@ -100,7 +114,7 @@ def index():
     integrationEventsList = []
 
     return render_template(
-        "production/dashboard.html",
+        "production/dashboard/dashboard.html",
         activeTab="dashboard",
         databaseStatus=databaseStatusMessage,
         metrics=metricsData,
@@ -124,7 +138,7 @@ def furnitureList():
         categoriesList = []
 
     return render_template(
-        "production/furniture_list.html",
+        "production/products/furniture_list.html",
         activeTab="furniture",
         furnitureItems=furnitureItemList,
         categories=categoriesList,
@@ -220,7 +234,7 @@ def deleteFurniture(furnitureID):
 def materialList():
     rawMaterialList = []
     return render_template(
-        "production/material_list.html",
+        "production/materials/material_list.html",
         activeTab="materials",
         rawMaterials=rawMaterialList,
         sufficientCount=0,
@@ -279,7 +293,7 @@ def bomList():
         materialsList = []
 
     return render_template(
-        "production/bom_list.html",
+        "production/products/bom_list.html",
         activeTab="bom",
         furnitureItems=furnitureItemList,
         selectedFurniture=selectedFurniture,
@@ -293,6 +307,7 @@ def bomList():
     )
 
 @productionBlueprint.route("/bom/add", methods=["POST"])
+@productionBlueprint.route("/bom/items/add", methods=["POST"])
 @roles_required("prodManager")
 def addBomItem():
     furnitureID = request.form.get("furnitureID", "").strip()
@@ -348,6 +363,7 @@ def addBomItem():
     return redirect(url_for("production.bomList", furniture_id=furnitureID))
 
 @productionBlueprint.route("/bom/remove/<int:bomItemID>", methods=["POST"])
+@productionBlueprint.route("/bom/items/delete/<int:bomItemID>", methods=["POST"])
 @roles_required("prodManager")
 def removeBomItem(bomItemID):
     furnitureID = request.form.get("furnitureID", "").strip()
@@ -385,7 +401,7 @@ def orderList():
         salesOrdersList = []
 
     return render_template(
-        "production/order_list.html",
+        "production/orders/order_list.html",
         activeTab="orders",
         orders=productionOrderList,
         summary=summary,
@@ -413,7 +429,7 @@ def orderDetail(orderID):
         return redirect(url_for("production.orderList"))
 
     return render_template(
-        "production/order_detail.html",
+        "production/orders/order_detail.html",
         activeTab="orders",
         order=order,
         requirements=requirements,
@@ -528,7 +544,7 @@ def planningList():
         summary = {"total": 0, "scheduled": 0, "needsDates": 0, "overdue": 0}
 
     return render_template(
-        "production/planning.html",
+        "production/planning/planning.html",
         activeTab="planning",
         plannedOrders=plannedOrders,
         summary=summary,
@@ -573,6 +589,7 @@ def updateOrderSchedule(orderID):
     return redirect(url_for("production.planningList"))
 
 @productionBlueprint.route("/requirements")
+@productionBlueprint.route("/requirement")
 def requirementList():
     try:
         allOrders = ProductionOrder.getAll()
@@ -639,7 +656,7 @@ def requirementList():
             flash(f"Failed to calculate material requirements: {str(err)}", "error")
 
     return render_template(
-        "production/requirement.html",
+        "production/materials/requirement.html",
         activeTab="requirement",
         activeOrders=allOrders,
         selectedOrder=selectedOrder,
@@ -651,6 +668,7 @@ def requirementList():
     )
 
 @productionBlueprint.route("/requirements/release/<int:orderID>", methods=["POST"])
+@productionBlueprint.route("/requirement/release/<int:orderID>", methods=["POST"])
 @roles_required("prodManager")
 def releaseOrder(orderID):
     try:
@@ -713,7 +731,7 @@ def issuanceList():
         materialIssuanceList = []
 
     return render_template(
-        "production/issuance_list.html",
+        "production/materials/issuance_list.html",
         activeTab="issuance",
         releasedOrders=releasedOrders,
         issuances=materialIssuanceList
@@ -779,7 +797,7 @@ def monitoringList():
         summary = {"total": 0, "inProgress": 0, "completed": 0}
 
     return render_template(
-        "production/monitoring_list.html",
+        "production/manufacturing/monitoring_list.html",
         activeTab="monitoring",
         monitorings=productionMonitoringList,
         summary=summary
@@ -846,7 +864,7 @@ def finishedGoodsList():
         summary = {"pending": 0, "passed": 0, "rework": 0, "failed": 0, "totalUnits": 0}
 
     return render_template(
-        "production/finished_goods_list.html",
+        "production/manufacturing/finished_goods_list.html",
         activeTab="finishedGoods",
         pendingOrders=pendingOrders,
         outputRecords=outputRecords,
@@ -957,7 +975,7 @@ def costingList():
         summary = {"totalCost": Decimal("0.00"), "costedOrders": 0, "pendingCosting": 0, "activeOrders": 0, "overheadPercent": int(round(ProductionCost.DEFAULT_OVERHEAD_PERCENT * 100))}
 
     return render_template(
-        "production/costing_list.html",
+        "production/costing/costing_list.html",
         activeTab="costing",
         costOrders=costOrders,
         costs=allCostRecords,
@@ -1017,6 +1035,7 @@ def saveOrderCost(orderID):
     return redirect(url_for("production.costingList"))
 
 @productionBlueprint.route("/report")
+@productionBlueprint.route("/reports")
 @roles_required("prodManager")
 def reportView():
     statusFilter = request.args.get("status", "All").strip()
@@ -1150,7 +1169,7 @@ def reportView():
         }
 
     return render_template(
-        "production/report_view.html",
+        "production/reports/report_view.html",
         activeTab="report",
         reportRows=filteredOrders,
         materialUsage=materialUsageRows,

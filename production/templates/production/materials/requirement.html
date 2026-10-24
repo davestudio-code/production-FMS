@@ -14,7 +14,7 @@
         <div style="display: flex; gap: 12px; align-items: center; flex-wrap: wrap;">
             <label style="font-weight: 600; font-size: 13.5px;">Select Production Order:</label>
             <select id="orderSelect"
-                onchange="window.location.href='{{ url_for('production.requirementList') }}?order_id=' + this.value"
+                onchange="window.location.href='/production/requirement?order_id=' + this.value"
                 style="min-width: 320px;">
                 {% for ord in activeOrders %}
                 <option value="{{ ord.orderID }}" {{ 'selected' if selectedOrder and selectedOrder.orderID==ord.orderID
@@ -27,14 +27,14 @@
                 {% endfor %}
             </select>
             {% if not activeOrders %}
-            <a href="{{ url_for('production.orderList') }}" class="actionButton secondary"
+            <a href="/production/orders" class="actionButton secondary"
                 style="padding: 6px 12px; font-size: 12.5px; text-decoration: none;">+ Create Order in Production
                 Order</a>
             {% endif %}
         </div>
         {% if selectedOrder %}
         <div style="display: flex; align-items: center; gap: 8px;">
-            <a href="{{ url_for('production.orderDetail', orderID=selectedOrder.orderID) }}"
+            <a href="/production/orders/{{ selectedOrder.orderID }}"
                 class="actionButton secondary" style="padding: 6px 12px; font-size: 12.5px; text-decoration: none;">View
                 Order Details &rarr;</a>
         </div>
@@ -97,7 +97,7 @@
         {% if not hasBOM %}
         <div style="color: #8e622a; font-size: 13px;">
             No BOM recipe defined for {{ selectedOrder.furnitureName }}. <a
-                href="{{ url_for('production.bomList', furniture_id=selectedOrder.furnitureID) }}"
+                href="/production/bom?furniture_id={{ selectedOrder.furnitureID }}"
                 style="color: var(--p); font-weight: 700;">Add materials in Bill of Materials &rarr;</a>
         </div>
         {% elif hasShortage %}
@@ -115,7 +115,7 @@
                     to fulfill this batch.</span>
             </div>
             {% if session.get('role') == 'prodManager' %}
-            <form method="POST" action="{{ url_for('production.releaseOrder', orderID=selectedOrder.orderID) }}"
+            <form method="POST" action="/production/requirement/release/{{ selectedOrder.orderID }}"
                 onsubmit="return confirm('Release Order #PO-{{ selectedOrder.orderID }} to production?');">
                 <button type="submit" class="actionButton" style="padding: 9px 20px; font-size: 13.5px;">Release Order
                     to Production</button>
@@ -130,7 +130,7 @@
             style="display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 10px; background: rgba(102, 117, 76, 0.08); padding: 10px 14px; border-radius: 8px; border: 1px solid rgba(102, 117, 76, 0.25);">
             <span style="color: var(--tx); font-size: 13px;">Order #PO-{{ selectedOrder.orderID }} is
                 <b>Released</b>. Ready for material issuance.</span>
-            <a href="{{ url_for('production.issuanceList') }}" class="actionButton"
+            <a href="/production/issuance" class="actionButton"
                 style="padding: 6px 14px; font-size: 12.5px; text-decoration: none;">Proceed to Material Issuance
                 &rarr;</a>
         </div>
@@ -191,7 +191,7 @@
                 <tr>
                     <td colspan="8" style="text-align: center; color: var(--mt); padding: 24px;">No BOM recipe
                         components found for this product. Use the <a
-                            href="{{ url_for('production.bomList', furniture_id=selectedOrder.furnitureID) }}"
+                            href="/production/bom?furniture_id={{ selectedOrder.furnitureID }}"
                             style="color: var(--p); font-weight: 700;">Bill of Materials</a> tab to add components.</td>
                 </tr>
                 {% endfor %}
