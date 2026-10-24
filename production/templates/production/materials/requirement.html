@@ -10,7 +10,7 @@
 </div>
 
 <div class="card" style="margin-bottom: 20px;">
-    <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 14px;">
+    <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 14px;{% if selectedOrder %} padding-bottom: 16px; border-bottom: 1px solid var(--bd); margin-bottom: 16px;{% endif %}">
         <div style="display: flex; gap: 12px; align-items: center; flex-wrap: wrap;">
             <label style="font-weight: 600; font-size: 13.5px;">Select Production Order:</label>
             <select id="orderSelect"
@@ -40,10 +40,8 @@
         </div>
         {% endif %}
     </div>
-</div>
 
-{% if selectedOrder %}
-<div class="card" style="margin-bottom: 20px;">
+    {% if selectedOrder %}
     <div class="headerRow" style="margin-bottom: 14px; align-items: flex-start;">
         <div>
             <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 4px;">
@@ -139,65 +137,65 @@
             have already been allocated.</span>
         {% endif %}
     </div>
-</div>
 
-<div class="card">
-    <div class="headerRow" style="margin-bottom: 14px;">
-        <div>
-            <h3 style="font-size: 15px; margin: 0;">Material Demand & Inventory Stock Comparison</h3>
-            <span style="color: var(--mt); font-size: 12.5px;">Required quantities calculated for {{
-                selectedOrder.plannedQuantity }} unit(s) against live stock in inventory</span>
+    <div style="margin-top: 22px; padding-top: 18px; border-top: 1px solid var(--bd);">
+        <div class="headerRow" style="margin-bottom: 14px;">
+            <div>
+                <h3 style="font-size: 15px; margin: 0;">Material Demand &amp; Inventory Stock Comparison</h3>
+                <span style="color: var(--mt); font-size: 12.5px;">Required quantities calculated for {{
+                    selectedOrder.plannedQuantity }} unit(s) against live stock in inventory</span>
+            </div>
+        </div>
+
+        <div class="tableContainer">
+            <table>
+                <thead>
+                    <tr>
+                        <th>#</th>
+                        <th>Raw Material</th>
+                        <th>Unit</th>
+                        <th>Qty / Unit</th>
+                        <th>Total Required ({{ selectedOrder.plannedQuantity }} Units)</th>
+                        <th>Available On Hand</th>
+                        <th>Shortage</th>
+                        <th>Status</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for req in requirementsList %}
+                    <tr>
+                        <td><b>#{{ req.materialID }}</b></td>
+                        <td><b>{{ req.materialName }}</b></td>
+                        <td>{{ req.unit }}</td>
+                        <td>{{ "{:,.3f}".format(req.quantityRequired).rstrip('0').rstrip('.') or '0' }}</td>
+                        <td><b>{{ "{:,.3f}".format(req.requiredQuantity).rstrip('0').rstrip('.') or '0' }}</b></td>
+                        <td>{{ "{:,.3f}".format(req.onHandQuantity).rstrip('0').rstrip('.') or '0' }}</td>
+                        <td>
+                            {% if req.isShort %}
+                            <b style="color: var(--rd);">+{{ "{:,.3f}".format(req.shortageQuantity).rstrip('0').rstrip('.')
+                                or '0' }}</b>
+                            {% else %}
+                            <span style="color: var(--mt);">&mdash;</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            <span class="statusBadge {{ 'alert' if req.isShort else 'passed' }}">
+                                {{ 'Shortage Risk' if req.isShort else 'Available' }}
+                            </span>
+                        </td>
+                    </tr>
+                    {% else %}
+                    <tr>
+                        <td colspan="8" style="text-align: center; color: var(--mt); padding: 24px;">No BOM recipe
+                            components found for this product. Use the <a
+                                href="/production/bom?furniture_id={{ selectedOrder.furnitureID }}"
+                                style="color: var(--p); font-weight: 700;">Bill of Materials</a> tab to add components.</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
         </div>
     </div>
-
-    <div class="tableContainer">
-        <table>
-            <thead>
-                <tr>
-                    <th>#</th>
-                    <th>Raw Material</th>
-                    <th>Unit</th>
-                    <th>Qty / Unit</th>
-                    <th>Total Required ({{ selectedOrder.plannedQuantity }} Units)</th>
-                    <th>Available On Hand</th>
-                    <th>Shortage</th>
-                    <th>Status</th>
-                </tr>
-            </thead>
-            <tbody>
-                {% for req in requirementsList %}
-                <tr>
-                    <td><b>#{{ req.materialID }}</b></td>
-                    <td><b>{{ req.materialName }}</b></td>
-                    <td>{{ req.unit }}</td>
-                    <td>{{ "{:,.3f}".format(req.quantityRequired).rstrip('0').rstrip('.') or '0' }}</td>
-                    <td><b>{{ "{:,.3f}".format(req.requiredQuantity).rstrip('0').rstrip('.') or '0' }}</b></td>
-                    <td>{{ "{:,.3f}".format(req.onHandQuantity).rstrip('0').rstrip('.') or '0' }}</td>
-                    <td>
-                        {% if req.isShort %}
-                        <b style="color: var(--rd);">+{{ "{:,.3f}".format(req.shortageQuantity).rstrip('0').rstrip('.')
-                            or '0' }}</b>
-                        {% else %}
-                        <span style="color: var(--mt);">&mdash;</span>
-                        {% endif %}
-                    </td>
-                    <td>
-                        <span class="statusBadge {{ 'alert' if req.isShort else 'passed' }}">
-                            {{ 'Shortage Risk' if req.isShort else 'Available' }}
-                        </span>
-                    </td>
-                </tr>
-                {% else %}
-                <tr>
-                    <td colspan="8" style="text-align: center; color: var(--mt); padding: 24px;">No BOM recipe
-                        components found for this product. Use the <a
-                            href="/production/bom?furniture_id={{ selectedOrder.furnitureID }}"
-                            style="color: var(--p); font-weight: 700;">Bill of Materials</a> tab to add components.</td>
-                </tr>
-                {% endfor %}
-            </tbody>
-        </table>
-    </div>
+    {% endif %}
 </div>
-{% endif %}
 {% endblock %}
