@@ -8,6 +8,53 @@
     </div>
 </div>
 
+{% if stockoutAlerts %}
+<div class="card" style="margin-bottom: 20px; border-left: 4px solid #b58f55; background: #fdfbf7; padding: 16px 20px;">
+    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; flex-wrap: wrap; gap: 8px;">
+        <div style="display: flex; align-items: center; gap: 8px;">
+            <span style="display: inline-flex; align-items: center; justify-content: center; width: 24px; height: 24px; border-radius: 50%; background: rgba(181, 143, 85, 0.2); color: #8e622a; font-size: 13px; font-weight: 700;">!</span>
+            <b style="font-size: 14.5px; color: var(--tx);">Team 2 Warehouse Stockout Alerts</b>
+            <span class="statusBadge alert" style="font-size: 11px;">{{ stockoutAlerts|length }} Item{{ 's' if stockoutAlerts|length != 1 else '' }} Out of Stock</span>
+        </div>
+        <span style="font-size: 12px; color: var(--mt);">Finished goods warehouse has zero available stock for these items.</span>
+    </div>
+    <div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 12px; margin-top: 10px;">
+        {% for alert in stockoutAlerts %}
+        <div style="display: flex; justify-content: space-between; align-items: center; background: #fff; border: 1px solid var(--bd); border-radius: 8px; padding: 11px 14px; gap: 10px;">
+            <div>
+                <b style="font-size: 13.5px; display: block; color: var(--tx);">{{ alert.furniture_name }}</b>
+                <span style="font-size: 11.5px; color: var(--mt);">{{ alert.furniture_type }} &bull; <span style="color: #9a4a3a; font-weight: 600;">0 in warehouse</span></span>
+                {% if alert.active_order_id %}
+                <span class="statusBadge pending" style="display: inline-block; font-size: 10.5px; margin-top: 4px;">
+                    Restock Pending (#PO-{{ alert.active_order_id }} &bull; {{ alert.active_order_qty }} units)
+                </span>
+                {% elif alert.bom_item_count == 0 %}
+                <span class="statusBadge draft" style="display: inline-block; font-size: 10.5px; margin-top: 4px;">
+                    No BOM Configured
+                </span>
+                {% endif %}
+            </div>
+            {% if session.get('role') == 'prodManager' %}
+                {% if alert.active_order_id %}
+                <a href="/production/orders/{{ alert.active_order_id }}" class="actionButton secondary" style="padding: 5px 11px; font-size: 12px; text-decoration: none; white-space: nowrap;">
+                    View Order &rarr;
+                </a>
+                {% elif alert.bom_item_count == 0 %}
+                <a href="/production/bom?furniture_id={{ alert.furniture_id }}" class="actionButton" style="padding: 5px 11px; font-size: 12px; text-decoration: none; white-space: nowrap; background: #7a6a4d; border-color: #7a6a4d;">
+                    + Configure BOM
+                </a>
+                {% else %}
+                <button type="button" class="actionButton" style="padding: 5px 12px; font-size: 12px; white-space: nowrap;" onclick="openRestockModal('{{ alert.furniture_id }}')">
+                    + Restock
+                </button>
+                {% endif %}
+            {% endif %}
+        </div>
+        {% endfor %}
+    </div>
+</div>
+{% endif %}
+
 <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); gap: 14px; margin-bottom: 20px;">
     <div class="card" style="padding: 14px 18px;">
         <span style="font-size: 12px; color: var(--mt); text-transform: uppercase; font-weight: 600;">Total Orders</span>
@@ -55,7 +102,7 @@
                 <tr>
                     <th>Order Ref</th>
                     <th>Furniture Product</th>
-                    <th>Order Type</th>
+                    <th>Purpose</th>
                     <th>Batch Quantity</th>
                     <th>Timeline</th>
                     <th>Status</th>
@@ -71,9 +118,15 @@
                         <span style="display: block; font-size: 12px; color: var(--mt);">{{ ord.furnitureType }}</span>
                     </td>
                     <td>
-                        <span class="statusBadge" style="background: rgba(181, 143, 85, 0.12); color: #8e622a; border: 1px solid rgba(181, 143, 85, 0.3);">
-                            {{ ord.orderType }}
+                        {% if ord.purpose == 'Scheduled Batch' %}
+                        <span class="statusBadge" style="background: rgba(53, 122, 88, 0.12); color: #357a58; border: 1px solid rgba(53, 122, 88, 0.3);">
+                            Scheduled Batch
                         </span>
+                        {% else %}
+                        <span class="statusBadge" style="background: rgba(181, 143, 85, 0.12); color: #8e622a; border: 1px solid rgba(181, 143, 85, 0.3);">
+                            Warehouse Restock
+                        </span>
+                        {% endif %}
                     </td>
                     <td><b>{{ ord.plannedQuantity }} units</b></td>
                     <td>
@@ -147,33 +200,21 @@
         </div>
         <form method="POST" action="/production/orders/create">
             <div class="formGroup">
-                <label>Order Type</label>
+                <label>Order Purpose / Trigger</label>
                 <div style="display: flex; gap: 20px; align-items: center; padding: 4px 0;">
                     <label style="display: flex; align-items: center; gap: 8px; cursor: pointer; font-size: 13.5px; color: var(--tx); font-weight: 500;">
-                        <input type="radio" name="orderSource" value="stock" checked onchange="toggleOrderSource('stock')" style="accent-color: var(--p);">
-                        Make-to-Stock
+                        <input type="radio" name="purpose" id="purposeRestock" value="Warehouse Restock" checked style="accent-color: var(--p);">
+                        Warehouse Restock
                     </label>
                     <label style="display: flex; align-items: center; gap: 8px; cursor: pointer; font-size: 13.5px; color: var(--tx); font-weight: 500;">
-                        <input type="radio" name="orderSource" value="sales" onchange="toggleOrderSource('sales')" style="accent-color: var(--p);">
-                        Make-to-Order (Sales)
+                        <input type="radio" name="purpose" id="purposeScheduled" value="Scheduled Batch" style="accent-color: var(--p);">
+                        Scheduled Batch
                     </label>
                 </div>
             </div>
-            <div class="formGroup" id="salesOrderGroup" style="display: none;">
-                <label>Sales Order Item</label>
-                <select name="salesOrderItemID" id="salesOrderSelect" onchange="onSalesOrderSelected()">
-                    <option value="">-- Select Sales Order Item --</option>
-                    {% for so in salesOrders %}
-                        <option value="{{ so.order_item_id }}" data-qty="{{ so.quantity }}" data-furniture-id="{{ so.furniture_id or '' }}" data-customer="{{ so.customer_name|title }}" data-order-date="{{ so.order_date }}">
-                            SO-{{ "%03d"|format(so.sales_order_id) }} &bull; {{ so.customer_name|title }} &mdash; {{ so.quantity }}x {{ so.item_name }} ({{ so.order_date }})
-                        </option>
-                    {% endfor %}
-                </select>
-                <div id="salesOrderHint" style="display: none; font-size: 12px; color: var(--mt); margin-top: 3px;"></div>
-            </div>
             <div class="formGroup">
                 <label>Furniture Product (Must have configured BOM)</label>
-                <select name="furnitureID" required>
+                <select name="furnitureID" id="modalFurnitureSelect" onchange="updateLiveMrpCheck()" required>
                     <option value="">-- Select Product --</option>
                     {% for f in furnitureItems %}
                         <option value="{{ f.furnitureID }}">{{ f.furnitureName }} ({{ f.furnitureType }})</option>
@@ -182,7 +223,14 @@
             </div>
             <div class="formGroup">
                 <label>Planned Batch Quantity (Whole Number)</label>
-                <input type="number" name="plannedQuantity" placeholder="e.g. 4" min="1" max="100000" step="1" required>
+                <input type="number" name="plannedQuantity" id="modalQuantityInput" placeholder="e.g. 4" min="1" max="100000" step="1" oninput="updateLiveMrpCheck()" required>
+            </div>
+            <div id="mrpPreviewBox" style="display: none; background: #faf8f3; border: 1px solid var(--bd); border-radius: 8px; padding: 10px 14px; margin-bottom: 14px;">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
+                    <span style="font-size: 11px; font-weight: 700; text-transform: uppercase; color: var(--mt);">Material Requirement Preview (MRP)</span>
+                    <span id="mrpStatusBadge" class="statusBadge" style="font-size: 10.5px;"></span>
+                </div>
+                <div id="mrpComponentList" style="font-size: 12px; display: flex; flex-direction: column; gap: 4px;"></div>
             </div>
             <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px;">
                 <div class="formGroup">
@@ -199,11 +247,14 @@
             </div>
             <div class="modalActions" style="margin-top: 18px;">
                 <button type="button" class="actionButton secondary" onclick="closeModal('createOrderModal')">Cancel</button>
-                <button type="submit" class="actionButton">Create Draft Order</button>
+                <button type="submit" class="actionButton" id="modalCreateOrderBtn">Create Draft Order</button>
             </div>
         </form>
     </div>
 </div>
 
+<script>
+    window.furnitureBomMap = {{ furnitureBomMap|tojson }};
+</script>
 <script src="/production/feature-static/orders/order_list.js"></script>
 {% endblock %}

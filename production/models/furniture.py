@@ -10,11 +10,20 @@ class Furniture:
             self.furnitureType = data.get("furniture_type")
             rawPrice = data.get("selling_price")
             self.sellingPrice = Decimal(str(rawPrice)) if rawPrice is not None else Decimal("0.00")
+            rawBomCost = data.get("bom_material_cost")
+            self.bomCost = Decimal(str(rawBomCost)) if rawBomCost is not None else Decimal("0.00")
+            self.componentCount = int(data.get("component_count") or 0)
+            self.hasBOM = self.componentCount > 0
+            self.bomID = data.get("bom_id")
         else:
             self.furnitureID = None
             self.furnitureName = ""
             self.furnitureType = ""
             self.sellingPrice = Decimal("0.00")
+            self.bomCost = Decimal("0.00")
+            self.componentCount = 0
+            self.hasBOM = False
+            self.bomID = None
 
     @classmethod
     def getAll(cls, searchQuery=None, category=None, conn=None):
@@ -25,15 +34,25 @@ class Furniture:
 
         with openTransaction(conn) as connection:
             with connection.cursor() as cursor:
-                sql = "SELECT furniture_id, furniture_name, furniture_type, selling_price FROM prod_furniture WHERE 1=1"
+                sql = """
+                    SELECT f.furniture_id, f.furniture_name, f.furniture_type, f.selling_price,
+                           bom.bom_id,
+                           COALESCE(SUM(bi.quantity_required * rm.unit_cost), 0.00) AS bom_material_cost,
+                           COUNT(bi.bom_item_id) AS component_count
+                    FROM prod_furniture f
+                    LEFT JOIN prod_billofmaterials bom ON f.furniture_id = bom.furniture_id
+                    LEFT JOIN prod_bomitem bi ON bom.bom_id = bi.bom_id
+                    LEFT JOIN raw_material rm ON bi.material_id = rm.raw_material_id
+                    WHERE 1=1
+                """
                 params = []
                 if searchQuery:
-                    sql += " AND furniture_name ILIKE %s"
+                    sql += " AND f.furniture_name ILIKE %s"
                     params.append(f"%{searchQuery.strip()}%")
                 if category:
-                    sql += " AND furniture_type = %s"
+                    sql += " AND f.furniture_type = %s"
                     params.append(category.strip())
-                sql += " ORDER BY furniture_id ASC"
+                sql += " GROUP BY f.furniture_id, f.furniture_name, f.furniture_type, f.selling_price, bom.bom_id ORDER BY f.furniture_id ASC"
                 cursor.execute(sql, tuple(params))
                 rows = cursor.fetchall()
                 result = [cls(row) for row in rows]
@@ -61,7 +80,19 @@ class Furniture:
     def getByID(cls, furnitureID, conn=None):
         with openTransaction(conn) as connection:
             with connection.cursor() as cursor:
-                cursor.execute("SELECT furniture_id, furniture_name, furniture_type, selling_price FROM prod_furniture WHERE furniture_id = %s", (furnitureID,))
+                sql = """
+                    SELECT f.furniture_id, f.furniture_name, f.furniture_type, f.selling_price,
+                           bom.bom_id,
+                           COALESCE(SUM(bi.quantity_required * rm.unit_cost), 0.00) AS bom_material_cost,
+                           COUNT(bi.bom_item_id) AS component_count
+                    FROM prod_furniture f
+                    LEFT JOIN prod_billofmaterials bom ON f.furniture_id = bom.furniture_id
+                    LEFT JOIN prod_bomitem bi ON bom.bom_id = bi.bom_id
+                    LEFT JOIN raw_material rm ON bi.material_id = rm.raw_material_id
+                    WHERE f.furniture_id = %s
+                    GROUP BY f.furniture_id, f.furniture_name, f.furniture_type, f.selling_price, bom.bom_id
+                """
+                cursor.execute(sql, (furnitureID,))
                 row = cursor.fetchone()
                 return cls(row) if row else None
 
@@ -76,10 +107,10 @@ class Furniture:
                 return cursor.fetchone() is not None
 
     @classmethod
-    def addFurniture(cls, furnitureName, furnitureType, sellingPrice, conn=None):
+    def addFurniture(cls, furnitureName, furnitureType, sellingPrice=Decimal("0.00"), conn=None):
         cleanName = furnitureName.strip()
         cleanType = furnitureType.strip()
-        priceVal = Decimal(str(sellingPrice))
+        priceVal = Decimal(str(sellingPrice)) if sellingPrice is not None else Decimal("0.00")
         with openTransaction(conn) as connection:
             with connection.cursor() as cursor:
                 cursor.execute(
@@ -91,10 +122,10 @@ class Furniture:
                 return cls(row)
 
     @classmethod
-    def updateFurniture(cls, furnitureID, furnitureName, furnitureType, sellingPrice, conn=None):
+    def updateFurniture(cls, furnitureID, furnitureName, furnitureType, sellingPrice=Decimal("0.00"), conn=None):
         cleanName = furnitureName.strip()
         cleanType = furnitureType.strip()
-        priceVal = Decimal(str(sellingPrice))
+        priceVal = Decimal(str(sellingPrice)) if sellingPrice is not None else Decimal("0.00")
         with openTransaction(conn) as connection:
             with connection.cursor() as cursor:
                 cursor.execute(

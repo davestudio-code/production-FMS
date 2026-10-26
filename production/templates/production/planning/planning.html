@@ -90,14 +90,21 @@
                         {% endif %}
                     </td>
                     <td>
-                        {% if session.get('role') == 'prodManager' %}
-                        <button type="button" class="actionButton secondary" style="padding: 4px 10px; font-size: 12px;"
-                            onclick="openScheduleModal('{{ ord.orderID }}', '{{ ord.furnitureName|replace('\'', '\\\'') }}', '{{ ord.plannedStartDate or '' }}', '{{ ord.dueDate or '' }}')">
-                            Edit Dates
-                        </button>
-                        {% else %}
-                        <span style="color: var(--mt); font-size: 12px;">View Only</span>
-                        {% endif %}
+                        <div style="display: flex; gap: 6px; align-items: center;">
+                            {% if session.get('role') == 'prodManager' %}
+                            <button type="button" class="actionButton secondary" style="padding: 4px 9px; font-size: 11.5px;"
+                                onclick="openScheduleModal('{{ ord.orderID }}', '{{ ord.furnitureName|replace('\'', '\\\'') }}', '{{ ord.plannedStartDate or '' }}', '{{ ord.dueDate or '' }}')">
+                                Edit Dates
+                            </button>
+                            {% if ord.status == 'Draft' %}
+                            <a href="/production/requirement?order_id={{ ord.orderID }}" class="actionButton" style="padding: 4px 9px; font-size: 11.5px; text-decoration: none; white-space: nowrap;">
+                                Release &rarr;
+                            </a>
+                            {% endif %}
+                            {% else %}
+                            <span style="color: var(--mt); font-size: 12px;">View Only</span>
+                            {% endif %}
+                        </div>
                     </td>
                 </tr>
                 {% else %}

@@ -168,18 +168,20 @@ def addFurniture():
     furnitureType = request.form.get("furnitureType", "").strip()
     priceRaw = request.form.get("sellingPrice", "").strip()
 
-    if not furnitureName or not furnitureType or not priceRaw:
-        flash("Product name, category, and selling price are required.", "error")
+    if not furnitureName or not furnitureType:
+        flash("Product name and category are required.", "error")
         return redirect(url_for("production.furnitureList"))
 
-    try:
-        sellingPrice = Decimal(priceRaw)
-        if sellingPrice < 0:
-            flash("Selling price must be 0 or greater.", "error")
+    sellingPrice = Decimal("0.00")
+    if priceRaw:
+        try:
+            sellingPrice = Decimal(priceRaw)
+            if sellingPrice < 0:
+                flash("Selling price must be 0 or greater.", "error")
+                return redirect(url_for("production.furnitureList"))
+        except Exception:
+            flash("Invalid price format. Please enter a valid number.", "error")
             return redirect(url_for("production.furnitureList"))
-    except Exception:
-        flash("Invalid price format. Please enter a valid number.", "error")
-        return redirect(url_for("production.furnitureList"))
 
     try:
         if Furniture.existsByName(furnitureName):
@@ -202,18 +204,20 @@ def editFurniture(furnitureID):
     furnitureType = request.form.get("furnitureType", "").strip()
     priceRaw = request.form.get("sellingPrice", "").strip()
 
-    if not furnitureName or not furnitureType or not priceRaw:
-        flash("Product name, category, and selling price are required.", "error")
+    if not furnitureName or not furnitureType:
+        flash("Product name and category are required.", "error")
         return redirect(url_for("production.furnitureList"))
 
-    try:
-        sellingPrice = Decimal(priceRaw)
-        if sellingPrice < 0:
-            flash("Selling price must be 0 or greater.", "error")
+    sellingPrice = Decimal("0.00")
+    if priceRaw:
+        try:
+            sellingPrice = Decimal(priceRaw)
+            if sellingPrice < 0:
+                flash("Selling price must be 0 or greater.", "error")
+                return redirect(url_for("production.furnitureList"))
+        except Exception:
+            flash("Invalid price format. Please enter a valid number.", "error")
             return redirect(url_for("production.furnitureList"))
-    except Exception:
-        flash("Invalid price format. Please enter a valid number.", "error")
-        return redirect(url_for("production.furnitureList"))
 
     try:
         if Furniture.existsByName(furnitureName, excludeID=furnitureID):
@@ -298,8 +302,12 @@ def bomList():
             requirements = bom.calculateRequirements(batchQuantity)
             unitTotalCost = sum((item.quantityRequired * item.unitCost for item in bomItems), Decimal("0.00"))
             batchTotalCost = sum((req["batchCost"] for req in requirements), Decimal("0.00"))
+            suggestedMarkupPrice = (unitTotalCost * Decimal("1.40")).quantize(Decimal("0.01"))
         except Exception as err:
             flash(f"Failed to load BOM recipe: {str(err)}", "error")
+            suggestedMarkupPrice = Decimal("0.00")
+    else:
+        suggestedMarkupPrice = Decimal("0.00")
 
     try:
         materialsList = Material.getAll()
@@ -318,7 +326,8 @@ def bomList():
         materials=materialsList,
         batchQuantity=batchQuantity,
         unitTotalCost=unitTotalCost,
-        batchTotalCost=batchTotalCost
+        batchTotalCost=batchTotalCost,
+        suggestedMarkupPrice=suggestedMarkupPrice
     )
 
 @productionBlueprint.route("/bom/add", methods=["POST"])
@@ -399,21 +408,78 @@ def removeBomItem(bomItemID):
 
     return redirect(url_for("production.bomList", furniture_id=furnitureID))
 
+@productionBlueprint.route("/bom/update-price", methods=["POST"])
+@roles_required("prodManager")
+def updateFurniturePriceFromBom():
+    furnitureID = request.form.get("furnitureID", "").strip()
+    priceRaw = request.form.get("sellingPrice", "").strip()
+    if not furnitureID or not furnitureID.isdigit():
+        flash("Invalid product reference.", "error")
+        return redirect(url_for("production.bomList"))
+    try:
+        newPrice = Decimal(priceRaw) if priceRaw else Decimal("0.00")
+        if newPrice < 0:
+            flash("Selling price must be 0 or greater.", "error")
+            return redirect(url_for("production.bomList", furniture_id=furnitureID))
+    except Exception:
+        flash("Invalid price format. Please enter a valid number.", "error")
+        return redirect(url_for("production.bomList", furniture_id=furnitureID))
+    try:
+        f = Furniture.getByID(int(furnitureID))
+        if f:
+            Furniture.updateFurniture(f.furnitureID, f.furnitureName, f.furnitureType, newPrice)
+            flash(f"Updated catalog selling price for '{f.furnitureName}' to ₱{newPrice:,.2f}.", "success")
+        else:
+            flash("Product not found.", "error")
+    except Exception as err:
+        flash(f"Database error while updating price: {str(err)}", "error")
+    return redirect(url_for("production.bomList", furniture_id=furnitureID))
+
 @productionBlueprint.route("/orders")
 def orderList():
     statusFilter = request.args.get("status", "").strip()
     searchQuery = request.args.get("q", "").strip()
     try:
         productionOrderList = ProductionOrder.getAll(statusFilter=statusFilter, searchQuery=searchQuery)
-        summary = ProductionOrder.getSummaryCounts()
-        furnitureItemList = Furniture.getAll()
-        salesOrdersList = integration.get_pending_sales_orders()
     except Exception as err:
         flash(f"Failed to load production orders: {str(err)}", "error")
         productionOrderList = []
+
+    try:
+        summary = ProductionOrder.getSummaryCounts()
+    except Exception:
         summary = {"total": 0, "draft": 0, "released": 0, "inProgress": 0, "completed": 0}
+
+    try:
+        furnitureItemList = Furniture.getAll()
+    except Exception as err:
+        flash(f"Failed to load products: {str(err)}", "error")
         furnitureItemList = []
-        salesOrdersList = []
+
+    try:
+        stockoutAlerts = integration.get_warehouse_stockouts()
+    except Exception:
+        stockoutAlerts = []
+
+    furnitureBomMap = {}
+    for f in furnitureItemList:
+        try:
+            b = BillOfMaterials.getByFurnitureID(f.furnitureID, autoCreate=False)
+            if b:
+                items = b.getItems()
+                furnitureBomMap[f.furnitureID] = [
+                    {
+                        "materialName": it.materialName,
+                        "unit": it.unit,
+                        "quantityRequired": float(it.quantityRequired),
+                        "currentStock": float(getattr(it, "currentStock", 0.0) or 0.0)
+                    }
+                    for it in items
+                ]
+            else:
+                furnitureBomMap[f.furnitureID] = []
+        except Exception:
+            furnitureBomMap[f.furnitureID] = []
 
     return render_template(
         "production/orders/order_list.html",
@@ -421,7 +487,8 @@ def orderList():
         orders=productionOrderList,
         summary=summary,
         furnitureItems=furnitureItemList,
-        salesOrders=salesOrdersList,
+        stockoutAlerts=stockoutAlerts,
+        furnitureBomMap=furnitureBomMap,
         statusFilter=statusFilter,
         searchQuery=searchQuery
     )
@@ -459,8 +526,8 @@ def createOrder():
     quantityRaw = request.form.get("plannedQuantity", "").strip()
     startDateRaw = request.form.get("plannedStartDate", "").strip()
     dueDateRaw = request.form.get("dueDate", "").strip()
-    salesOrderItemIDRaw = request.form.get("salesOrderItemID", "").strip()
-    salesOrderItemID = int(salesOrderItemIDRaw) if salesOrderItemIDRaw and salesOrderItemIDRaw.isdigit() else None
+    purposeRaw = request.form.get("purpose", "").strip()
+    purpose = purposeRaw if purposeRaw in ("Warehouse Restock", "Scheduled Batch") else "Warehouse Restock"
 
     if not furnitureIDRaw or not furnitureIDRaw.isdigit():
         flash("Please select a valid furniture product.", "error")
@@ -503,7 +570,7 @@ def createOrder():
 
     bom = BillOfMaterials.getByFurnitureID(furnitureID, autoCreate=False)
     if not bom or len(bom.getItems()) == 0:
-        flash("Cannot create production order: Selected product has no Bill of Materials (recipe). Please configure its BOM first.", "warning")
+        flash("Cannot create production order: Selected product does not have a configured Bill of Materials recipe. Please configure its BOM first.", "error")
         return redirect(url_for("production.orderList"))
 
     try:
@@ -512,9 +579,8 @@ def createOrder():
             plannedQuantity=plannedQuantity,
             plannedStartDate=parsedStartDate,
             dueDate=parsedDueDate,
-            salesOrderItemID=salesOrderItemID
+            purpose=purpose
         )
-        invalidateKeys("pending_sales_orders")
         flash(f"Production Order #PO-{newOrderID} created successfully in Draft status.", "success")
     except ValueError as valErr:
         flash(str(valErr), "warning")
@@ -528,7 +594,6 @@ def createOrder():
 def deleteOrder(orderID):
     try:
         ProductionOrder.deleteOrder(orderID)
-        invalidateKeys("pending_sales_orders")
         flash(f"Draft Production Order #PO-{orderID} deleted successfully.", "success")
     except ValueError as valErr:
         flash(str(valErr), "warning")
@@ -570,6 +635,9 @@ def planningList():
 @productionBlueprint.route("/planning/update/<int:orderID>", methods=["POST"])
 @roles_required("prodManager")
 def updateOrderSchedule(orderID):
+    nextUrl = request.form.get("next_url") or request.args.get("next_url")
+    targetRedirect = nextUrl if (nextUrl and nextUrl.startswith("/production/")) else url_for("production.planningList")
+
     startDateRaw = request.form.get("plannedStartDate", "").strip()
     dueDateRaw = request.form.get("dueDate", "").strip()
 
@@ -579,7 +647,7 @@ def updateOrderSchedule(orderID):
             parsedStartDate = date.fromisoformat(startDateRaw)
         except ValueError:
             flash("Invalid planned start date format.", "error")
-            return redirect(url_for("production.planningList"))
+            return redirect(targetRedirect)
 
     parsedDueDate = None
     if dueDateRaw:
@@ -587,11 +655,11 @@ def updateOrderSchedule(orderID):
             parsedDueDate = date.fromisoformat(dueDateRaw)
         except ValueError:
             flash("Invalid target due date format.", "error")
-            return redirect(url_for("production.planningList"))
+            return redirect(targetRedirect)
 
     if parsedStartDate and parsedDueDate and parsedDueDate < parsedStartDate:
         flash("Target due date cannot be earlier than planned start date.", "error")
-        return redirect(url_for("production.planningList"))
+        return redirect(targetRedirect)
 
     try:
         ProductionOrder.updateSchedule(orderID, parsedStartDate, parsedDueDate)
@@ -601,7 +669,7 @@ def updateOrderSchedule(orderID):
     except Exception as err:
         flash(f"Database error while updating schedule: {str(err)}", "error")
 
-    return redirect(url_for("production.planningList"))
+    return redirect(targetRedirect)
 
 @productionBlueprint.route("/requirements")
 @productionBlueprint.route("/requirement")

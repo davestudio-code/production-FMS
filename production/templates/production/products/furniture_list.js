@@ -1,9 +1,33 @@
-function openEditModal(id, name, type, price) {
+function openEditModal(id, name, type, price, bomCost, hasBOM) {
     const form = document.getElementById('editFurnitureForm');
     form.action = '/production/furniture/edit/' + id;
     document.getElementById('editFurnitureName').value = name;
     document.getElementById('editFurnitureType').value = type;
-    document.getElementById('editSellingPrice').value = price;
+    document.getElementById('editSellingPrice').value = (price && price !== '0.00' && price !== '0') ? price : '';
+
+    const bomBox = document.getElementById('editBomCostBox');
+    const bomDisplay = document.getElementById('editBomCostDisplay');
+    const markupSuggestion = document.getElementById('editMarkupSuggestion');
+    const applyBtn = document.getElementById('applyMarkupBtn');
+
+    const costNum = parseFloat(bomCost) || 0;
+    if (bomBox) {
+        bomBox.style.display = 'block';
+        if (hasBOM && costNum > 0) {
+            bomDisplay.innerHTML = '₱' + costNum.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+            const suggested = (costNum * 1.40).toFixed(2);
+            if (applyBtn) {
+                applyBtn.textContent = 'Apply ₱' + parseFloat(suggested).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+                applyBtn.onclick = function() {
+                    document.getElementById('editSellingPrice').value = suggested;
+                };
+            }
+            if (markupSuggestion) markupSuggestion.style.display = 'flex';
+        } else {
+            bomDisplay.innerHTML = '<span class="statusBadge draft" style="font-size: 11px;">No BOM Recipe Yet</span>';
+            if (markupSuggestion) markupSuggestion.style.display = 'none';
+        }
+    }
     openModal('editFurnitureModal');
 }
 

@@ -24,11 +24,11 @@ CREATE TABLE IF NOT EXISTS prod_bomitem (
 CREATE TABLE IF NOT EXISTS prod_productionorder (
     order_id SERIAL PRIMARY KEY,
     furniture_id INT NOT NULL REFERENCES prod_furniture(furniture_id),
-    sales_order_item_id INT NULL REFERENCES orderitem(order_item_id),
     planned_quantity INT NOT NULL CHECK (planned_quantity > 0),
     order_date DATE NOT NULL DEFAULT CURRENT_DATE,
     planned_start_date DATE,
     due_date DATE,
+    purpose VARCHAR(50) NOT NULL DEFAULT 'Warehouse Restock',
     status VARCHAR(30) NOT NULL DEFAULT 'Draft' CHECK (status IN ('Draft', 'Released', 'In Progress', 'Completed'))
 );
 

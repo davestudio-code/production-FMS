@@ -13,29 +13,27 @@ class ProductionOrder:
             self.furnitureID = data.get("furniture_id")
             self.furnitureName = data.get("furniture_name", "")
             self.furnitureType = data.get("furniture_type", "")
-            self.salesOrderItemID = data.get("sales_order_item_id")
             self.plannedQuantity = data.get("planned_quantity", 0)
             self.orderDate = data.get("order_date")
             self.plannedStartDate = data.get("planned_start_date")
             self.dueDate = data.get("due_date")
             self.status = data.get("status", "Draft")
+            self.purpose = data.get("purpose") or "Warehouse Restock"
         else:
             self.orderID = None
             self.furnitureID = None
             self.furnitureName = ""
             self.furnitureType = ""
-            self.salesOrderItemID = None
             self.plannedQuantity = 0
             self.orderDate = None
             self.plannedStartDate = None
             self.dueDate = None
             self.status = "Draft"
+            self.purpose = "Warehouse Restock"
 
     @property
     def orderType(self):
-        if self.salesOrderItemID is None:
-            return "Make-to-Stock"
-        return f"Make-to-Order (Sales #{self.salesOrderItemID})"
+        return self.purpose or "Warehouse Restock"
 
     @property
     def scheduleHealth(self):
@@ -84,8 +82,8 @@ class ProductionOrder:
 
         query = """
             SELECT po.order_id, po.furniture_id, f.furniture_name, f.furniture_type,
-                   po.sales_order_item_id, po.planned_quantity, po.order_date, po.planned_start_date,
-                   po.due_date, po.status
+                   po.planned_quantity, po.order_date, po.planned_start_date,
+                   po.due_date, po.status, po.purpose
             FROM prod_productionorder po
             JOIN prod_furniture f ON po.furniture_id = f.furniture_id
             WHERE 1=1
@@ -116,8 +114,8 @@ class ProductionOrder:
     def getPlanningOrders(cls, statusFilter=None, searchQuery=None, conn=None):
         query = """
             SELECT po.order_id, po.furniture_id, f.furniture_name, f.furniture_type,
-                   po.sales_order_item_id, po.planned_quantity, po.order_date, po.planned_start_date,
-                   po.due_date, po.status
+                   po.planned_quantity, po.order_date, po.planned_start_date,
+                   po.due_date, po.status, po.purpose
             FROM prod_productionorder po
             JOIN prod_furniture f ON po.furniture_id = f.furniture_id
             WHERE 1=1
@@ -143,8 +141,8 @@ class ProductionOrder:
     def getByID(cls, orderID, conn=None):
         query = """
             SELECT po.order_id, po.furniture_id, f.furniture_name, f.furniture_type,
-                   po.sales_order_item_id, po.planned_quantity, po.order_date, po.planned_start_date,
-                   po.due_date, po.status
+                   po.planned_quantity, po.order_date, po.planned_start_date,
+                   po.due_date, po.status, po.purpose
             FROM prod_productionorder po
             JOIN prod_furniture f ON po.furniture_id = f.furniture_id
             WHERE po.order_id = %s
@@ -187,7 +185,7 @@ class ProductionOrder:
                 return result
 
     @classmethod
-    def createOrder(cls, furnitureID, plannedQuantity, plannedStartDate=None, dueDate=None, salesOrderItemID=None, conn=None):
+    def createOrder(cls, furnitureID, plannedQuantity, plannedStartDate=None, dueDate=None, purpose="Warehouse Restock", conn=None):
         if not isinstance(plannedQuantity, int) or plannedQuantity < 1 or plannedQuantity > 100000:
             raise ValueError("Planned quantity must be a whole number between 1 and 100,000.")
 
@@ -199,18 +197,20 @@ class ProductionOrder:
         if not bom or len(bom.getItems(conn=conn)) == 0:
             raise ValueError("Cannot create production order: Product has no Bill of Materials (recipe). Please configure its BOM first.")
 
+        orderPurpose = purpose if purpose in ("Warehouse Restock", "Scheduled Batch") else "Warehouse Restock"
+
         with openTransaction(conn) as connection:
             with connection.cursor() as cursor:
                 cursor.execute(
                     """
                     INSERT INTO prod_productionorder (
-                        furniture_id, sales_order_item_id, planned_quantity,
-                        order_date, planned_start_date, due_date, status
+                        furniture_id, planned_quantity,
+                        order_date, planned_start_date, due_date, status, purpose
                     )
-                    VALUES (%s, %s, %s, CURRENT_DATE, %s, %s, 'Draft')
+                    VALUES (%s, %s, CURRENT_DATE, %s, %s, 'Draft', %s)
                     RETURNING order_id
                     """,
-                    (furnitureID, salesOrderItemID, plannedQuantity, plannedStartDate, dueDate)
+                    (furnitureID, plannedQuantity, plannedStartDate, dueDate, orderPurpose)
                 )
                 newID = cursor.fetchone()["order_id"]
                 invalidateKeys("orders_all", "orders_summary")

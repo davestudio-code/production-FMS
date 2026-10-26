@@ -1,5 +1,6 @@
 from decimal import Decimal
 from production.db import openTransaction
+from production.cache import invalidateKeys
 from .bomitem import BOMItem
 
 class BillOfMaterials:
@@ -44,7 +45,8 @@ class BillOfMaterials:
                 cursor.execute(
                     """
                     SELECT bi.bom_item_id, bi.bom_id, bi.material_id, bi.quantity_required,
-                           im.item_code, im.item_name AS material_name, im.unit, rm.unit_cost
+                           im.item_code, im.item_name AS material_name, im.unit, rm.unit_cost,
+                           rm.current_stock
                     FROM prod_bomitem bi
                     JOIN raw_material rm ON bi.material_id = rm.raw_material_id
                     JOIN item_master im ON rm.item_id = im.item_id
@@ -76,6 +78,7 @@ class BillOfMaterials:
                     (self.bomID, materialID, cleanQty)
                 )
                 res = cursor.fetchone()
+                invalidateKeys("furniture_all")
                 return res["bom_item_id"], res["was_updated"]
 
     def removeMaterial(self, bomItemID, conn=None):
@@ -85,6 +88,7 @@ class BillOfMaterials:
                     "DELETE FROM prod_bomitem WHERE bom_item_id = %s AND bom_id = %s",
                     (bomItemID, self.bomID)
                 )
+                invalidateKeys("furniture_all")
                 return True
 
     def calculateRequirements(self, plannedQuantity, conn=None):

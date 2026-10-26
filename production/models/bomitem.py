@@ -13,6 +13,8 @@ class BOMItem:
             self.unit = data.get("unit", "")
             rawCost = data.get("unit_cost")
             self.unitCost = Decimal(str(rawCost)) if rawCost is not None else Decimal("0.00")
+            rawStock = data.get("current_stock")
+            self.currentStock = Decimal(str(rawStock)) if rawStock is not None else Decimal("0.000")
         else:
             self.bomItemID = None
             self.bomID = None
@@ -22,6 +24,7 @@ class BOMItem:
             self.materialName = ""
             self.unit = ""
             self.unitCost = Decimal("0.00")
+            self.currentStock = Decimal("0.000")
 
     def calculateQuantity(self, plannedQuantity):
         qtyMultiplier = Decimal(str(plannedQuantity))

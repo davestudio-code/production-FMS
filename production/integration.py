@@ -50,10 +50,14 @@ def add_finished_goods_stock(furnitureID, quantity, conn=None):
             furnPrice = furn["selling_price"]
             itemCode = f"FG-{furnitureID:03d}"
 
-            cursor.execute(
-                "SELECT item_id FROM item_master WHERE item_code = %s OR (item_name = %s AND item_type = 'Finished Goods')",
-                (itemCode, furnName)
-            )
+            cursor.execute("""
+                SELECT item_id
+                FROM item_master
+                WHERE (item_type = 'Finished Goods' AND LOWER(TRIM(item_name)) = LOWER(TRIM(%s)))
+                   OR item_code = %s
+                ORDER BY (CASE WHEN LOWER(TRIM(item_name)) = LOWER(TRIM(%s)) THEN 1 ELSE 2 END) ASC
+                LIMIT 1
+            """, (furnName, itemCode, furnName))
             itemRow = cursor.fetchone()
             if itemRow:
                 itemID = itemRow["item_id"]
@@ -81,45 +85,85 @@ def get_finished_goods_stock(furnitureID, conn=None):
     with openTransaction(conn) as connection:
         with connection.cursor() as cursor:
             cursor.execute("""
-                SELECT fg.quantity
-                FROM finished_goods fg
-                JOIN item_master im ON fg.item_id = im.item_id
-                WHERE im.item_code = %s OR (im.item_name = (SELECT furniture_name FROM prod_furniture WHERE furniture_id = %s))
-            """, (f"FG-{furnitureID:03d}", furnitureID))
+                SELECT COALESCE(fg.quantity, 0) AS quantity
+                FROM prod_furniture f
+                LEFT JOIN LATERAL (
+                    SELECT im.item_id
+                    FROM item_master im
+                    WHERE (im.item_type = 'Finished Goods' AND LOWER(TRIM(item_name)) = LOWER(TRIM(f.furniture_name)))
+                       OR im.item_code = 'FG-' || LPAD(f.furniture_id::text, 3, '0')
+                    ORDER BY (CASE WHEN LOWER(TRIM(item_name)) = LOWER(TRIM(f.furniture_name)) THEN 1 ELSE 2 END) ASC
+                    LIMIT 1
+                ) im ON true
+                LEFT JOIN finished_goods fg ON fg.item_id = im.item_id
+                WHERE f.furniture_id = %s
+            """, (furnitureID,))
             row = cursor.fetchone()
             return int(row["quantity"]) if row and row.get("quantity") is not None else 0
 
-def get_pending_sales_orders(conn=None):
-    if conn is None:
-        cached = getCached("pending_sales_orders")
-        if cached is not None:
-            return cached
-
+def get_warehouse_stockouts(conn=None):
     try:
         with openTransaction(conn) as connection:
             with connection.cursor() as cursor:
                 cursor.execute("""
-                    SELECT so.order_id AS sales_order_id,
-                           oi.order_item_id,
-                           oi.quantity,
-                           so.order_date,
-                           so.status AS sales_status,
-                           c.name AS customer_name,
-                           COALESCE(im.item_name, 'Furniture Product') AS item_name,
-                           f.furniture_id,
-                           f.furniture_name
-                    FROM salesorder so
-                    JOIN customer c ON so.customer_id = c.customer_id
-                    JOIN orderitem oi ON so.order_id = oi.order_id
-                    LEFT JOIN item_master im ON oi.item_id = im.item_id
-                    LEFT JOIN prod_furniture f ON LOWER(TRIM(f.furniture_name)) = LOWER(TRIM(im.item_name))
-                    WHERE LOWER(so.status) IN ('pending', 'backorder', 'approved')
-                       OR so.status IS NULL
-                    ORDER BY so.order_id DESC, oi.order_item_id ASC;
+                    SELECT f.furniture_id, f.furniture_name, f.furniture_type, f.selling_price,
+                           COALESCE(fg.quantity, 0) AS current_stock,
+                           act.order_id AS active_order_id,
+                           act.status AS active_order_status,
+                           act.planned_quantity AS active_order_qty,
+                           COALESCE(bom_stat.item_count, 0) AS bom_item_count
+                    FROM prod_furniture f
+                    LEFT JOIN LATERAL (
+                        SELECT im.item_id, im.item_code, im.item_name
+                        FROM item_master im
+                        WHERE (im.item_type = 'Finished Goods' AND LOWER(TRIM(item_name)) = LOWER(TRIM(f.furniture_name)))
+                           OR im.item_code = 'FG-' || LPAD(f.furniture_id::text, 3, '0')
+                        ORDER BY (CASE WHEN LOWER(TRIM(item_name)) = LOWER(TRIM(f.furniture_name)) THEN 1 ELSE 2 END) ASC
+                        LIMIT 1
+                    ) im ON true
+                    LEFT JOIN finished_goods fg ON im.item_id = fg.item_id
+                    LEFT JOIN LATERAL (
+                        SELECT po.order_id, po.status, po.planned_quantity
+                        FROM prod_productionorder po
+                        WHERE po.furniture_id = f.furniture_id
+                          AND po.status IN ('Draft', 'Released', 'In Progress')
+                        ORDER BY po.order_id DESC
+                        LIMIT 1
+                    ) act ON true
+                    LEFT JOIN LATERAL (
+                        SELECT COUNT(bi.bom_item_id) AS item_count
+                        FROM prod_billofmaterials bom
+                        JOIN prod_bomitem bi ON bom.bom_id = bi.bom_id
+                        WHERE bom.furniture_id = f.furniture_id
+                    ) bom_stat ON true
+                    WHERE COALESCE(fg.quantity, 0) <= 0
+                    ORDER BY f.furniture_name ASC;
                 """)
-                res = cursor.fetchall()
-                if conn is None:
-                    setCached("pending_sales_orders", res)
-                return res
+                rows = cursor.fetchall()
+                return [dict(r) for r in rows]
     except Exception:
         return []
+
+def publish_production_cost(orderID, conn=None):
+    try:
+        with openTransaction(conn) as connection:
+            with connection.cursor() as cursor:
+                cursor.execute("""
+                    SELECT cost_id, order_id, material_cost, labor_cost, overhead_cost, total_cost, cost_date
+                    FROM prod_productioncost
+                    WHERE order_id = %s
+                """, (orderID,))
+                row = cursor.fetchone()
+                if row:
+                    return {
+                        "costID": row["cost_id"],
+                        "orderID": row["order_id"],
+                        "materialCost": Decimal(str(row["material_cost"])),
+                        "laborCost": Decimal(str(row["labor_cost"])),
+                        "overheadCost": Decimal(str(row["overhead_cost"])),
+                        "totalCost": Decimal(str(row["total_cost"])),
+                        "costDate": str(row["cost_date"]) if row["cost_date"] else None
+                    }
+                return None
+    except Exception:
+        return None

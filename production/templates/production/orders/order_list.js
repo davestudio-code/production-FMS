@@ -1,45 +1,104 @@
-function toggleOrderSource(source) {
-    const salesGroup = document.getElementById('salesOrderGroup');
-    const salesSelect = document.getElementById('salesOrderSelect');
-    const salesHint = document.getElementById('salesOrderHint');
-    if (source === 'sales') {
-        salesGroup.style.display = 'flex';
-    } else {
-        salesGroup.style.display = 'none';
-        if (salesSelect) salesSelect.value = '';
-        if (salesHint) {
-            salesHint.style.display = 'none';
-            salesHint.textContent = '';
-        }
+window.openRestockModal = function(furnitureId) {
+    const furnSelect = document.getElementById('modalFurnitureSelect');
+    if (furnSelect) {
+        furnSelect.value = String(furnitureId);
     }
-}
+    const restockRadio = document.getElementById('purposeRestock');
+    if (restockRadio) {
+        restockRadio.checked = true;
+    }
+    const qtyInput = document.getElementById('modalQuantityInput');
+    if (qtyInput && !qtyInput.value) {
+        qtyInput.value = '5';
+    }
+    window.updateLiveMrpCheck();
+    openModal('createOrderModal');
+};
 
-function onSalesOrderSelected() {
-    const sel = document.getElementById('salesOrderSelect');
-    const opt = sel.options[sel.selectedIndex];
-    const hint = document.getElementById('salesOrderHint');
-    if (opt && opt.value) {
-        const qty = opt.dataset.qty;
-        const furnId = opt.dataset.furnitureId;
-        const customer = opt.dataset.customer;
-        const orderDate = opt.dataset.orderDate;
-        const qtyInput = document.querySelector('input[name="plannedQuantity"]');
-        const furnSelect = document.querySelector('select[name="furnitureID"]');
-        if (qty && qtyInput) qtyInput.value = qty;
-        if (furnId && furnSelect && furnId !== '') {
-            furnSelect.value = furnId;
+window.updateLiveMrpCheck = function() {
+    const furnSelect = document.getElementById('modalFurnitureSelect');
+    const qtyInput = document.getElementById('modalQuantityInput');
+    const previewBox = document.getElementById('mrpPreviewBox');
+    const badge = document.getElementById('mrpStatusBadge');
+    const list = document.getElementById('mrpComponentList');
+    const submitBtn = document.getElementById('modalCreateOrderBtn');
+
+    if (!furnSelect || !qtyInput || !previewBox || !badge || !list) return;
+
+    const furnId = furnSelect.value;
+    const qty = parseInt(qtyInput.value, 10);
+
+    if (!furnId) {
+        previewBox.style.display = 'none';
+        if (submitBtn) {
+            submitBtn.disabled = false;
+            submitBtn.style.opacity = '1';
+            submitBtn.style.cursor = 'pointer';
+            submitBtn.title = '';
         }
-        if (hint) {
-            hint.style.display = 'block';
-            hint.textContent = `Customer: ${customer} | Placed on ${orderDate}`;
-        }
-    } else {
-        if (hint) {
-            hint.style.display = 'none';
-            hint.textContent = '';
-        }
+        return;
     }
-}
+
+    const bomMap = window.furnitureBomMap || {};
+    const items = bomMap[furnId] || [];
+
+    if (items.length === 0) {
+        previewBox.style.display = 'block';
+        badge.className = 'statusBadge alert';
+        badge.textContent = 'No Recipe Defined';
+        list.innerHTML = '<span style="color: #9a4a3a; font-weight: 600;">Product has no configured BOM. Please configure recipe before ordering.</span>';
+        if (submitBtn) {
+            submitBtn.disabled = true;
+            submitBtn.style.opacity = '0.5';
+            submitBtn.style.cursor = 'not-allowed';
+            submitBtn.title = 'Cannot create order: Selected product has no configured BOM';
+        }
+        return;
+    }
+
+    if (submitBtn) {
+        submitBtn.disabled = false;
+        submitBtn.style.opacity = '1';
+        submitBtn.style.cursor = 'pointer';
+        submitBtn.title = '';
+    }
+
+    if (isNaN(qty) || qty <= 0) {
+        previewBox.style.display = 'none';
+        return;
+    }
+
+    let hasShortage = false;
+    let html = '';
+
+    items.forEach(function(item) {
+        const required = (item.quantityRequired * qty);
+        const onHand = item.currentStock;
+        const deficit = Math.max(0, required - onHand);
+        const isDeficit = deficit > 0.0001;
+        if (isDeficit) hasShortage = true;
+
+        html += `
+            <div style="display: flex; justify-content: space-between; align-items: center; padding: 3px 0; border-bottom: 1px dashed var(--bd);">
+                <span><b>${item.materialName}</b> &middot; ${required.toFixed(2)} ${item.unit}</span>
+                <span style="color: ${isDeficit ? '#9a4a3a' : '#357a58'}; font-weight: 600;">
+                    ${isDeficit ? `Shortage: -${deficit.toFixed(2)} ${item.unit}` : `In Stock (${onHand.toFixed(1)} ${item.unit})`}
+                </span>
+            </div>
+        `;
+    });
+
+    list.innerHTML = html;
+    previewBox.style.display = 'block';
+
+    if (hasShortage) {
+        badge.className = 'statusBadge alert';
+        badge.textContent = 'Material Shortage';
+    } else {
+        badge.className = 'statusBadge completed';
+        badge.textContent = 'Stock Sufficient';
+    }
+};
 
 let currentOrdersPage = 1;
 let ordersPageSize = 10;
