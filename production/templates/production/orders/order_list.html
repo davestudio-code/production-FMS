@@ -16,7 +16,7 @@
             <b style="font-size: 14.5px; color: var(--tx);">Team 2 Warehouse Stockout Alerts</b>
             <span class="statusBadge alert" style="font-size: 11px;">{{ stockoutAlerts|length }} Item{{ 's' if stockoutAlerts|length != 1 else '' }} Out of Stock</span>
         </div>
-        <span style="font-size: 12px; color: var(--mt);">Finished goods warehouse has zero available stock for these items.</span>
+        <span style="font-size: 12px; color: var(--mt);">Inventory warehouse has 0 stock for these products.</span>
     </div>
     <div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 12px; margin-top: 10px;">
         {% for alert in stockoutAlerts %}

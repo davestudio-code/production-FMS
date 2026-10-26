@@ -7,45 +7,43 @@
     </a>
 </div>
 
-<div class="headerRow" style="align-items: flex-start; margin-bottom: 20px;">
-    <div>
-        <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 4px;">
-            <h2 style="margin: 0;">Order #PO-{{ order.orderID }}</h2>
-            <span class="statusBadge {{ 'completed' if order.status == 'Completed' else ('inProgress' if order.status == 'In Progress' else ('released' if order.status == 'Released' else 'draft')) }}">
+<div class="headerRow" style="align-items: flex-start; margin-bottom: 20px; gap: 16px;">
+    <div style="flex-shrink: 0;">
+        <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 4px; flex-wrap: nowrap;">
+            <h2 style="margin: 0; white-space: nowrap;">Order #PO-{{ order.orderID }}</h2>
+            <span class="statusBadge {{ 'completed' if order.status == 'Completed' else ('inProgress' if order.status == 'In Progress' else ('released' if order.status == 'Released' else 'draft')) }}" style="white-space: nowrap;">
                 {{ order.status }}
             </span>
             {% if order.purpose == 'Scheduled Batch' %}
-            <span class="statusBadge" style="background: rgba(53, 122, 88, 0.12); color: #357a58; border: 1px solid rgba(53, 122, 88, 0.3);">
+            <span class="statusBadge" style="background: rgba(53, 122, 88, 0.12); color: #357a58; border: 1px solid rgba(53, 122, 88, 0.3); white-space: nowrap;">
                 Scheduled Batch
             </span>
             {% else %}
-            <span class="statusBadge" style="background: rgba(181, 143, 85, 0.12); color: #8e622a; border: 1px solid rgba(181, 143, 85, 0.3);">
+            <span class="statusBadge" style="background: rgba(181, 143, 85, 0.12); color: #8e622a; border: 1px solid rgba(181, 143, 85, 0.3); white-space: nowrap;">
                 Warehouse Restock
             </span>
             {% endif %}
         </div>
-        <span style="color: var(--mt); font-size: 13.5px;">{{ order.furnitureName }} ({{ order.furnitureType }}) &bull; Ordered on {{ order.orderDate|date_fmt }}</span>
+        <span style="color: var(--mt); font-size: 13.5px; white-space: nowrap;">{{ order.furnitureName }} ({{ order.furnitureType }}) &bull; Ordered on {{ order.orderDate|date_fmt }}</span>
     </div>
 
     {% if order.status == 'Draft' and session.get('role') == 'prodManager' %}
-    <div style="display: flex; gap: 8px; align-items: center; flex-wrap: wrap;">
+    <div style="display: flex; gap: 8px; align-items: center; flex-wrap: nowrap;">
         {% if not order.plannedStartDate or not order.dueDate %}
-        <a href="/production/planning?q=PO-{{ order.orderID }}" class="actionButton" style="padding: 6px 12px; font-size: 12.5px; text-decoration: none;">Schedule in Planning &rarr;</a>
-        <button type="button" class="actionButton secondary" style="padding: 6px 12px; font-size: 12.5px;" onclick="openModal('quickScheduleModal')">Quick Schedule</button>
-        <a href="/production/requirement?order_id={{ order.orderID }}" class="actionButton secondary" style="padding: 6px 12px; font-size: 12.5px; text-decoration: none;">Check Requirements & Release &rarr;</a>
+        <a href="/production/planning?q=PO-{{ order.orderID }}" class="actionButton" style="padding: 6px 12px; font-size: 12.5px; text-decoration: none; white-space: nowrap;">Schedule in Planning &rarr;</a>
+        <a href="/production/requirement?order_id={{ order.orderID }}" class="actionButton secondary" style="padding: 6px 12px; font-size: 12.5px; text-decoration: none; white-space: nowrap;">Check Requirements & Release &rarr;</a>
         {% else %}
-        <a href="/production/requirement?order_id={{ order.orderID }}" class="actionButton" style="padding: 6px 12px; font-size: 12.5px; text-decoration: none;">Check Requirements & Release &rarr;</a>
-        <button type="button" class="actionButton secondary" style="padding: 6px 12px; font-size: 12.5px;" onclick="openModal('quickScheduleModal')">Edit Schedule</button>
-        <a href="/production/planning?q=PO-{{ order.orderID }}" class="actionButton secondary" style="padding: 6px 12px; font-size: 12.5px; text-decoration: none;">Production Planning &rarr;</a>
+        <a href="/production/requirement?order_id={{ order.orderID }}" class="actionButton" style="padding: 6px 12px; font-size: 12.5px; text-decoration: none; white-space: nowrap;">Check Requirements & Release &rarr;</a>
+        <a href="/production/planning?q=PO-{{ order.orderID }}" class="actionButton secondary" style="padding: 6px 12px; font-size: 12.5px; text-decoration: none; white-space: nowrap;">Production Planning &rarr;</a>
         {% endif %}
-        <form method="POST" action="/production/orders/delete/{{ order.orderID }}" onsubmit="return confirm('Are you sure you want to delete Draft Order #PO-{{ order.orderID }}?');" style="display: inline;">
-            <button type="submit" class="actionButton secondary" style="color: #9a4a3a; border-color: #e2bcb3;">Delete Draft Order</button>
+        <form method="POST" action="/production/orders/delete/{{ order.orderID }}" onsubmit="return confirm('Are you sure you want to delete Draft Order #PO-{{ order.orderID }}?');" style="display: inline; margin: 0;">
+            <button type="submit" class="actionButton secondary" style="color: #9a4a3a; border-color: #e2bcb3; padding: 6px 12px; font-size: 12.5px; white-space: nowrap;">Delete Draft Order</button>
         </form>
     </div>
     {% elif order.status == 'Released' and session.get('role') == 'prodManager' %}
-    <div style="display: flex; gap: 8px; align-items: center; flex-wrap: wrap;">
-        <a href="/production/issuance" class="actionButton" style="padding: 6px 12px; font-size: 12.5px; text-decoration: none;">Issue Materials &rarr;</a>
-        <a href="/production/planning?q=PO-{{ order.orderID }}" class="actionButton secondary" style="padding: 6px 12px; font-size: 12.5px; text-decoration: none;">View in Planning &rarr;</a>
+    <div style="display: flex; gap: 8px; align-items: center; flex-wrap: nowrap;">
+        <a href="/production/issuance" class="actionButton" style="padding: 6px 12px; font-size: 12.5px; text-decoration: none; white-space: nowrap;">Issue Materials &rarr;</a>
+        <a href="/production/planning?q=PO-{{ order.orderID }}" class="actionButton secondary" style="padding: 6px 12px; font-size: 12.5px; text-decoration: none; white-space: nowrap;">View in Planning &rarr;</a>
     </div>
     {% endif %}
 </div>
@@ -63,25 +61,25 @@
         <div style="border-radius: 6px; padding: 8px 10px; background: {% if order.plannedStartDate and order.dueDate %}rgba(53, 122, 88, 0.12){% elif order.status == 'Draft' %}rgba(181, 143, 85, 0.15){% else %}rgba(0,0,0,0.03){% endif %}; border: 1px solid {% if order.plannedStartDate and order.dueDate %}rgba(53, 122, 88, 0.3){% elif order.status == 'Draft' %}rgba(181, 143, 85, 0.4){% else %}var(--bd){% endif %};">
             <span style="font-size: 10.5px; font-weight: 600; color: {% if order.plannedStartDate and order.dueDate %}#357a58{% else %}#8e622a{% endif %}; display: block;">2. Planning</span>
             <a href="/production/planning?q=PO-{{ order.orderID }}" style="font-size: 11.5px; font-weight: 600; color: var(--tx); text-decoration: none;">
-                {{ 'Scheduled' if order.plannedStartDate and order.dueDate else 'Needs Dates &rarr;' }}
+                {{ 'Scheduled' if order.plannedStartDate and order.dueDate else 'Needs Dates →' }}
             </a>
         </div>
         <div style="border-radius: 6px; padding: 8px 10px; background: {% if order.status in ['Released', 'In Progress', 'Completed'] %}rgba(53, 122, 88, 0.12){% elif order.status == 'Draft' and order.plannedStartDate and order.dueDate %}rgba(102, 117, 76, 0.15){% else %}rgba(0,0,0,0.03){% endif %}; border: 1px solid {% if order.status in ['Released', 'In Progress', 'Completed'] %}rgba(53, 122, 88, 0.3){% elif order.status == 'Draft' and order.plannedStartDate and order.dueDate %}rgba(102, 117, 76, 0.4){% else %}var(--bd){% endif %};">
             <span style="font-size: 10.5px; font-weight: 600; color: {% if order.status in ['Released', 'In Progress', 'Completed'] %}#357a58{% else %}var(--mt){% endif %}; display: block;">3. MRP & Release</span>
             <a href="/production/requirement?order_id={{ order.orderID }}" style="font-size: 11.5px; font-weight: 600; color: var(--tx); text-decoration: none;">
-                {{ 'Released' if order.status in ['Released', 'In Progress', 'Completed'] else 'Check Stock &rarr;' }}
+                {{ 'Released' if order.status in ['Released', 'In Progress', 'Completed'] else 'Check Stock →' }}
             </a>
         </div>
         <div style="border-radius: 6px; padding: 8px 10px; background: {% if order.status in ['In Progress', 'Completed'] %}rgba(53, 122, 88, 0.12){% elif order.status == 'Released' %}rgba(102, 117, 76, 0.15){% else %}rgba(0,0,0,0.03){% endif %}; border: 1px solid {% if order.status in ['In Progress', 'Completed'] %}rgba(53, 122, 88, 0.3){% elif order.status == 'Released' %}rgba(102, 117, 76, 0.4){% else %}var(--bd){% endif %};">
             <span style="font-size: 10.5px; font-weight: 600; color: {% if order.status in ['In Progress', 'Completed'] %}#357a58{% else %}var(--mt){% endif %}; display: block;">4. Material Issuance</span>
             <a href="/production/issuance" style="font-size: 11.5px; font-weight: 600; color: var(--tx); text-decoration: none;">
-                {{ 'Issued' if order.status in ['In Progress', 'Completed'] else ('Issue Now &rarr;' if order.status == 'Released' else 'Pending Release') }}
+                {{ 'Issued' if order.status in ['In Progress', 'Completed'] else ('Issue Now →' if order.status == 'Released' else 'Pending Release') }}
             </a>
         </div>
         <div style="border-radius: 6px; padding: 8px 10px; background: {% if order.status == 'Completed' %}rgba(53, 122, 88, 0.12){% elif order.status == 'In Progress' %}rgba(46, 98, 142, 0.15){% else %}rgba(0,0,0,0.03){% endif %}; border: 1px solid {% if order.status == 'Completed' %}rgba(53, 122, 88, 0.3){% elif order.status == 'In Progress' %}rgba(46, 98, 142, 0.4){% else %}var(--bd){% endif %};">
             <span style="font-size: 10.5px; font-weight: 600; color: {% if order.status == 'Completed' %}#357a58{% elif order.status == 'In Progress' %}#2e628e{% else %}var(--mt){% endif %}; display: block;">5. Shop Floor</span>
             <a href="/production/monitoring" style="font-size: 11.5px; font-weight: 600; color: var(--tx); text-decoration: none;">
-                {{ 'Finished' if order.status == 'Completed' else ('Monitoring &rarr;' if order.status == 'In Progress' else 'Pending Issuance') }}
+                {{ 'Finished' if order.status == 'Completed' else ('Monitoring →' if order.status == 'In Progress' else 'Pending Issuance') }}
             </a>
         </div>
         <div style="border-radius: 6px; padding: 8px 10px; background: {% if order.status == 'Completed' %}rgba(53, 122, 88, 0.12){% else %}rgba(0,0,0,0.03){% endif %}; border: 1px solid {% if order.status == 'Completed' %}rgba(53, 122, 88, 0.3){% else %}var(--bd){% endif %};">

@@ -27,20 +27,54 @@
                 </button>
             </div>
             <div id="navLinksContainer" class="navLinksContainer">
-                <a href="/production/" class="{{ 'active' if activeTab == 'dashboard' else '' }}">Dashboard</a>
-                <a href="/production/furniture" class="{{ 'active' if activeTab == 'furniture' else '' }}">Product Master</a>
-                <a href="/production/bom" class="{{ 'active' if activeTab == 'bom' else '' }}">Bill of Materials (BOM)</a>
-                <a href="/production/orders" class="{{ 'active' if activeTab == 'orders' else '' }}">Production Order</a>
-                <a href="/production/planning" class="{{ 'active' if activeTab == 'planning' else '' }}">Production Planning</a>
-                <a href="/production/requirement" class="{{ 'active' if activeTab == 'requirement' else '' }}">Material Requirement</a>
-                <a href="/production/issuance" class="{{ 'active' if activeTab == 'issuance' else '' }}">Material Issuance</a>
-                <a href="/production/monitoring" class="{{ 'active' if activeTab == 'monitoring' else '' }}">Production Monitoring</a>
-                <a href="/production/finished-goods" class="{{ 'active' if activeTab == 'finishedGoods' else '' }}">Finished Goods</a>
+                <a href="/production/" class="{{ 'active' if activeTab == 'dashboard' else '' }}">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"></path><polyline points="9 22 9 12 15 12 15 22"></polyline></svg>
+                    <span>Dashboard</span>
+                </a>
+                <a href="/production/furniture" class="{{ 'active' if activeTab == 'furniture' else '' }}">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="7" width="20" height="14" rx="2" ry="2"></rect><path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16"></path></svg>
+                    <span>Product Master</span>
+                </a>
+                <a href="/production/bom" class="{{ 'active' if activeTab == 'bom' else '' }}">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="16" y1="13" x2="8" y2="13"></line><line x1="16" y1="17" x2="8" y2="17"></line></svg>
+                    <span>Bill of Materials (BOM)</span>
+                </a>
+                <a href="/production/orders" class="{{ 'active' if activeTab == 'orders' else '' }}">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"></path><rect x="8" y="2" width="8" height="4" rx="1" ry="1"></rect></svg>
+                    <span>Production Order</span>
+                </a>
+                <a href="/production/planning" class="{{ 'active' if activeTab == 'planning' else '' }}">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect><line x1="16" y1="2" x2="16" y2="6"></line><line x1="8" y1="2" x2="8" y2="6"></line><line x1="3" y1="10" x2="21" y2="10"></line></svg>
+                    <span>Production Planning</span>
+                </a>
+                <a href="/production/requirement" class="{{ 'active' if activeTab == 'requirement' else '' }}">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"></path><polyline points="3.27 6.96 12 12.01 20.73 6.96"></polyline><line x1="12" y1="22.08" x2="12" y2="12"></line></svg>
+                    <span>Material Requirement</span>
+                </a>
+                <a href="/production/issuance" class="{{ 'active' if activeTab == 'issuance' else '' }}">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="19" x2="12" y2="5"></line><polyline points="5 12 12 5 19 12"></polyline></svg>
+                    <span>Material Issuance</span>
+                </a>
+                <a href="/production/monitoring" class="{{ 'active' if activeTab == 'monitoring' else '' }}">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 12h-4l-3 9L9 3l-3 9H2"></path></svg>
+                    <span>Production Monitoring</span>
+                </a>
+                <a href="/production/finished-goods" class="{{ 'active' if activeTab == 'finishedGoods' else '' }}">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path><polyline points="22 4 12 14.01 9 11.01"></polyline></svg>
+                    <span>Finished Goods</span>
+                </a>
                 {% if session.get('role') == 'prodManager' %}
-                <a href="/production/costing" class="{{ 'active' if activeTab == 'costing' else '' }}">Production Costing</a>
-                <a href="/production/reports" class="{{ 'active' if activeTab == 'report' else '' }}">Production Reports</a>
+                <a href="/production/costing" class="{{ 'active' if activeTab == 'costing' else '' }}">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="1" x2="12" y2="23"></line><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"></path></svg>
+                    <span>Production Costing</span>
+                </a>
+                <a href="/production/reports" class="{{ 'active' if activeTab == 'report' else '' }}">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="20" x2="18" y2="10"></line><line x1="12" y1="20" x2="12" y2="4"></line><line x1="6" y1="20" x2="6" y2="14"></line></svg>
+                    <span>Production Reports</span>
+                </a>
                 {% endif %}
             </div>
+
             {% if session.get('user_id') %}
             <div class="userProfileFooter">
                 <div class="userProfileCard">
@@ -69,9 +103,41 @@
             </div>
             {% endif %}
         </nav>
-        <main>
-            {% block content %}{% endblock %}
-        </main>
+        <div class="appContentWrapper">
+            <header class="topNavBar">
+                <div class="topSearchWrapper">
+                    <svg class="topSearchIcon" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+                        <circle cx="11" cy="11" r="8"></circle>
+                        <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+                    </svg>
+                    <input type="text" class="topSearchInput" placeholder="Search orders, products, recipes..." onkeydown="if(event.key==='Enter'){window.location.href='/production/orders?q='+encodeURIComponent(this.value);}">
+                </div>
+                <div class="topNavActions">
+                    <button type="button" class="topIconBtn" onclick="triggerGlobalRefresh(this)" title="Sync Database Data">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+                            <polyline points="23 4 23 10 17 10"></polyline>
+                            <polyline points="1 20 1 14 7 14"></polyline>
+                            <path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"></path>
+                        </svg>
+                    </button>
+                    <a href="/production/orders" class="topIconBtn" title="Warehouse Stockouts">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+                            <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"></path>
+                            <path d="M13.73 21a2 2 0 0 1-3.46 0"></path>
+                        </svg>
+                        {% if stockoutAlertCount and stockoutAlertCount > 0 %}
+                        <span class="topIconBadge">{{ stockoutAlertCount }}</span>
+                        {% endif %}
+                    </a>
+                    <div class="topUserAvatar" title="{{ session.get('employee_name', 'Operator') }}">
+                        {{ (session.get('employee_name') or 'U')[:1]|upper }}
+                    </div>
+                </div>
+            </header>
+            <main>
+                {% block content %}{% endblock %}
+            </main>
+        </div>
     </div>
 
     <template id="refreshBtnTemplate">
@@ -461,6 +527,43 @@
             }
 
             window.loadTabContent = loadTabContent;
+
+            async function navigateActivityWeek(offset, event) {
+                if (event) {
+                    event.preventDefault();
+                    event.stopPropagation();
+                }
+                const card = document.getElementById('weeklyActivityCard');
+                if (!card || card.classList.contains('isCardLoading')) return;
+
+                card.classList.add('isCardLoading');
+                const targetUrl = '/production/?week_offset=' + encodeURIComponent(offset);
+                try {
+                    const response = await fetch(targetUrl, {
+                        headers: { 'X-Requested-With': 'XMLHttpRequest' }
+                    });
+                    if (!response.ok) {
+                        window.location.href = targetUrl;
+                        return;
+                    }
+                    const html = await response.text();
+                    const doc = new DOMParser().parseFromString(html, 'text/html');
+                    const freshCard = doc.getElementById('weeklyActivityCard');
+                    if (freshCard) {
+                        card.innerHTML = freshCard.innerHTML;
+                        if (window.history && window.history.replaceState) {
+                            const cleanUrl = offset === 0 ? '/production/' : targetUrl;
+                            window.history.replaceState({ weekOffset: offset }, '', cleanUrl);
+                        }
+                    }
+                } catch (err) {
+                    console.error('[Weekly Activity Navigation Error]', err);
+                } finally {
+                    card.classList.remove('isCardLoading');
+                }
+            }
+
+            window.navigateActivityWeek = navigateActivityWeek;
 
             navLinks.forEach(link => {
                 link.addEventListener('mouseenter', function() {

@@ -1,7 +1,7 @@
 import os
 from flask import Blueprint, render_template, request, redirect, url_for, flash, session, jsonify, send_from_directory
 from decimal import Decimal, InvalidOperation
-from datetime import date
+from datetime import date, timedelta
 from psycopg2.errors import UniqueViolation
 from .db import openTransaction
 from .auth import authenticate_credentials, login_required, roles_required
@@ -108,24 +108,222 @@ def getDatabaseStatus():
     except Exception as connectionError:
         return f"Database Offline: {str(connectionError)}"
 
+@productionBlueprint.context_processor
+def injectGlobalNavData():
+    try:
+        stockouts = integration.get_warehouse_stockouts()
+        return {"stockoutAlertCount": len(stockouts)}
+    except Exception:
+        return {"stockoutAlertCount": 0}
+
 @productionBlueprint.route("/")
 def index():
     databaseStatusMessage = getDatabaseStatus()
     try:
         allOrders = ProductionOrder.getAll()
         materials = Material.getAll()
-    except Exception as err:
+    except Exception:
         allOrders = []
         materials = []
 
+    draftOrders = sum(1 for o in allOrders if o.status == "Draft")
+    releasedOrders = sum(1 for o in allOrders if o.status == "Released")
+    inProgressOrders = sum(1 for o in allOrders if o.status == "In Progress")
+    completedOrders = sum(1 for o in allOrders if o.status == "Completed")
+    lowStockMaterials = [m for m in materials if m.currentStock <= Decimal("0.000")]
+
+    stockouts = []
+    try:
+        stockouts = integration.get_warehouse_stockouts()
+    except Exception:
+        stockouts = []
+
+    try:
+        allMonitoring = ProductionMonitoring.getAll()
+    except Exception:
+        allMonitoring = []
+
+    activeMonitoring = [m for m in allMonitoring if m.orderStatus == "In Progress"]
+    activeStageBatches = len(activeMonitoring)
+
+    stagesConfig = [
+        {"name": "Cutting & Sizing", "threshold": 25},
+        {"name": "Joinery & Assembly", "threshold": 50},
+        {"name": "Sanding & Finishing", "threshold": 75},
+        {"name": "Ready for QA", "threshold": 90},
+        {"name": "Quality Inspection (QC)", "threshold": 100}
+    ]
+
+    stageReadiness = []
+    for sc in stagesConfig:
+        if activeStageBatches > 0:
+            clearedCount = sum(1 for m in activeMonitoring if m.progress >= sc["threshold"])
+            pct = int(round((clearedCount / activeStageBatches) * 100))
+        else:
+            clearedCount = 0
+            pct = 0
+        stageReadiness.append({
+            "name": sc["name"],
+            "count": clearedCount,
+            "percent": pct
+        })
+
+    utilizationPercent = min(100, (inProgressOrders * 35) + (releasedOrders * 20) + (draftOrders * 10))
+
     metricsData = {
         "totalOrders": len(allOrders),
-        "inProgressOrders": sum(1 for o in allOrders if o.status == "In Progress"),
-        "completedOrders": sum(1 for o in allOrders if o.status == "Completed"),
-        "lowStockCount": sum(1 for m in materials if m.currentStock <= Decimal("0.000"))
+        "draftOrders": draftOrders,
+        "releasedOrders": releasedOrders,
+        "inProgressOrders": inProgressOrders,
+        "completedOrders": completedOrders,
+        "lowStockCount": len(lowStockMaterials),
+        "lowStockItems": lowStockMaterials[:4],
+        "stockouts": stockouts[:4],
+        "stockoutTotal": len(stockouts),
+        "utilizationPercent": utilizationPercent
     }
 
-    recentOrdersList = allOrders[:5]
+    today = date.today()
+    uncompletedOrders = [o for o in allOrders if o.status != "Completed"]
+    overdueOrders = [o for o in uncompletedOrders if o.dueDate and o.dueDate < today]
+    dueTodayOrders = [o for o in uncompletedOrders if o.dueDate and o.dueDate == today]
+    dueThisWeekOrders = [o for o in uncompletedOrders if o.dueDate and 0 < (o.dueDate - today).days <= 7]
+
+    datedOrders = [o for o in uncompletedOrders if o.dueDate]
+    datedOrders.sort(key=lambda o: o.dueDate)
+    undatedOrders = [o for o in uncompletedOrders if not o.dueDate]
+
+    upcomingDeadlines = []
+    for o in datedOrders[:3]:
+        daysLeft = (o.dueDate - today).days
+        if daysLeft < 0:
+            urgency = "overdue"
+            tag = f"{abs(daysLeft)}d overdue"
+        elif daysLeft == 0:
+            urgency = "today"
+            tag = "Due today"
+        elif daysLeft <= 3:
+            urgency = "urgent"
+            tag = f"Due in {daysLeft}d"
+        else:
+            urgency = "normal"
+            tag = f"Due {o.dueDate.strftime('%b %d')}"
+        statusClass = "completed" if o.status == "Completed" else ("inProgress" if o.status == "In Progress" else ("released" if o.status == "Released" else "draft"))
+        upcomingDeadlines.append({
+            "orderID": o.orderID,
+            "furnitureName": o.furnitureName,
+            "plannedQuantity": o.plannedQuantity,
+            "hasDueDate": True,
+            "dueDateStr": o.dueDate.strftime("%b %d"),
+            "daysLeft": daysLeft,
+            "urgency": urgency,
+            "tag": tag,
+            "status": o.status,
+            "statusClass": statusClass
+        })
+
+    remainingSlots = 3 - len(upcomingDeadlines)
+    if remainingSlots > 0:
+        for o in undatedOrders[:remainingSlots]:
+            statusClass = "completed" if o.status == "Completed" else ("inProgress" if o.status == "In Progress" else ("released" if o.status == "Released" else "draft"))
+            upcomingDeadlines.append({
+                "orderID": o.orderID,
+                "furnitureName": o.furnitureName,
+                "plannedQuantity": o.plannedQuantity,
+                "hasDueDate": False,
+                "dueDateStr": "",
+                "daysLeft": 999,
+                "urgency": "unscheduled",
+                "tag": "Set Date",
+                "status": o.status,
+                "statusClass": statusClass
+            })
+
+    scheduleTracker = {
+        "overdue": len(overdueOrders),
+        "dueToday": len(dueTodayOrders),
+        "dueThisWeek": len(dueThisWeekOrders),
+        "totalPending": len(uncompletedOrders),
+        "needsDateCount": len(undatedOrders),
+        "upcoming": upcomingDeadlines
+    }
+
+    try:
+        weekOffset = int(request.args.get("week_offset", 0))
+    except (ValueError, TypeError):
+        weekOffset = 0
+
+    targetDate = today + timedelta(days=weekOffset * 7)
+    monday = targetDate - timedelta(days=targetDate.weekday())
+    sunday = monday + timedelta(days=6)
+    dayNames = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"]
+
+    prevMonday = monday - timedelta(days=7)
+    prevSunday = monday - timedelta(days=1)
+
+    dailyActivityMap = {}
+    prevWeeklyBatches = 0
+    prevWeeklyUnits = 0
+    try:
+        with openTransaction() as connection:
+            with connection.cursor() as cursor:
+                cursor.execute("""
+                    SELECT order_date, COUNT(*) AS order_count, COALESCE(SUM(planned_quantity), 0) AS total_units
+                    FROM prod_productionorder
+                    WHERE order_date >= %s AND order_date <= %s
+                    GROUP BY order_date
+                """, (monday, sunday))
+                for r in cursor.fetchall():
+                    dailyActivityMap[r["order_date"]] = {
+                        "orders": int(r["order_count"]),
+                        "units": int(r["total_units"])
+                    }
+                cursor.execute("""
+                    SELECT COUNT(*) AS order_count, COALESCE(SUM(planned_quantity), 0) AS total_units
+                    FROM prod_productionorder
+                    WHERE order_date >= %s AND order_date <= %s
+                """, (prevMonday, prevSunday))
+                prevRow = cursor.fetchone()
+                if prevRow:
+                    prevWeeklyBatches = int(prevRow.get("order_count") or 0)
+                    prevWeeklyUnits = int(prevRow.get("total_units") or 0)
+    except Exception:
+        dailyActivityMap = {}
+        prevWeeklyBatches = 0
+        prevWeeklyUnits = 0
+
+    dailyCapacityBenchmark = 5
+    maxDailyOrders = max([d["orders"] for d in dailyActivityMap.values()] + [dailyCapacityBenchmark])
+
+    weekActivity = []
+    totalWeeklyBatches = 0
+    totalWeeklyUnits = 0
+    for i in range(7):
+        currentDayDate = monday + timedelta(days=i)
+        stats = dailyActivityMap.get(currentDayDate, {"orders": 0, "units": 0})
+        totalWeeklyBatches += stats["orders"]
+        totalWeeklyUnits += stats["units"]
+        isToday = (currentDayDate == today)
+        isFuture = (currentDayDate > today)
+
+        if stats["orders"] > 0:
+            heightPct = max(16, min(100, int((stats["orders"] / maxDailyOrders) * 100)))
+        else:
+            heightPct = 0
+
+        weekActivity.append({
+            "dayName": dayNames[i],
+            "dayNumber": currentDayDate.strftime("%d"),
+            "dateStr": currentDayDate.strftime("%b. %d"),
+            "isToday": isToday,
+            "isFuture": isFuture,
+            "orders": stats["orders"],
+            "units": stats["units"],
+            "heightPct": heightPct
+        })
+
+    weekDateRangeStr = f"{monday.strftime('%b %d')} – {sunday.strftime('%b %d')}"
+    recentOrdersList = allOrders[:6]
     integrationEventsList = []
 
     return render_template(
@@ -134,7 +332,18 @@ def index():
         databaseStatus=databaseStatusMessage,
         metrics=metricsData,
         recentOrders=recentOrdersList,
-        integrationEvents=integrationEventsList
+        integrationEvents=integrationEventsList,
+        weekActivity=weekActivity,
+        weekDateRange=weekDateRangeStr,
+        todayDateStr=today.strftime("%b. %d"),
+        totalWeeklyBatches=totalWeeklyBatches,
+        totalWeeklyUnits=totalWeeklyUnits,
+        prevWeeklyBatches=prevWeeklyBatches,
+        prevWeeklyUnits=prevWeeklyUnits,
+        weekOffset=weekOffset,
+        stageReadiness=stageReadiness,
+        activeStageBatches=activeStageBatches,
+        scheduleTracker=scheduleTracker
     )
 
 @productionBlueprint.route("/furniture")

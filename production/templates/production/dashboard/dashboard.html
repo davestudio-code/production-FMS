@@ -1,115 +1,408 @@
 {% extends "production/base.html" %}
 
 {% block content %}
-<div class="headerRow">
-    <div>
-        <h2>Production Overview</h2>
-        <span style="color: var(--mt); font-size: 13.5px;">Live operations, orders workflow, and cross-team integration feed</span>
+{% if databaseStatus %}
+<div class="statusBadge alert" style="margin-bottom: 14px; display: inline-block;">
+    {{ databaseStatus }}
+</div>
+{% endif %}
+
+<div class="dashboardRowTop">
+    <div class="dashboardHeroCard">
+        <div style="flex: 1; z-index: 2;">
+            <span class="dashboardHeroBadge">Quick Overview</span>
+            <h2 class="dashboardHeroTitle">Here's how the production stands, {{ session.get('employee_name', 'Operator')
+                }}.</h2>
+            <div class="heroKpiStrip">
+                <div class="heroKpiItem">
+                    <div class="heroKpiNum">{{ metrics.inProgressOrders }}</div>
+                    <span class="heroKpiLabel">Active Batches</span>
+                </div>
+                <div class="heroKpiDivider"></div>
+                <div class="heroKpiItem">
+                    <div class="heroKpiNum accent">{{ metrics.completedOrders }}</div>
+                    <span class="heroKpiLabel">QC Passed</span>
+                </div>
+                <div class="heroKpiDivider"></div>
+                <div class="heroKpiItem">
+                    <div class="heroKpiNum">{{ metrics.totalOrders }}</div>
+                    <span class="heroKpiLabel">Total Orders</span>
+                </div>
+                <div class="heroKpiDivider"></div>
+                <div class="heroKpiItem">
+                    <div class="heroKpiNum {{ 'alert' if metrics.lowStockCount > 0 else '' }}">{{ metrics.lowStockCount
+                        }}</div>
+                    <span class="heroKpiLabel {{ 'alert' if metrics.lowStockCount > 0 else '' }}">Low Stock</span>
+                </div>
+            </div>
+            <div class="dashboardHeroActions">
+                <a href="/production/orders" class="actionButton"
+                    style="padding: 8px 18px; font-size: 13px; text-decoration: none;">View Production Orders</a>
+                <a href="/production/planning" class="actionButton secondary"
+                    style="padding: 8px 18px; font-size: 13px; text-decoration: none;">Production Planning</a>
+            </div>
+        </div>
+        <div class="dashboardHeroIllustration">
+            <svg width="130" height="110" viewBox="0 0 150 130" fill="none">
+                <rect x="15" y="40" width="120" height="80" rx="8" fill="#F6EEDA" stroke="#D5C7AA" stroke-width="2" />
+                <path d="M15 65 H135" stroke="#D5C7AA" stroke-width="1.5" stroke-dasharray="3 3" />
+                <rect x="35" y="20" width="80" height="30" rx="6" fill="#66754C" fill-opacity="0.15" stroke="#66754C"
+                    stroke-width="2" />
+                <path d="M50 35 L65 35 M75 35 L100 35" stroke="#66754C" stroke-width="2.5" stroke-linecap="round" />
+                <rect x="30" y="80" width="40" height="26" rx="4" fill="#66754C" fill-opacity="0.85" />
+                <circle cx="85" cy="93" r="14" fill="#8E9B6D" fill-opacity="0.25" stroke="#8E9B6D" stroke-width="2" />
+                <path d="M85 86 V93 H92" stroke="#66754C" stroke-width="2" stroke-linecap="round" />
+                <circle cx="115" cy="25" r="5" fill="#66754C" />
+                <circle cx="128" cy="18" r="3" fill="#8E9B6D" />
+            </svg>
+        </div>
     </div>
-    {% if databaseStatus %}
-        <span class="statusBadge alert">{{ databaseStatus }}</span>
-    {% endif %}
+
+    <div class="dashboardInsightsCard">
+        <div>
+            <div class="dashboardInsightsTitle">Operations Quick Insights</div>
+            <ul class="dashboardInsightsList">
+                <li>
+                    {% if metrics.lowStockCount > 0 %}
+                    <span><b>{{ metrics.lowStockCount }} raw material(s)</b> are below safety stock thresholds.</span>
+                    {% else %}
+                    <span>All raw material inventories are currently well-stocked.</span>
+                    {% endif %}
+                </li>
+                <li>
+                    {% if metrics.stockoutTotal > 0 %}
+                    <span><b>{{ metrics.stockoutTotal }} products</b> have 0 stock in inventory warehouse.</span>
+                    {% else %}
+                    <span>All products have available stock in inventory warehouse.</span>
+                    {% endif %}
+                </li>
+                <li>
+                    {% if metrics.draftOrders > 0 %}
+                    <span><b>{{ metrics.draftOrders }} draft order(s)</b> awaiting schedule dates & release.</span>
+                    {% else %}
+                    <span>All registered orders have been released or completed.</span>
+                    {% endif %}
+                </li>
+            </ul>
+        </div>
+        <a href="/production/orders" class="dashboardInsightsLink">
+            <span>View Warehouse Stockouts</span>
+            <span>&rarr;</span>
+        </a>
+    </div>
 </div>
 
-<div class="metricGrid">
-    <div class="metricCard">
-        <small>Active in Workshop</small>
-        <b>{{ metrics.inProgressOrders }} Orders</b>
-    </div>
-    <div class="metricCard">
-        <small>Completed & Inspected</small>
-        <b>{{ metrics.completedOrders }} Orders</b>
-    </div>
-    <div class="metricCard">
-        <small>Total Production Orders</small>
-        <b>{{ metrics.totalOrders }} Batches</b>
-    </div>
-    <div class="metricCard">
-        <small>Raw Materials Low in Stock</small>
-        <b style="color: var(--rd);">{{ metrics.lowStockCount }} Items</b>
-    </div>
-</div>
 
-<div class="card">
-    <div class="headerRow" style="margin-bottom: 12px;">
-        <h3>Production Orders Pipeline</h3>
-        <a href="/production/orders" class="actionButton secondary" style="font-size: 12px; padding: 5px 12px;">View All Orders</a>
-    </div>
-    <div class="tableContainer">
-        <table>
-            <thead>
-                <tr>
-                    <th>Order Reference</th>
-                    <th>Furniture Product</th>
-                    <th>Batch Size</th>
-                    <th>Order Date</th>
-                    <th>Pipeline Status</th>
-                    <th>Next Step</th>
-                </tr>
-            </thead>
-            <tbody>
-                {% for order in recentOrders %}
-                <tr>
-                    <td><b>Order #{{ order.orderID }}</b></td>
-                    <td>{{ order.furnitureName }}</td>
-                    <td>{{ order.plannedQuantity }} units</td>
-                    <td>{{ order.orderDate|date_fmt }}</td>
-                    <td>
-                        <span class="statusBadge {{ 'completed' if order.status == 'Completed' else ('inProgress' if order.status == 'In Progress' else ('released' if order.status == 'Released' else 'draft')) }}">
-                            {{ order.status }}
-                        </span>
-                    </td>
-                    <td>
-                        {% if order.status == 'Draft' %}
-                            <span style="color: var(--mt); font-size: 12.5px;">Check materials & release</span>
-                        {% elif order.status == 'Released' %}
-                            <span style="color: var(--p); font-size: 12.5px; font-weight: 600;">Ready to issue materials</span>
-                        {% elif order.status == 'In Progress' %}
-                            <span style="color: var(--s); font-size: 12.5px; font-weight: 600;">Workshop assembling</span>
-                        {% else %}
-                            <span style="color: var(--mt); font-size: 12.5px;">Inspected & archived</span>
+<div class="dashboardMiddleGrid">
+    <div class="dashboardCard activityChartCard" id="weeklyActivityCard">
+        <div class="dashboardCardHeader">
+            <h3 class="dashboardCardTitle">Weekly Production Activity</h3>
+            <div class="weekNavControls">
+                <a href="/production/?week_offset={{ weekOffset - 1 }}"
+                    onclick="window.navigateActivityWeek({{ weekOffset - 1 }}, event);" class="weekNavBtn"
+                    title="Previous Week">&larr;</a>
+                <span class="dashboardBadge">{{ weekDateRange }}</span>
+                {% if weekOffset < 0 %} <a href="/production/?week_offset={{ weekOffset + 1 }}"
+                    onclick="window.navigateActivityWeek({{ weekOffset + 1 }}, event);" class="weekNavBtn"
+                    title="Next Week">&rarr;</a>
+                    {% else %}
+                    <span class="weekNavBtn disabled" title="Current Week">&rarr;</span>
+                    {% endif %}
+            </div>
+        </div>
+        <div class="activityBarChartWrapper">
+            <div class="activityBarChartGrid">
+                {% for day in weekActivity %}
+                <div class="activityBarCol {{ 'isToday' if day.isToday else '' }} {{ 'isFuture' if day.isFuture else '' }}"
+                    title="{{ day.dayName }}, {{ day.dateStr }}: {{ day.orders }} batch(es), {{ day.units }} units">
+                    <div class="activityBarValue">{{ day.orders if day.orders > 0 else ('' if day.isFuture else '0') }}
+                    </div>
+                    <div class="activityBarTrack">
+                        {% if day.heightPct > 0 %}
+                        <div class="activityBarFill" style="height: {{ day.heightPct }}%;"></div>
                         {% endif %}
-                    </td>
-                </tr>
-                {% else %}
-                <tr>
-                    <td colspan="6" style="text-align: center; color: var(--mt); padding: 24px;">No production orders created yet.</td>
-                </tr>
+                    </div>
+                    <span class="activityBarDay">{{ day.dayName }}</span>
+                    <span class="activityBarDate">{{ day.dayNumber }}</span>
+                    {% if day.isToday %}
+                    <span class="todayDotIndicator" title="Today"></span>
+                    {% endif %}
+                </div>
                 {% endfor %}
-            </tbody>
-        </table>
+            </div>
+            <div class="activityBarChartFooter">
+                {% if weekOffset == 0 %}
+                <span>● <b>Today:</b> {{ todayDateStr }}</span>
+                {% else %}
+                <span><a href="/production/?week_offset=0" onclick="window.navigateActivityWeek(0, event);"
+                        style="color: var(--p); text-decoration: none; font-weight: 700;">&bull; Back to Current
+                        Week</a></span>
+                {% endif %}
+                <span>Prev: <b>{{ prevWeeklyBatches }}</b> batch{{ 'es' if prevWeeklyBatches != 1 else '' }} &bull;
+                    Total: <b>{{ totalWeeklyBatches }}</b> ({{ totalWeeklyUnits }}u)</span>
+            </div>
+        </div>
+    </div>
+
+    <div class="dashboardCard scheduleCard">
+        <div class="dashboardCardHeader">
+            <h3 class="dashboardCardTitle">Order Deadlines</h3>
+            {% if scheduleTracker.overdue > 0 %}
+            <span class="dashboardBadge" style="background: rgba(154, 74, 58, 0.12); color: var(--rd); font-weight: 700; white-space: nowrap;">{{ scheduleTracker.overdue }} Overdue</span>
+            {% elif scheduleTracker.dueToday > 0 %}
+            <span class="dashboardBadge" style="background: rgba(196, 137, 39, 0.12); color: #8c5d12; font-weight: 700; white-space: nowrap;">{{ scheduleTracker.dueToday }} Due Today</span>
+            {% else %}
+            <span class="dashboardBadge" style="background: rgba(102, 117, 76, 0.12); color: var(--p); font-weight: 600; white-space: nowrap;">On Schedule</span>
+            {% endif %}
+        </div>
+
+        <div class="scheduleStatusStrip">
+            <div class="scheduleStatPill {{ 'alert' if scheduleTracker.overdue > 0 else '' }}">
+                <b class="scheduleStatNum">{{ scheduleTracker.overdue }}</b>
+                <span class="scheduleStatLabel">Overdue</span>
+            </div>
+            <div class="scheduleStatPill {{ 'today' if scheduleTracker.dueToday > 0 else '' }}">
+                <b class="scheduleStatNum">{{ scheduleTracker.dueToday }}</b>
+                <span class="scheduleStatLabel">Due Today</span>
+            </div>
+            <div class="scheduleStatPill">
+                <b class="scheduleStatNum">{{ scheduleTracker.dueThisWeek }}</b>
+                <span class="scheduleStatLabel">This Week</span>
+            </div>
+        </div>
+
+        <div class="scheduleUpcomingList">
+            {% for item in scheduleTracker.upcoming %}
+            <div class="scheduleUpcomingItem">
+                <div class="scheduleUpcomingInfo">
+                    <div class="scheduleUpcomingOrder">
+                        <a href="/production/orders/{{ item.orderID }}">#PO-{{ item.orderID }}</a>
+                        <span>&bull; {{ item.furnitureName }} ({{ item.plannedQuantity }}u)</span>
+                    </div>
+                    <div class="scheduleUpcomingMeta">
+                        <span class="statusBadge {{ item.statusClass }}">{{ item.status }}</span>
+                        {% if item.hasDueDate %}
+                        <span class="scheduleMetaDate">Due {{ item.dueDateStr }}</span>
+                        {% else %}
+                        <span class="scheduleMetaDate">Awaiting schedule date</span>
+                        {% endif %}
+                    </div>
+                </div>
+                {% if item.hasDueDate %}
+                <span class="scheduleUrgencyTag {{ item.urgency }}">{{ item.tag }}</span>
+                {% else %}
+                <a href="/production/orders/{{ item.orderID }}" class="scheduleActionBtn" title="Set Target Date">Set Date &rarr;</a>
+                {% endif %}
+            </div>
+            {% else %}
+            <div class="scheduleEmptyState">
+                {% if scheduleTracker.totalPending == 0 %}
+                <span>No pending production orders in queue.</span>
+                {% else %}
+                <span>No upcoming order deadlines recorded.</span>
+                {% endif %}
+            </div>
+            {% endfor %}
+        </div>
+
+        <div class="scheduleFooterNote">
+            {% if scheduleTracker.overdue > 0 %}
+            <span style="color: var(--rd); font-weight: 600;">Action required: {{ scheduleTracker.overdue }} batch{{ 'es' if scheduleTracker.overdue != 1 else '' }} past target due date.</span>
+            {% elif scheduleTracker.dueToday > 0 %}
+            <span style="color: #8c5d12; font-weight: 600;">{{ scheduleTracker.dueToday }} batch{{ 'es' if scheduleTracker.dueToday != 1 else '' }} scheduled for completion today.</span>
+            {% elif scheduleTracker.needsDateCount > 0 %}
+            <a href="/production/orders" style="color: var(--p); text-decoration: none; font-weight: 600;">{{ scheduleTracker.needsDateCount }} draft batch{{ 'es' if scheduleTracker.needsDateCount != 1 else '' }} awaiting schedule dates &rarr;</a>
+            {% else %}
+            <span style="color: var(--mt);">All active batches are currently on schedule.</span>
+            {% endif %}
+        </div>
+    </div>
+
+    <div class="dashboardCard">
+        <div class="dashboardCardHeader">
+            <h3 class="dashboardCardTitle">Stage Readiness</h3>
+            {% if activeStageBatches > 0 %}
+            <span class="dashboardBadge">{{ activeStageBatches }} Active</span>
+            {% else %}
+            <span class="dashboardBadge" style="background: rgba(213, 199, 170, 0.35); color: #705f42;">0 Active</span>
+            {% endif %}
+        </div>
+        <div class="progressBarGroup">
+            {% for stage in stageReadiness %}
+            <div class="progressBarItem">
+                <div class="progressBarHeader">
+                    <b>{{ stage.name }}</b>
+                    <span>{{ stage.percent }}%</span>
+                </div>
+                <div class="progressBarTrack">
+                    <div class="progressBarFill" style="width: {{ stage.percent }}%;"></div>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+        {% if activeStageBatches == 0 %}
+        <div
+            style="text-align: center; color: var(--mt); font-size: 11px; padding-top: 10px; margin-top: auto; border-top: 1px solid var(--bd);">
+            No active batches on workshop.
+        </div>
+        {% endif %}
     </div>
 </div>
 
-<div class="card">
-    <h3>Cross-Team Integration Activity (integration.py)</h3>
-    <div class="tableContainer">
-        <table>
-            <thead>
-                <tr>
-                    <th>Time</th>
-                    <th>Collaborating Team</th>
-                    <th>Transaction Summary</th>
-                </tr>
-            </thead>
-            <tbody>
-                {% for event in integrationEvents %}
-                <tr>
-                    <td>{{ event.timestamp }}</td>
-                    <td>
-                        <span class="statusBadge {{ 'released' if 'Inventory' in event.targetModule else 'completed' }}">
-                            {{ event.targetModule }}
-                        </span>
-                    </td>
-                    <td>{{ event.detail }}</td>
-                </tr>
+<div class="dashboardBottomGrid">
+    <div class="dashboardCard">
+        <div class="dashboardCardHeader">
+            <div style="display: flex; align-items: center; gap: 8px;">
+                <h3 class="dashboardCardTitle">Warehouse Stockouts</h3>
+                {% if metrics.stockoutTotal and metrics.stockoutTotal > 0 %}
+                <span class="dashboardBadge"
+                    style="background: rgba(154, 74, 58, 0.1); color: var(--rd); font-weight: 700;">{{
+                    metrics.stockoutTotal }}</span>
+                {% endif %}
+            </div>
+            <a href="/production/orders"
+                style="font-size: 11.5px; color: var(--p); text-decoration: none; font-weight: 700;">View All</a>
+        </div>
+        <div style="display: flex; flex-direction: column; gap: 10px;">
+            {% for item in metrics.stockouts %}
+            <div
+                style="display: flex; justify-content: space-between; align-items: center; background: rgba(246, 238, 218, 0.35); border: 1px solid var(--bd); border-radius: 10px; padding: 10px 14px;">
+                <div>
+                    <b style="font-size: 13.5px; display: block; color: var(--tx); font-weight: 600;">{{
+                        item.furniture_name }}</b>
+                    <span style="font-size: 11.5px; color: var(--mt);">{{ item.furniture_type }} &bull; <span
+                            style="color: var(--rd); font-weight: 600;">0 in warehouse</span></span>
+                </div>
+                {% if item.active_order_id %}
+                <span
+                    style="display: inline-flex; align-items: center; padding: 3px 9px; border-radius: 12px; font-size: 11px; font-weight: 600; background: rgba(102, 117, 76, 0.12); color: var(--p); border: 1px solid rgba(102, 117, 76, 0.28);">Restock
+                    Set</span>
+                {% elif item.bom_item_count == 0 %}
+                <span
+                    style="display: inline-flex; align-items: center; padding: 3px 9px; border-radius: 12px; font-size: 11px; font-weight: 600; background: rgba(213, 199, 170, 0.35); color: #705f42; border: 1px solid var(--bd);">Need
+                    BOM</span>
                 {% else %}
-                <tr>
-                    <td colspan="3" style="text-align: center; color: var(--mt); padding: 24px;">No cross-team integration activity recorded yet.</td>
-                </tr>
-                {% endfor %}
-            </tbody>
-        </table>
+                <span
+                    style="display: inline-flex; align-items: center; padding: 3px 9px; border-radius: 12px; font-size: 11px; font-weight: 600; background: rgba(154, 74, 58, 0.1); color: var(--rd); border: 1px solid rgba(154, 74, 58, 0.25);">Urgent</span>
+                {% endif %}
+            </div>
+            {% else %}
+            <div style="text-align: center; color: var(--mt); padding: 18px 0; font-size: 12.5px;">
+                No finished goods stockout alerts.
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+
+    <div class="dashboardCard">
+        <div class="dashboardCardHeader">
+            <h3 class="dashboardCardTitle">Active Production Pipeline</h3>
+            <a href="/production/orders"
+                style="font-size: 11.5px; color: var(--p); text-decoration: none; font-weight: 700;">View All Orders</a>
+        </div>
+        <div class="tableContainer">
+            <table>
+                <thead>
+                    <tr>
+                        <th>Order</th>
+                        <th>Product</th>
+                        <th style="text-align: right;">Batch</th>
+                        <th>Status</th>
+                        <th style="text-align: right;">Action</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for order in recentOrders %}
+                    <tr>
+                        <td><b>#PO-{{ order.orderID }}</b></td>
+                        <td>{{ order.furnitureName }}</td>
+                        <td style="text-align: right;">{{ order.plannedQuantity }}u</td>
+                        <td>
+                            <span
+                                class="statusBadge {{ 'completed' if order.status == 'Completed' else ('inProgress' if order.status == 'In Progress' else ('released' if order.status == 'Released' else 'draft')) }}"
+                                style="font-size: 10.5px;">
+                                {{ order.status }}
+                            </span>
+                        </td>
+                        <td style="text-align: right;">
+                            <a href="/production/orders/{{ order.orderID }}"
+                                style="font-size: 11.5px; color: var(--p); text-decoration: none; font-weight: 700;">View
+                                &rarr;</a>
+                        </td>
+                    </tr>
+                    {% else %}
+                    <tr>
+                        <td colspan="5" style="text-align: center; color: var(--mt); padding: 18px 0;">No production
+                            orders created yet.</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <div class="dashboardCard">
+        <div class="dashboardCardHeader">
+            <h3 class="dashboardCardTitle">Activity Timeline</h3>
+            <span class="dashboardBadge">Recent</span>
+        </div>
+        <div class="timelineFeed">
+            <div class="timelineFeedItem">
+                <div class="timelineFeedTitle">Draft Order #PO-1 registered for Dining Chair</div>
+                <div class="timelineFeedTime">Active in production pipeline</div>
+            </div>
+            <div class="timelineFeedItem">
+                <div class="timelineFeedTitle">Finished goods inventory memory sync active</div>
+                <div class="timelineFeedTime">Lateral 1-to-1 matching online</div>
+            </div>
+            <div class="timelineFeedItem">
+                <div class="timelineFeedTitle">Bill of Materials recipe pricing linked</div>
+                <div class="timelineFeedTime">Catalog +40% markup configured</div>
+            </div>
+            <div class="timelineFeedItem">
+                <div class="timelineFeedTitle">Quality inspection standards ready</div>
+                <div class="timelineFeedTime">Velmora woodcraft tolerances verified</div>
+            </div>
+        </div>
     </div>
 </div>
+
+<script>
+    if (typeof window.navigateActivityWeek !== 'function') {
+        window.navigateActivityWeek = async function (offset, event) {
+            if (event) {
+                event.preventDefault();
+                event.stopPropagation();
+            }
+            const card = document.getElementById('weeklyActivityCard');
+            if (!card || card.classList.contains('isCardLoading')) return;
+
+            card.classList.add('isCardLoading');
+            const targetUrl = '/production/?week_offset=' + encodeURIComponent(offset);
+            try {
+                const response = await fetch(targetUrl, {
+                    headers: { 'X-Requested-With': 'XMLHttpRequest' }
+                });
+                if (!response.ok) {
+                    window.location.href = targetUrl;
+                    return;
+                }
+                const html = await response.text();
+                const doc = new DOMParser().parseFromString(html, 'text/html');
+                const freshCard = doc.getElementById('weeklyActivityCard');
+                if (freshCard) {
+                    card.innerHTML = freshCard.innerHTML;
+                    if (window.history && window.history.replaceState) {
+                        const cleanUrl = offset === 0 ? '/production/' : targetUrl;
+                        window.history.replaceState({ weekOffset: offset }, '', cleanUrl);
+                    }
+                }
+            } catch (err) {
+                console.error('[Activity Card Navigation]', err);
+            } finally {
+                card.classList.remove('isCardLoading');
+            }
+        };
+    }
+</script>
 {% endblock %}

@@ -75,21 +75,6 @@
         </div>
     </div>
 
-    {% if session.get('role') == 'prodManager' and unitTotalCost > 0 and suggestedMarkupPrice > 0 %}
-    <div style="background: rgba(102, 117, 76, 0.05); border: 1px solid rgba(102, 117, 76, 0.22); border-radius: 8px; padding: 12px 16px; margin-bottom: 16px; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 12px;">
-        <div>
-            <b style="font-size: 13.5px; color: var(--p);">Catalog Pricing Recommendation</b>
-            <span style="display: block; font-size: 12px; color: var(--mt); margin-top: 2px;">
-                Material recipe cost: <b>₱{{ "{:,.2f}".format(unitTotalCost) }}</b> &bull; Suggested price (+40% standard markup): <b>₱{{ "{:,.2f}".format(suggestedMarkupPrice) }}</b>
-            </span>
-        </div>
-        <form method="POST" action="/production/bom/update-price" style="display: flex; gap: 8px; align-items: center; margin: 0;">
-            <input type="hidden" name="furnitureID" value="{{ selectedFurniture.furnitureID }}">
-            <input type="number" name="sellingPrice" value="{{ "{:.2f}".format(suggestedMarkupPrice) }}" step="0.01" min="0" style="width: 125px; font-size: 13px; padding: 6px 10px; font-weight: 600;">
-            <button type="submit" class="actionButton" style="padding: 7px 14px; font-size: 12.5px;">Update Catalog Price</button>
-        </form>
-    </div>
-    {% endif %}
 
     <div style="margin-top: 10px;">
         <div class="headerRow" style="margin-bottom: 12px;">
@@ -147,6 +132,22 @@
                 {% endif %}
             </table>
         </div>
+
+        {% if session.get('role') == 'prodManager' and unitTotalCost > 0 and suggestedMarkupPrice > 0 %}
+        <div style="background: rgba(102, 117, 76, 0.05); border: 1px solid rgba(102, 117, 76, 0.22); border-radius: 8px; padding: 12px 16px; margin-top: 14px; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 12px;">
+            <div>
+                <b style="font-size: 13.5px; color: var(--p);">Catalog Pricing Recommendation</b>
+                <span style="display: block; font-size: 12px; color: var(--mt); margin-top: 2px;">
+                    Material recipe cost: <b>₱{{ "{:,.2f}".format(unitTotalCost) }}</b> &bull; Suggested price (+40% standard markup): <b>₱{{ "{:,.2f}".format(suggestedMarkupPrice) }}</b>
+                </span>
+            </div>
+            <form method="POST" action="/production/bom/update-price" style="display: flex; gap: 8px; align-items: center; margin: 0;">
+                <input type="hidden" name="furnitureID" value="{{ selectedFurniture.furnitureID }}">
+                <input type="number" name="sellingPrice" value="{{ "{:.2f}".format(suggestedMarkupPrice) }}" step="0.01" min="0" style="width: 125px; font-size: 13px; padding: 6px 10px; font-weight: 600;">
+                <button type="submit" class="actionButton" style="padding: 7px 14px; font-size: 12.5px;">Update Catalog Price</button>
+            </form>
+        </div>
+        {% endif %}
 
         {% if session.get('role') == 'prodManager' %}
         <div style="margin-top: 18px; padding-top: 16px; border-top: 1px solid var(--bd);">
