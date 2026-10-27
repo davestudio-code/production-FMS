@@ -6,7 +6,7 @@
 <div class="headerRow">
     <div>
         <h2>Production Progress Monitoring</h2>
-        <span style="color: var(--mt); font-size: 13.5px;">Live workshop milestone tracking across active production batches</span>
+        <span style="color: var(--mt); font-size: 13.5px;">Live workshop milestone tracking, assigned staff accountability, and stage photo proofs</span>
     </div>
 </div>
 
@@ -17,6 +17,13 @@
                 <span>All</span>
                 <span class="workspaceTabCount">{{ summary.total }}</span>
             </button>
+            {% if isProdStaff %}
+            <button type="button" class="workspaceTabBtn" data-state="mine" onclick="setMonitoringTab('mine')">
+                <span class="tabStatusDot released"></span>
+                <span>My Assigned</span>
+                <span class="workspaceTabCount">{{ summary.myAssigned }}</span>
+            </button>
+            {% endif %}
             <button type="button" class="workspaceTabBtn" data-state="active" onclick="setMonitoringTab('active')">
                 <span class="tabStatusDot inProgress"></span>
                 <span>Active in Workshop</span>
@@ -43,43 +50,66 @@
             <thead>
                 <tr>
                     <th>Order Reference</th>
-                    <th>Started</th>
-                    <th>Target Due Date</th>
+                    <th>Assigned Staff</th>
+                    <th>Timeline &amp; Due</th>
                     <th>Assembly Progress</th>
                     <th class="updateCell">Update Workshop Status</th>
                 </tr>
             </thead>
             <tbody>
                 {% for mon in monitorings %}
-                <tr class="monitoringRow" data-state="{{ 'completed' if mon.progress >= 100 else 'active' }}" data-search="po-{{ mon.orderID }} {{ mon.furnitureName|lower }} {{ 'completed qa passed' if mon.progress >= 100 else ('ready for qa' if mon.progress >= 90 else ('sanding finishing' if mon.progress >= 75 else ('joinery assembly' if mon.progress >= 50 else 'cutting sizing'))) }}">
+                {% set isMyOrder = (session.get('employee_id') and mon.assignedTo and mon.assignedTo == session.get('employee_id')) %}
+                {% set curProg = mon.progress|round|int %}
+                {% set nextStage = 25 if curProg < 25 else (50 if curProg < 50 else (75 if curProg < 75 else 90)) %}
+                <tr class="monitoringRow"
+                    data-state="{{ 'completed' if mon.progress >= 100 else 'active' }}"
+                    data-mine="{{ '1' if isMyOrder and mon.progress < 100 else '0' }}"
+                    data-search="po-{{ mon.orderID }} {{ mon.furnitureName|lower }} {{ (mon.assignedStaffName or 'unassigned')|lower }} {{ 'completed qa passed' if mon.progress >= 100 else ('ready for qa' if mon.progress >= 90 else ('sanding finishing' if mon.progress >= 75 else ('joinery assembly' if mon.progress >= 50 else 'cutting sizing'))) }}">
                     <td data-label="Order">
-                        <div>
+                        <div style="display: flex; align-items: center; gap: 6px; flex-wrap: wrap;">
                             <a href="/production/orders/{{ mon.orderID }}"
                                 style="color: var(--p); font-weight: 700; text-decoration: none; font-size: 13.5px;">Order
                                 #PO-{{ mon.orderID }}</a>
+                            {% if (mon.reworkCount or 0) > 0 and mon.progress < 90 %}
+                            <span style="font-size: 10.5px; font-weight: 700; color: #9a4a3a; background: #faeae6; padding: 1px 6px; border-radius: 99px;">Rework #{{ mon.reworkCount }}/2</span>
+                            {% endif %}
                         </div>
                         <div style="color: var(--tx); font-size: 12px; margin-top: 2px;">
                             {{ mon.furnitureName }} &middot; <b>{{ mon.plannedQuantity }} units</b>
                         </div>
                     </td>
-                    <td data-label="Started" style="color: var(--tx); font-size: 13px;">
-                        {{ mon.formattedStartDate }}
-                    </td>
-                    <td data-label="Target Due" style="font-size: 13px;">
-                        {% if mon.completionDate %}
-                        <span style="color: var(--p); font-weight: 600;">Finished {{ mon.formattedCompletionDate
-                            }}</span>
-                        {% elif mon.dueDate %}
-                        <span style="display: inline-flex; align-items: center; gap: 6px;">
-                            <b>{{ mon.formattedDueDate }}</b>
-                            {% if mon.dueStatus %}
-                            <span class="dueBadge {{ 'overdue' if mon.dueStatus.isOverdue else 'normal' }}"
-                                style="margin: 0;">{{ mon.dueStatus.label }}</span>
+                    <td data-label="Assigned Staff">
+                        {% if mon.assignedStaffName %}
+                        <span class="staffAssignChip">
+                            <span class="staffAvatarMini">{{ mon.assignedStaffName[0]|upper }}</span>
+                            <span>{{ mon.assignedStaffName }}</span>
+                            {% if isMyOrder %}
+                            <span style="font-size: 10.5px; font-weight: 700; color: var(--p); background: rgba(102, 117, 76, 0.14); padding: 1px 6px; border-radius: 99px;">You</span>
                             {% endif %}
                         </span>
                         {% else %}
-                        <span style="color: var(--mt); font-style: italic;">No deadline</span>
+                        <span style="color: #8e622a; font-size: 12px; font-weight: 600;">Unassigned</span>
                         {% endif %}
+                    </td>
+                    <td data-label="Timeline" style="font-size: 13px;">
+                        <div>
+                            {% if mon.completionDate %}
+                            <span style="color: var(--p); font-weight: 600;">Finished {{ mon.formattedCompletionDate }}</span>
+                            {% elif mon.dueDate %}
+                            <span style="display: inline-flex; align-items: center; gap: 6px;">
+                                <b>Due {{ mon.formattedDueDate }}</b>
+                                {% if mon.dueStatus %}
+                                <span class="dueBadge {{ 'overdue' if mon.dueStatus.isOverdue else 'normal' }}"
+                                    style="margin: 0;">{{ mon.dueStatus.label }}</span>
+                                {% endif %}
+                            </span>
+                            {% else %}
+                            <span style="color: var(--mt); font-style: italic;">No deadline</span>
+                            {% endif %}
+                        </div>
+                        <div style="font-size: 11px; color: var(--mt); margin-top: 2px;">
+                            Started {{ mon.formattedStartDate }}
+                        </div>
                     </td>
                     <td data-label="Progress">
                         <div>
@@ -87,76 +117,153 @@
                                 <span class="progressTrack">
                                     <span class="progressFill" style="width: {{ mon.progress }}%;"></span>
                                 </span>
-                                <b style="font-size: 13px; min-width: 36px;">{{ mon.progress|round|int }}%</b>
+                                <b style="font-size: 13px; min-width: 36px;">{{ curProg }}%</b>
                             </div>
                             <div style="font-size: 11px; font-weight: 600; color: var(--mt); margin-top: 3px;">
                                 {% if mon.progress >= 100 %}
-                                QA Passed & Completed
+                                QA Passed &amp; Completed
                                 {% elif mon.progress >= 90 %}
                                 Stage 4: Ready for QA
                                 {% elif mon.progress >= 75 %}
-                                Stage 3: Sanding & Finishing
+                                Stage 3: Sanding &amp; Finishing
                                 {% elif mon.progress >= 50 %}
-                                Stage 2: Joinery & Assembly
+                                Stage 2: Joinery &amp; Assembly
                                 {% elif mon.progress >= 25 %}
-                                Stage 1: Cutting & Sizing
+                                Stage 1: Cutting &amp; Sizing
                                 {% else %}
                                 Not Started
                                 {% endif %}
                             </div>
+                            {% if mon.latestProof and mon.latestProof.hasImage %}
+                            <div style="margin-top: 5px;">
+                                <button type="button" class="proofThumbBtn"
+                                    data-proof-url="{{ mon.latestProof.fileUrl }}"
+                                    data-proof-title="Order #PO-{{ mon.orderID }} · {{ mon.latestProof.stageLabel }}"
+                                    data-proof-meta="Submitted by {{ mon.latestProof.submittedBy }} on {{ mon.latestProof.formattedCreatedAt }}"
+                                    data-proof-note="{{ mon.latestProof.note }}"
+                                    onclick="window.openProofLightbox(this.dataset.proofUrl, this.dataset.proofTitle, this.dataset.proofMeta, this.dataset.proofNote)">
+                                    <img src="{{ mon.latestProof.fileUrl }}" alt="Proof" class="proofThumbImg" loading="lazy">
+                                    <span>{{ mon.latestProof.stageProgress }}% Proof</span>
+                                </button>
+                            </div>
+                            {% elif mon.latestProof and mon.latestProof.note %}
+                            <div style="font-size: 11px; color: var(--mt); margin-top: 3px;">Note: {{ mon.latestProof.note }}</div>
+                            {% endif %}
                         </div>
                     </td>
                     <td data-label="Status" class="updateCell">
-                        {% if mon.progress < 90 %} <form method="POST"
-                            action="/production/monitoring/update/{{ mon.monitoringID }}"
-                            onsubmit="return confirmMilestoneSubmit(this, '{{ mon.orderID }}');" class="updateFormRow">
-                            <select name="progress" class="stageSelect">
-                                <option value="25" {% if mon.progress|round|int <=25 %}selected{% endif %}>Stage 1:
-                                    Cutting & Sizing</option>
-                                <option value="50" {% if mon.progress|round|int> 25 and mon.progress|round|int <= 50
-                                        %}selected{% endif %}>Stage 2: Joinery & Assembly</option>
-                                <option value="75" {% if mon.progress|round|int> 50 and mon.progress|round|int <= 75
-                                        %}selected{% endif %}>Stage 3: Sanding & Finishing</option>
-                                <option value="90" {% if mon.progress|round|int> 75 %}selected{% endif %}>Stage 4: Ready
-                                    for QA</option>
-                            </select>
-                            <button type="submit" class="actionButton stageSaveBtn">Save</button>
-                            </form>
-                            {% elif mon.progress < 100 %} <div style="display: flex; align-items: center; gap: 8px;">
+                        {% if mon.progress >= 100 %}
+                        <span class="statusBadge completed">100% QA Passed</span>
+                        {% elif isProdStaff and isMyOrder %}
+                            {% if mon.progress < 90 %}
+                            <button type="button" class="actionButton stageSaveBtn"
+                                data-monitoring-id="{{ mon.monitoringID }}"
+                                data-order-id="{{ mon.orderID }}"
+                                data-product-name="{{ mon.furnitureName }} ({{ mon.plannedQuantity }} units)"
+                                data-current-progress="{{ curProg }}"
+                                data-default-stage="{{ nextStage }}"
+                                onclick="window.openStageUpdateModal(this)">
+                                Log Stage Update
+                            </button>
+                            {% else %}
+                            <div style="display: flex; align-items: center; gap: 8px;">
                                 <span class="statusBadge released">Ready for QA</span>
                                 <button type="button" class="actionButton secondary"
                                     style="padding: 4px 8px; font-size: 11px;"
                                     onclick="toggleRollbackForm('rollback_{{ mon.monitoringID }}')">Adjust</button>
+                            </div>
+                            <div id="rollback_{{ mon.monitoringID }}" style="display: none; margin-top: 6px;">
+                                <form method="POST" action="/production/monitoring/update/{{ mon.monitoringID }}"
+                                    class="updateFormRow">
+                                    <select name="progress" class="stageSelect" style="height: 32px; font-size: 11.5px;">
+                                        <option value="50">Stage 2: Joinery &amp; Assembly</option>
+                                        <option value="75" selected>Stage 3: Sanding &amp; Finishing</option>
+                                    </select>
+                                    <button type="submit" class="actionButton"
+                                        style="height: 32px; padding: 0 10px; font-size: 11.5px;">Rollback</button>
+                                </form>
+                            </div>
+                            {% endif %}
+                        {% else %}
+                            {% if mon.progress >= 90 %}
+                                {% if isManager %}
+                                <div style="display: flex; align-items: center; gap: 8px; flex-wrap: wrap;">
+                                    <span class="statusBadge released">Ready for QA</span>
+                                    <a href="/production/finished-goods" class="actionButton secondary" style="padding: 5px 10px; font-size: 11.5px; text-decoration: none;">Inspect QA &rarr;</a>
+                                </div>
+                                {% else %}
+                                <span class="statusBadge released">Awaiting Manager QA</span>
+                                {% endif %}
+                            {% elif not mon.assignedTo and isManager %}
+                            <a href="/production/planning" class="actionButton secondary" style="padding: 5px 10px; font-size: 11.5px; text-decoration: none;">Assign in Planning &rarr;</a>
+                            {% elif isManager %}
+                            <span style="font-size: 12px; color: var(--mt); font-weight: 600;">Staff Executing</span>
+                            {% else %}
+                            <span style="font-size: 12px; color: var(--mt); font-weight: 600;">Assigned Staff Only</span>
+                            {% endif %}
+                        {% endif %}
+                    </td>
+                </tr>
+                {% else %}
+                <tr>
+                    <td colspan="5" style="text-align: center; color: var(--mt); padding: 28px;">No production orders currently
+                        under monitoring. Orders move here automatically once materials are issued.</td>
+                </tr>
+                {% endfor %}
+                <tr id="monitoringEmptyFilterRow" style="display: none;">
+                    <td colspan="5" style="text-align: center; color: var(--mt); padding: 28px;">No monitored orders match your filter criteria.</td>
+                </tr>
+            </tbody>
+        </table>
     </div>
-    <div id="rollback_{{ mon.monitoringID }}" style="display: none; margin-top: 6px;">
-        <form method="POST" action="/production/monitoring/update/{{ mon.monitoringID }}"
-            class="updateFormRow">
-            <select name="progress" class="stageSelect" style="height: 32px; font-size: 11.5px;">
-                <option value="50">Stage 2: Joinery & Assembly</option>
-                <option value="75" selected>Stage 3: Sanding & Finishing</option>
-            </select>
-            <button type="submit" class="actionButton"
-                style="height: 32px; padding: 0 10px; font-size: 11.5px;">Rollback</button>
-        </form>
-    </div>
-    {% else %}
-    <span class="statusBadge completed">100% QA Passed</span>
-    {% endif %}
-    </td>
-    </tr>
-    {% else %}
-    <tr>
-        <td colspan="5" style="text-align: center; color: var(--mt); padding: 28px;">No production orders currently
-            under monitoring. Orders move here automatically once materials are issued.</td>
-    </tr>
-    {% endfor %}
-    <tr id="monitoringEmptyFilterRow" style="display: none;">
-        <td colspan="5" style="text-align: center; color: var(--mt); padding: 28px;">No monitored orders match your filter criteria.</td>
-    </tr>
-    </tbody>
-    </table>
-</div>
 </div>
 
-<script src="/production/feature-static/manufacturing/monitoring.js"></script>
+{% if isProdStaff %}
+<div id="stageUpdateModal" class="modalOverlay" onclick="if(event.target===this) closeModal('stageUpdateModal');">
+    <div class="modalCard" style="max-width: 480px;">
+        <div class="modalHeader">
+            <div>
+                <h3 id="stageModalTitle">Log Workshop Stage</h3>
+                <span id="stageModalSubtitle" style="font-size: 12.5px; color: var(--mt);"></span>
+            </div>
+            <button type="button" class="modalClose" onclick="closeModal('stageUpdateModal')">&times;</button>
+        </div>
+        <form id="stageUpdateForm" method="POST" action="" enctype="multipart/form-data">
+            <div class="formGroup">
+                <label for="stageModalProgress">Workshop Milestone</label>
+                <select id="stageModalProgress" name="progress" required onchange="window.syncStageProofRequirement()">
+                    <option value="25">Stage 1: Cutting &amp; Sizing (25%)</option>
+                    <option value="50">Stage 2: Joinery &amp; Assembly (50%)</option>
+                    <option value="75">Stage 3: Sanding &amp; Finishing (75%)</option>
+                    <option value="90">Stage 4: Ready for QA Inspection (90%)</option>
+                </select>
+            </div>
+            <div class="formGroup">
+                <div style="display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 6px;">
+                    <label for="stageModalPhoto" id="stagePhotoLabel" style="margin-bottom: 0;">Workshop Photo Proof</label>
+                    <span id="stagePhotoReqBadge" style="font-size: 11px; font-weight: 700; color: var(--mt);">Optional on Stages 1–3</span>
+                </div>
+                <input type="file" id="stageModalPhoto" name="proofPhoto" accept="image/jpeg,image/png,image/webp" onchange="window.handleStagePhotoChange(this)" style="width: 100%; padding: 8px 10px; border: 1px dashed var(--bd); border-radius: 8px; background: #faf8f2; font-size: 12.5px;">
+                <div id="stagePhotoPreviewWrap" style="display: none; margin-top: 8px; padding: 8px 10px; background: #f6f2e7; border: 1px solid var(--bd); border-radius: 8px; align-items: center; gap: 10px;">
+                    <img id="stagePhotoPreviewImg" src="" alt="Preview" style="width: 44px; height: 44px; object-fit: cover; border-radius: 6px; border: 1px solid rgba(43,51,31,0.15);">
+                    <div style="flex: 1; min-width: 0;">
+                        <div id="stagePhotoPreviewMeta" style="font-size: 12px; font-weight: 600; color: var(--tx); overflow: hidden; text-overflow: ellipsis; white-space: nowrap;"></div>
+                        <div style="font-size: 11px; color: var(--mt);">Optimized for cloud storage</div>
+                    </div>
+                </div>
+            </div>
+            <div class="formGroup">
+                <label for="stageModalNote">Workshop Note <span style="font-weight: 400; color: var(--mt);">(Optional)</span></label>
+                <input type="text" id="stageModalNote" name="stageNote" maxlength="300" placeholder="e.g., Wood grain matched, joints clamped & cured">
+            </div>
+            <div style="display: flex; justify-content: flex-end; gap: 10px; margin-top: 18px;">
+                <button type="button" class="actionButton secondary" onclick="closeModal('stageUpdateModal')">Cancel</button>
+                <button type="submit" id="stageModalSubmitBtn" class="actionButton">Save Milestone</button>
+            </div>
+        </form>
+    </div>
+</div>
+{% endif %}
+
+<script src="/production/feature-static/manufacturing/monitoring.js?v=20261027c"></script>
 {% endblock %}

@@ -25,7 +25,6 @@
 </div>
 
 <div class="card">
-    <!-- prod_material & integration.getMaterialStock -->
     <div class="tableContainer">
         <table>
             <thead>
@@ -33,7 +32,7 @@
                     <th>Material Code</th>
                     <th>Material Description</th>
                     <th>Unit of Measure</th>
-                    {% if session.get('role') == 'prodManager' %}
+                    {% if isManager %}
                     <th>Standard Cost (for BOM)</th>
                     {% endif %}
                     <th>Available On Hand (Team 2)</th>
@@ -46,7 +45,7 @@
                     <td><b>RM-{{ "%03d"|format(mat.materialID) }}</b></td>
                     <td><b>{{ mat.materialName }}</b></td>
                     <td>{{ mat.unit }}</td>
-                    {% if session.get('role') == 'prodManager' %}
+                    {% if isManager %}
                     <td>₱{{ "{:,.2f}".format(mat.unitCost) }}</td>
                     {% endif %}
                     <td>
@@ -62,7 +61,7 @@
                 </tr>
                 {% else %}
                 <tr>
-                    <td colspan="{{ '6' if session.get('role') == 'prodManager' else '5' }}"
+                    <td colspan="{{ '6' if isManager else '5' }}"
                         style="text-align: center; color: var(--mt); padding: 24px;">No inventory stock data retrieved
                         from Team 2 yet.</td>
                 </tr>

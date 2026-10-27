@@ -19,6 +19,11 @@ class ProductionOrder:
             self.dueDate = data.get("due_date")
             self.status = data.get("status", "Draft")
             self.purpose = data.get("purpose") or "Warehouse Restock"
+            rawAssigned = data.get("assigned_to")
+            self.assignedTo = int(rawAssigned) if rawAssigned is not None else None
+            firstName = data.get("assigned_first_name") or ""
+            lastName = data.get("assigned_last_name") or ""
+            self.assignedStaffName = f"{firstName} {lastName}".strip()
         else:
             self.orderID = None
             self.furnitureID = None
@@ -30,17 +35,35 @@ class ProductionOrder:
             self.dueDate = None
             self.status = "Draft"
             self.purpose = "Warehouse Restock"
+            self.assignedTo = None
+            self.assignedStaffName = ""
 
     @property
     def orderType(self):
         return self.purpose or "Warehouse Restock"
 
     @property
+    def isFullyPlanned(self):
+        return bool(self.plannedStartDate and self.dueDate and self.assignedTo)
+
+    @property
+    def planGapLabel(self):
+        hasDates = bool(self.plannedStartDate and self.dueDate)
+        hasStaff = bool(self.assignedTo)
+        if not hasDates and not hasStaff:
+            return "Needs Plan"
+        if not hasDates:
+            return "Needs Dates"
+        if not hasStaff:
+            return "Needs Staff"
+        return "Planned"
+
+    @property
     def scheduleHealth(self):
         if self.status == "Completed":
             return "Completed"
-        if not self.plannedStartDate and not self.dueDate:
-            return "Needs Dates"
+        if not self.plannedStartDate or not self.dueDate or not self.assignedTo:
+            return "Needs Plan"
         today = date.today()
         if self.dueDate and today > self.dueDate:
             return "Overdue"
@@ -83,9 +106,11 @@ class ProductionOrder:
         query = """
             SELECT po.order_id, po.furniture_id, f.furniture_name, f.furniture_type,
                    po.planned_quantity, po.order_date, po.planned_start_date,
-                   po.due_date, po.status, po.purpose
+                   po.due_date, po.status, po.purpose, po.assigned_to,
+                   emp.name AS assigned_first_name, emp.last_name AS assigned_last_name
             FROM prod_productionorder po
             JOIN prod_furniture f ON po.furniture_id = f.furniture_id
+            LEFT JOIN public.employee emp ON emp.employee_id = po.assigned_to
             WHERE 1=1
         """
         params = []
@@ -115,9 +140,11 @@ class ProductionOrder:
         query = """
             SELECT po.order_id, po.furniture_id, f.furniture_name, f.furniture_type,
                    po.planned_quantity, po.order_date, po.planned_start_date,
-                   po.due_date, po.status, po.purpose
+                   po.due_date, po.status, po.purpose, po.assigned_to,
+                   emp.name AS assigned_first_name, emp.last_name AS assigned_last_name
             FROM prod_productionorder po
             JOIN prod_furniture f ON po.furniture_id = f.furniture_id
+            LEFT JOIN public.employee emp ON emp.employee_id = po.assigned_to
             WHERE 1=1
         """
         params = []
@@ -142,9 +169,11 @@ class ProductionOrder:
         query = """
             SELECT po.order_id, po.furniture_id, f.furniture_name, f.furniture_type,
                    po.planned_quantity, po.order_date, po.planned_start_date,
-                   po.due_date, po.status, po.purpose
+                   po.due_date, po.status, po.purpose, po.assigned_to,
+                   emp.name AS assigned_first_name, emp.last_name AS assigned_last_name
             FROM prod_productionorder po
             JOIN prod_furniture f ON po.furniture_id = f.furniture_id
+            LEFT JOIN public.employee emp ON emp.employee_id = po.assigned_to
             WHERE po.order_id = %s
         """
         with openTransaction(conn) as connection:
@@ -246,21 +275,31 @@ class ProductionOrder:
                 return True
 
     @classmethod
-    def updateSchedule(cls, orderID, plannedStartDate, dueDate, conn=None):
+    def updateSchedule(cls, orderID, plannedStartDate, dueDate, assignedTo=None, updateAssignment=False, conn=None):
         if plannedStartDate and dueDate:
             if dueDate < plannedStartDate:
                 raise ValueError("Target due date cannot be earlier than planned start date.")
 
         with openTransaction(conn) as connection:
             with connection.cursor() as cursor:
-                cursor.execute(
-                    """
-                    UPDATE prod_productionorder
-                    SET planned_start_date = %s, due_date = %s
-                    WHERE order_id = %s
-                    """,
-                    (plannedStartDate, dueDate, orderID)
-                )
+                if updateAssignment:
+                    cursor.execute(
+                        """
+                        UPDATE prod_productionorder
+                        SET planned_start_date = %s, due_date = %s, assigned_to = %s
+                        WHERE order_id = %s
+                        """,
+                        (plannedStartDate, dueDate, assignedTo, orderID)
+                    )
+                else:
+                    cursor.execute(
+                        """
+                        UPDATE prod_productionorder
+                        SET planned_start_date = %s, due_date = %s
+                        WHERE order_id = %s
+                        """,
+                        (plannedStartDate, dueDate, orderID)
+                    )
                 invalidateKeys("orders_all", "orders_summary")
                 return True
 

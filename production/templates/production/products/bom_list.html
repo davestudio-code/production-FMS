@@ -40,7 +40,7 @@
             <span style="color: var(--mt); font-size: 12.5px;">Standard manufacturing recipe &bull; Basis: 1 Finished Unit</span>
         </div>
 
-        {% if session.get('role') == 'prodManager' %}
+        {% if isManager %}
         <div style="display: flex; align-items: center; gap: 8px; background: rgba(102, 117, 76, 0.08); padding: 7px 14px; border-radius: 8px; border: 1px solid rgba(102, 117, 76, 0.25);">
             <span style="font-size: 12px; color: var(--mt);">Standard Unit Cost:</span>
             <b style="font-size: 15px; color: var(--p);">₱{{ "{:,.2f}".format(unitTotalCost) }}</b>
@@ -91,7 +91,7 @@
                         <th style="width: 110px;">ITEM ID</th>
                         <th>Raw Material</th>
                         <th style="text-align: right;">Qty / Unit</th>
-                        {% if session.get('role') == 'prodManager' %}
+                        {% if isManager %}
                         <th style="text-align: right;">Unit Cost</th>
                         <th style="text-align: right;">Line Total</th>
                         <th style="text-align: center; width: 90px;">Action</th>
@@ -104,7 +104,7 @@
                         <td><span style="font-family: monospace; font-size: 12.5px; font-weight: 600;">{{ item.itemCode }}</span></td>
                         <td><b>{{ item.materialName }}</b></td>
                         <td style="text-align: right;">{{ "{:,.3f}".format(item.quantityRequired).rstrip('0').rstrip('.') or '0' }} {{ item.unit }}</td>
-                        {% if session.get('role') == 'prodManager' %}
+                        {% if isManager %}
                         <td style="text-align: right; color: var(--mt);">₱{{ "{:,.2f}".format(item.unitCost) }}</td>
                         <td style="text-align: right;"><b>₱{{ "{:,.2f}".format(item.quantityRequired * item.unitCost) }}</b></td>
                         <td style="text-align: center;">
@@ -117,11 +117,11 @@
                     </tr>
                     {% else %}
                     <tr>
-                        <td colspan="{{ '6' if session.get('role') == 'prodManager' else '3' }}" style="text-align: center; color: var(--mt); padding: 24px;">No material components in this recipe yet.</td>
+                        <td colspan="{{ '6' if isManager else '3' }}" style="text-align: center; color: var(--mt); padding: 24px;">No material components in this recipe yet.</td>
                     </tr>
                     {% endfor %}
                 </tbody>
-                {% if bomItems and session.get('role') == 'prodManager' %}
+                {% if bomItems and isManager %}
                 <tfoot>
                     <tr style="background: rgba(0,0,0,0.02); font-weight: 700;">
                         <td colspan="4" style="text-align: right; padding: 12px 14px; font-size: 13px; text-transform: uppercase; color: var(--mt);">Standard Recipe Total:</td>
@@ -133,7 +133,7 @@
             </table>
         </div>
 
-        {% if session.get('role') == 'prodManager' and unitTotalCost > 0 and suggestedMarkupPrice > 0 %}
+        {% if isManager and unitTotalCost > 0 and suggestedMarkupPrice > 0 %}
         <div style="background: rgba(102, 117, 76, 0.05); border: 1px solid rgba(102, 117, 76, 0.22); border-radius: 8px; padding: 12px 16px; margin-top: 14px; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 12px;">
             <div>
                 <b style="font-size: 13.5px; color: var(--p);">Catalog Pricing Recommendation</b>
@@ -149,7 +149,7 @@
         </div>
         {% endif %}
 
-        {% if session.get('role') == 'prodManager' %}
+        {% if isManager %}
         <div style="margin-top: 18px; padding-top: 16px; border-top: 1px solid var(--bd);">
             <form method="POST" action="/production/bom/items/add">
                 <input type="hidden" name="furnitureID" value="{{ selectedFurniture.furnitureID }}">
@@ -157,7 +157,7 @@
                     <div class="formGroup" style="flex: 1; min-width: 260px; margin-bottom: 0;">
                         <label style="font-size: 12px; font-weight: 600;">+ Add Raw Material</label>
                         <select name="materialID" required style="font-size: 13.5px;">
-                            <option value="">-- Choose Material --</option>
+                            <option value="">Choose Material...</option>
                             {% for mat in materials %}
                             <option value="{{ mat.materialID }}">{{ mat.itemCode }} &ndash; {{ mat.materialName }} ({{ mat.unit }} &bull; ₱{{ "{:,.2f}".format(mat.unitCost) }})</option>
                             {% endfor %}
@@ -179,7 +179,7 @@
                     <h3 style="font-size: 15px; margin: 0 0 4px;">Batch Requirement Calculator</h3>
                     <span style="color: var(--mt); font-size: 12.5px;">Simulate total raw material demand and cost for batch production</span>
                 </div>
-                {% if session.get('role') == 'prodManager' %}
+                {% if isManager %}
                 <div style="display: flex; align-items: center; gap: 8px; background: rgba(102, 117, 76, 0.08); padding: 7px 14px; border-radius: 8px; border: 1px solid rgba(102, 117, 76, 0.25);">
                     <span style="font-size: 12px; color: var(--mt);">Batch Total Cost:</span>
                     <b style="font-size: 15px; color: var(--p);">₱{{ "{:,.2f}".format(batchTotalCost) }}</b>
@@ -202,7 +202,7 @@
                             <th>Raw Material</th>
                             <th style="text-align: right;">Qty / Unit</th>
                             <th style="text-align: right;">Required for Batch ({{ batchQuantity }} {{ 'unit' if batchQuantity == 1 else 'units' }})</th>
-                            {% if session.get('role') == 'prodManager' %}
+                            {% if isManager %}
                             <th style="text-align: right;">Unit Cost</th>
                             <th style="text-align: right;">Line Total</th>
                             {% endif %}
@@ -215,18 +215,18 @@
                             <td><b>{{ req.materialName }}</b></td>
                             <td style="text-align: right;">{{ "{:,.3f}".format(req.quantityRequired).rstrip('0').rstrip('.') or '0' }} {{ req.unit }}</td>
                             <td style="text-align: right;"><b>{{ "{:,.3f}".format(req.batchQuantity).rstrip('0').rstrip('.') or '0' }} {{ req.unit }}</b></td>
-                            {% if session.get('role') == 'prodManager' %}
+                            {% if isManager %}
                             <td style="text-align: right; color: var(--mt);">₱{{ "{:,.2f}".format(req.unitCost) }}</td>
                             <td style="text-align: right;"><b>₱{{ "{:,.2f}".format(req.batchCost) }}</b></td>
                             {% endif %}
                         </tr>
                         {% else %}
                         <tr>
-                            <td colspan="{{ '6' if session.get('role') == 'prodManager' else '4' }}" style="text-align: center; color: var(--mt); padding: 18px;">Add components to the BOM above to calculate batch requirements.</td>
+                            <td colspan="{{ '6' if isManager else '4' }}" style="text-align: center; color: var(--mt); padding: 18px;">Add components to the BOM above to calculate batch requirements.</td>
                         </tr>
                         {% endfor %}
                     </tbody>
-                    {% if requirements and session.get('role') == 'prodManager' %}
+                    {% if requirements and isManager %}
                     <tfoot>
                         <tr style="background: rgba(0,0,0,0.02); font-weight: 700;">
                             <td colspan="5" style="text-align: right; padding: 12px 14px; font-size: 13px; text-transform: uppercase; color: var(--mt);">Batch Total Cost:</td>

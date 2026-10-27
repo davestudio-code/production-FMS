@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>Velmora Co. &middot; Production ERP</title>
     <link rel="icon" type="image/png" href="/production/static/images/velmora-logo.png">
-    <link rel="stylesheet" href="/production/static/css/style.css?v=20261027b">
+    <link rel="stylesheet" href="/production/static/css/style.css?v=20261027c">
 </head>
 <body>
     <div class="container">
@@ -63,7 +63,7 @@
                     <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path><polyline points="22 4 12 14.01 9 11.01"></polyline></svg>
                     <span>Finished Goods</span>
                 </a>
-                {% if session.get('role') == 'prodManager' %}
+                {% if isManager %}
                 <a href="/production/costing" class="{{ 'active' if activeTab == 'costing' else '' }}">
                     <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="1" x2="12" y2="23"></line><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"></path></svg>
                     <span>Production Costing</span>
@@ -86,8 +86,8 @@
                             {{ session.get('employee_name', 'Operator') }}
                         </span>
                         <div>
-                            <span class="userBadge {{ 'managerBadge' if session.get('role') == 'prodManager' else 'staffBadge' }}">
-                                {{ 'Manager' if session.get('role') == 'prodManager' else 'Staff' }}
+                            <span class="userBadge {{ 'managerBadge' if isManager else 'staffBadge' }}">
+                                {{ 'Manager' if isManager else 'Production Staff' }}
                             </span>
                         </div>
                     </div>
@@ -126,15 +126,46 @@
                             <path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"></path>
                         </svg>
                     </button>
-                    <a href="/production/orders?stockouts=1" class="topIconBtn" title="Warehouse Stockouts" onclick="if(window.location.pathname==='/production/orders' && typeof window.setOrderStatusTab==='function'){event.preventDefault(); window.setOrderStatusTab('__stockouts__');}">
-                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
-                            <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"></path>
-                            <path d="M13.73 21a2 2 0 0 1-3.46 0"></path>
-                        </svg>
-                        {% if stockoutAlertCount and stockoutAlertCount > 0 %}
-                        <span class="topIconBadge">{{ stockoutAlertCount }}</span>
-                        {% endif %}
-                    </a>
+                    <div class="topNotifContainer" id="topNotifWrap">
+                        <button type="button" class="topIconBtn" id="topNotifBellBtn" onclick="window.toggleNotifDropdown(event)" title="Notifications">
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+                                <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"></path>
+                                <path d="M13.73 21a2 2 0 0 1-3.46 0"></path>
+                            </svg>
+                            <span class="topIconBadge" id="topNotifBadge" style="{{ '' if totalNotifBadgeCount and totalNotifBadgeCount > 0 else 'display: none;' }}">{{ totalNotifBadgeCount or 0 }}</span>
+                        </button>
+                        <div class="topNotifDropdown" id="topNotifDropdown" data-emp-id="{{ session.get('employee_id') or '0' }}" data-stockout-pin="{{ '1' if isManager and stockoutAlertCount and stockoutAlertCount > 0 else '0' }}">
+                            <div class="topNotifHeader">
+                                <b>Notifications</b>
+                                <button type="button" class="topNotifReadAllBtn" style="{{ '' if accountUnreadCount and accountUnreadCount > 0 else 'display: none;' }}" onclick="window.markAllNotifsRead(event)">Mark all read</button>
+                            </div>
+                            <div class="topNotifList">
+                                {% if isManager and stockoutAlertCount and stockoutAlertCount > 0 %}
+                                <a href="/production/orders?stockouts=1" class="topNotifItem stockoutPin" onclick="window.openStockoutPin(event)">
+                                    <span class="topNotifDot"></span>
+                                    <div class="topNotifBody">
+                                        <div class="topNotifTitle">Warehouse Stockout Alert ({{ stockoutAlertCount }})</div>
+                                        <div class="topNotifMsg">{{ stockoutAlertCount }} catalog furniture {{ 'item is' if stockoutAlertCount == 1 else 'items are' }} at 0 stock in Finished Goods.</div>
+                                        <span class="topNotifTime">Action Needed &middot; View Stockouts &rarr;</span>
+                                    </div>
+                                </a>
+                                {% endif %}
+                                {% for n in navNotifications %}
+                                <a href="{{ n.targetUrl }}" class="topNotifItem unread" data-notif-key="{{ n.notifKey }}" onclick="window.openNotifItem(event, '{{ n.notifKey }}', '{{ n.targetUrl }}')">
+                                    <span class="topNotifDot"></span>
+                                    <div class="topNotifBody">
+                                        <div class="topNotifTitle">{{ n.title }}</div>
+                                        <div class="topNotifMsg">{{ n.message }}</div>
+                                        <span class="topNotifTime">{{ n.timeLabel }}</span>
+                                    </div>
+                                </a>
+                                {% endfor %}
+                                {% if not navNotifications and not (isManager and stockoutAlertCount and stockoutAlertCount > 0) %}
+                                <div class="topNotifEmpty">You're all caught up &mdash; no notifications yet.</div>
+                                {% endif %}
+                            </div>
+                        </div>
+                    </div>
                     <div class="topUserAvatar" title="{{ session.get('employee_name', 'Operator') }}">
                         {{ (session.get('employee_name') or 'U')[:1]|upper }}
                     </div>
@@ -147,6 +178,22 @@
     </div>
 
     <div id="toastContainer" class="toastContainer" aria-live="polite"></div>
+
+    <div id="globalProofLightbox" class="modalOverlay" style="z-index: 2500;" onclick="if(event.target===this) window.closeProofLightbox();">
+        <div class="modalCard" style="max-width: 640px;">
+            <div class="modalHeader">
+                <div>
+                    <h3 id="proofLightboxTitle">Workshop Stage Proof</h3>
+                    <span id="proofLightboxMeta" style="font-size: 12px; color: var(--mt);"></span>
+                </div>
+                <button type="button" class="modalClose" onclick="window.closeProofLightbox()">&times;</button>
+            </div>
+            <div class="proofLightboxImgWrap">
+                <img id="proofLightboxImg" src="" alt="Workshop Stage Proof">
+            </div>
+            <div id="proofLightboxNote" style="display: none; margin-top: 12px; padding: 10px 12px; background: #faf8f2; border: 1px solid var(--bd); border-radius: 8px; font-size: 13px; color: var(--tx);"></div>
+        </div>
+    </div>
 
     <script>
         function toggleMobileNav() {
@@ -334,19 +381,22 @@
             openModal('editFurnitureModal');
         }
 
-        function openScheduleModal(orderID, productName, startDate, dueDate) {
+        function openScheduleModal(orderID, productName, startDate, dueDate, assignedTo) {
             const form = document.getElementById('scheduleForm');
             if (form) {
                 form.action = '/production/planning/update/' + orderID;
+                form.dataset.submitting = 'false';
             }
             const titleEl = document.getElementById('scheduleModalTitle');
-            if (titleEl) titleEl.textContent = 'Edit Schedule: Order #PO-' + orderID;
+            if (titleEl) titleEl.textContent = 'Plan & Assign: Order #PO-' + orderID;
             const prodEl = document.getElementById('scheduleOrderProduct');
             if (prodEl) prodEl.textContent = productName;
             const startInput = document.getElementById('scheduleStartDate');
             if (startInput) startInput.value = startDate || '';
             const dueInput = document.getElementById('scheduleDueDate');
             if (dueInput) dueInput.value = dueDate || '';
+            const staffSelect = document.getElementById('scheduleAssignedTo');
+            if (staffSelect) staffSelect.value = assignedTo || '';
             openModal('scheduleModal');
         }
 
@@ -583,10 +633,183 @@
                 input.focus();
             };
 
-            function applyTabHtml(pageHtml, targetUrl, shouldPushState) {
+        window.openProofLightbox = function(imgUrl, titleText, metaText, noteText) {
+            const overlay = document.getElementById('globalProofLightbox');
+            const img = document.getElementById('proofLightboxImg');
+            const titleEl = document.getElementById('proofLightboxTitle');
+            const metaEl = document.getElementById('proofLightboxMeta');
+            const noteEl = document.getElementById('proofLightboxNote');
+            if (!overlay || !img) return;
+            img.src = imgUrl || '';
+            if (titleEl) titleEl.textContent = titleText || 'Workshop Stage Proof';
+            if (metaEl) metaEl.textContent = metaText || '';
+            if (noteEl) {
+                if (noteText && noteText.trim()) {
+                    noteEl.style.display = 'block';
+                    noteEl.textContent = 'Workshop Note: ' + noteText.trim();
+                } else {
+                    noteEl.style.display = 'none';
+                    noteEl.textContent = '';
+                }
+            }
+            overlay.classList.add('active');
+        };
+
+        window.closeProofLightbox = function() {
+            const overlay = document.getElementById('globalProofLightbox');
+            const img = document.getElementById('proofLightboxImg');
+            if (overlay) overlay.classList.remove('active');
+            if (img) img.src = '';
+        };
+
+        window.toggleNotifDropdown = function(event) {
+            if (event) {
+                event.preventDefault();
+                event.stopPropagation();
+            }
+            const dd = document.getElementById('topNotifDropdown');
+            if (dd) {
+                dd.classList.toggle('open');
+            }
+        };
+
+        function getNotifStorageKey() {
+            const dd = document.getElementById('topNotifDropdown');
+            const empId = (dd && dd.getAttribute('data-emp-id')) || '0';
+            return 'velmora_notif_read_' + empId;
+        }
+
+        function readNotifStore() {
+            try {
+                const raw = window.localStorage.getItem(getNotifStorageKey());
+                return raw ? JSON.parse(raw) : {};
+            } catch (e) {
+                return {};
+            }
+        }
+
+        function writeNotifStore(storeObj) {
+            try {
+                window.localStorage.setItem(getNotifStorageKey(), JSON.stringify(storeObj || {}));
+            } catch (e) {}
+        }
+
+        window.syncLiveNotifState = function() {
+            const dd = document.getElementById('topNotifDropdown');
+            const badge = document.getElementById('topNotifBadge');
+            if (!dd || !badge) return;
+            const readMap = readNotifStore();
+            let unreadRows = 0;
+            dd.querySelectorAll('.topNotifItem[data-notif-key]').forEach(function(item) {
+                const key = item.getAttribute('data-notif-key') || '';
+                if (key && readMap[key]) {
+                    item.classList.remove('unread');
+                } else {
+                    item.classList.add('unread');
+                    unreadRows++;
+                }
+            });
+            const readAllBtn = dd.querySelector('.topNotifReadAllBtn');
+            if (readAllBtn) {
+                readAllBtn.style.display = unreadRows > 0 ? '' : 'none';
+            }
+            const pinCount = dd.getAttribute('data-stockout-pin') === '1' ? 1 : 0;
+            const total = unreadRows + pinCount;
+            badge.textContent = String(total);
+            badge.style.display = total > 0 ? '' : 'none';
+        };
+
+        function syncActiveNavLink(targetUrl) {
+            let targetPath = '/production';
+            try {
+                targetPath = new URL(targetUrl || window.location.href, window.location.origin).pathname.replace(/\/+$/, '') || '/production';
+            } catch (e) {}
+            navLinks.forEach(function(link) {
+                let linkPath = '/production';
+                try {
+                    linkPath = new URL(link.href, window.location.origin).pathname.replace(/\/+$/, '') || '/production';
+                } catch (e) {}
+                const isMatch = (linkPath === '/production')
+                    ? (targetPath === '/production')
+                    : (targetPath === linkPath || targetPath.indexOf(linkPath + '/') === 0);
+                if (isMatch) {
+                    link.classList.add('active');
+                } else {
+                    link.classList.remove('active');
+                }
+            });
+        }
+        window.syncActiveNavLink = syncActiveNavLink;
+
+        window.openStockoutPin = function(event) {
+            const dd = document.getElementById('topNotifDropdown');
+            if (dd) dd.classList.remove('open');
+            const curPath = (window.location.pathname || '').replace(/\/+$/, '');
+            if (curPath === '/production/orders' && typeof window.setOrderStatusTab === 'function') {
+                if (event) event.preventDefault();
+                window.setOrderStatusTab('__stockouts__');
+                syncActiveNavLink('/production/orders?stockouts=1');
+            } else if (typeof window.loadTabContent === 'function') {
+                if (event) event.preventDefault();
+                window.loadTabContent('/production/orders?stockouts=1');
+            }
+        };
+
+        window.openNotifItem = function(event, notifKey, targetUrl) {
+            if (event) event.preventDefault();
+            if (notifKey) {
+                const readMap = readNotifStore();
+                readMap[notifKey] = 1;
+                writeNotifStore(readMap);
+            }
+            const dd = document.getElementById('topNotifDropdown');
+            if (dd) {
+                dd.classList.remove('open');
+            }
+            window.syncLiveNotifState();
+            if (targetUrl && typeof window.loadTabContent === 'function') {
+                window.loadTabContent(targetUrl);
+            } else if (targetUrl) {
+                window.location.href = targetUrl;
+            }
+        };
+
+        window.markAllNotifsRead = function(event) {
+            if (event) {
+                event.preventDefault();
+                event.stopPropagation();
+            }
+            const dd = document.getElementById('topNotifDropdown');
+            if (dd) {
+                const readMap = readNotifStore();
+                dd.querySelectorAll('.topNotifItem[data-notif-key]').forEach(function(r) {
+                    const key = r.getAttribute('data-notif-key');
+                    if (key) readMap[key] = 1;
+                });
+                writeNotifStore(readMap);
+            }
+            window.syncLiveNotifState();
+        };
+
+        document.addEventListener('click', function(e) {
+            const wrap = document.getElementById('topNotifWrap');
+            const dd = document.getElementById('topNotifDropdown');
+            if (dd && dd.classList.contains('open') && wrap && !wrap.contains(e.target)) {
+                dd.classList.remove('open');
+            }
+        });
+
+        function applyTabHtml(pageHtml, targetUrl, shouldPushState) {
                 const domParser = new DOMParser();
                 const parsedDocument = domParser.parseFromString(pageHtml, 'text/html');
                 const incomingMain = parsedDocument.querySelector('main');
+                const incomingNotifWrap = parsedDocument.getElementById('topNotifWrap');
+                const liveNotifWrap = document.getElementById('topNotifWrap');
+                const liveNotifDd = document.getElementById('topNotifDropdown');
+                if (incomingNotifWrap && liveNotifWrap && (!liveNotifDd || !liveNotifDd.classList.contains('open'))) {
+                    liveNotifWrap.innerHTML = incomingNotifWrap.innerHTML;
+                    window.syncLiveNotifState();
+                }
 
                 if (incomingMain && mainContainer) {
                     let prevPath = window.location.pathname;
@@ -619,13 +842,7 @@
                         window.handleGlobalTabSearch(currentSearchVal);
                     }
 
-                    navLinks.forEach(link => {
-                        if (link.href === targetUrl || link.getAttribute('href') === targetUrl) {
-                            link.classList.add('active');
-                        } else {
-                            link.classList.remove('active');
-                        }
-                    });
+                    syncActiveNavLink(targetUrl);
                 }
             }
 
@@ -646,13 +863,7 @@
                     return;
                 }
 
-                navLinks.forEach(link => {
-                    if (link.href === targetUrl || link.getAttribute('href') === targetUrl) {
-                        link.classList.add('active');
-                    } else {
-                        link.classList.remove('active');
-                    }
-                });
+                syncActiveNavLink(targetUrl);
 
                 if (mainContainer) {
                     mainContainer.innerHTML = getSkeletonHtml(targetUrl);
@@ -757,6 +968,7 @@
 
             const initialSearchInput = document.getElementById('globalTabSearchInput');
             window.syncGlobalSearchContext(window.location.href, !(initialSearchInput && initialSearchInput.value));
+            window.syncLiveNotifState();
         });
     </script>
 </body>

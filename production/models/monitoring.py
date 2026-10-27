@@ -25,6 +25,11 @@ class ProductionMonitoring:
             self.orderStatus = data.get("order_status", "")
             self.dueDate = data.get("due_date")
             self.reworkCount = int(data.get("rework_count", 0)) if data.get("rework_count") is not None else 0
+            rawAssigned = data.get("assigned_to")
+            self.assignedTo = int(rawAssigned) if rawAssigned is not None else None
+            firstName = data.get("assigned_first_name") or ""
+            lastName = data.get("assigned_last_name") or ""
+            self.assignedStaffName = f"{firstName} {lastName}".strip()
         else:
             self.monitoringID = None
             self.orderID = None
@@ -36,6 +41,8 @@ class ProductionMonitoring:
             self.orderStatus = ""
             self.dueDate = None
             self.reworkCount = 0
+            self.assignedTo = None
+            self.assignedStaffName = ""
 
     @property
     def formattedStartDate(self):
@@ -93,10 +100,14 @@ class ProductionMonitoring:
                            po.planned_quantity,
                            po.status AS order_status,
                            po.due_date,
+                           po.assigned_to,
+                           emp.name AS assigned_first_name,
+                           emp.last_name AS assigned_last_name,
                            f.furniture_name
                     FROM prod_productionmonitoring pm
                     JOIN prod_productionorder po ON pm.order_id = po.order_id
                     JOIN prod_furniture f ON po.furniture_id = f.furniture_id
+                    LEFT JOIN public.employee emp ON emp.employee_id = po.assigned_to
                     ORDER BY pm.monitoring_id DESC
                 """)
                 rows = cursor.fetchall()
@@ -116,10 +127,14 @@ class ProductionMonitoring:
                            po.planned_quantity,
                            po.status AS order_status,
                            po.due_date,
+                           po.assigned_to,
+                           emp.name AS assigned_first_name,
+                           emp.last_name AS assigned_last_name,
                            f.furniture_name
                     FROM prod_productionmonitoring pm
                     JOIN prod_productionorder po ON pm.order_id = po.order_id
                     JOIN prod_furniture f ON po.furniture_id = f.furniture_id
+                    LEFT JOIN public.employee emp ON emp.employee_id = po.assigned_to
                     WHERE pm.monitoring_id = %s
                 """, (monitoringID,))
                 row = cursor.fetchone()
@@ -139,10 +154,14 @@ class ProductionMonitoring:
                            po.planned_quantity,
                            po.status AS order_status,
                            po.due_date,
+                           po.assigned_to,
+                           emp.name AS assigned_first_name,
+                           emp.last_name AS assigned_last_name,
                            f.furniture_name
                     FROM prod_productionmonitoring pm
                     JOIN prod_productionorder po ON pm.order_id = po.order_id
                     JOIN prod_furniture f ON po.furniture_id = f.furniture_id
+                    LEFT JOIN public.employee emp ON emp.employee_id = po.assigned_to
                     WHERE pm.order_id = %s
                 """, (orderID,))
                 row = cursor.fetchone()

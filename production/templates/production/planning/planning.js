@@ -35,12 +35,25 @@ function formatShortMonthDay(d) {
     return months[d.getMonth()] + ' ' + d.getDate();
 }
 
-function openScheduleModal(orderID, productName, startDate, dueDate) {
-    document.getElementById('scheduleForm').action = "/production/planning/update/" + orderID;
-    document.getElementById('scheduleModalTitle').textContent = "Edit Schedule: Order #PO-" + orderID;
+function openScheduleModal(orderID, productName, startDate, dueDate, assignedTo) {
+    const formEl = document.getElementById('scheduleForm');
+    if (formEl) {
+        formEl.action = "/production/planning/update/" + orderID;
+        formEl.dataset.submitting = 'false';
+        const submitBtn = formEl.querySelector('button[type="submit"]');
+        if (submitBtn) {
+            submitBtn.disabled = false;
+            submitBtn.innerText = 'Save Plan & Assignment';
+        }
+    }
+    document.getElementById('scheduleModalTitle').textContent = "Plan & Assign: Order #PO-" + orderID;
     document.getElementById('scheduleOrderProduct').textContent = productName;
     document.getElementById('scheduleStartDate').value = startDate || '';
     document.getElementById('scheduleDueDate').value = dueDate || '';
+    const staffSelect = document.getElementById('scheduleAssignedTo');
+    if (staffSelect) {
+        staffSelect.value = assignedTo || '';
+    }
     const viewInput = document.getElementById('planningViewSelect');
     const nextUrlInput = document.getElementById('scheduleNextUrlInput');
     if (nextUrlInput) {
@@ -55,7 +68,8 @@ window.openScheduleFromDataset = function(btn) {
         btn.getAttribute('data-oid') || '',
         btn.getAttribute('data-prod') || '',
         btn.getAttribute('data-start') || '',
-        btn.getAttribute('data-due') || ''
+        btn.getAttribute('data-due') || '',
+        btn.getAttribute('data-staff') || ''
     );
 };
 
@@ -132,6 +146,8 @@ window.renderPlanningTimeline = function() {
             qty: parseInt(row.dataset.qty || '0', 10) || 0,
             status: row.dataset.status || 'Draft',
             health: row.dataset.health || '',
+            assignedId: row.dataset.assignedId || '',
+            assignedName: row.dataset.assignedName || '',
             startIso: row.dataset.start || '',
             dueIso: row.dataset.due || '',
             dateLabel: row.dataset.dateLabel || ''
@@ -199,6 +215,9 @@ window.renderPlanningTimeline = function() {
         items.forEach(function(item) {
             const unitWord = item.qty === 1 ? 'unit' : 'units';
             const dotCls = item.health === 'Overdue' ? 'overdue' : (item.status === 'Completed' ? 'completed' : (item.status === 'In Progress' ? 'inProgress' : (item.status === 'Released' ? 'released' : 'draft')));
+            const staffLineHtml = item.assignedName
+                ? '<div style="font-size: 11px; color: var(--p); font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">Staff: ' + escPlanningHtml(item.assignedName) + '</div>'
+                : '<div style="font-size: 11px; color: #8e622a; font-weight: 600;">Staff: Unassigned</div>';
 
             html += '<div class="ganttOrderCell">' +
                 '<div style="display: flex; align-items: center; justify-content: space-between; gap: 6px;">' +
@@ -206,6 +225,7 @@ window.renderPlanningTimeline = function() {
                 '<span style="display: inline-flex; align-items: center; gap: 4px; font-size: 11px; color: var(--mt); font-weight: 600;"><span class="tabStatusDot ' + dotCls + '"></span>' + escPlanningHtml(item.status) + '</span>' +
                 '</div>' +
                 '<div style="font-size: 12px; color: var(--tx); white-space: nowrap; overflow: hidden; text-overflow: ellipsis;"><b>' + escPlanningHtml(item.product) + '</b> &middot; ' + item.qty + ' ' + unitWord + '</div>' +
+                staffLineHtml +
                 '</div>';
 
             html += '<div class="ganttTrackRow">';
@@ -216,12 +236,13 @@ window.renderPlanningTimeline = function() {
 
             html += '<div class="ganttBarLayer">';
             if (!item.hasDates) {
+                const gapHint = item.assignedName ? 'Needs timeline dates' : 'Needs timeline & staff';
                 html += '<div class="ganttUnscheduledInline">' +
-                    '<span style="font-size: 12px; color: var(--mt);">Not scheduled yet</span>';
-                if (canEdit) {
+                    '<span style="font-size: 12px; color: var(--mt);">' + gapHint + '</span>';
+                if (canEdit && item.status !== 'Completed') {
                     html += '<button type="button" class="actionButton secondary" style="padding: 3px 10px; font-size: 11.5px;" ' +
-                        'data-oid="' + escPlanningHtml(item.orderId) + '" data-prod="' + escPlanningHtml(item.product) + '" data-start="" data-due="" ' +
-                        'onclick="openScheduleFromDataset(this)">+ Set Dates</button>';
+                        'data-oid="' + escPlanningHtml(item.orderId) + '" data-prod="' + escPlanningHtml(item.product) + '" data-start="" data-due="" data-staff="' + escPlanningHtml(item.assignedId) + '" ' +
+                        'onclick="openScheduleFromDataset(this)">+ Plan &amp; Assign</button>';
                 }
                 html += '</div>';
             } else {
@@ -241,14 +262,15 @@ window.renderPlanningTimeline = function() {
                     else if (item.status === 'In Progress') barCls = 'barInProgress';
                     else if (item.status === 'Released') barCls = 'barReleased';
 
-                    const labelLeft = (clippedLeft ? '← ' : '') + item.product + ' (' + item.qty + ' ' + unitWord + ')';
+                    const staffShort = item.assignedName ? (' · ' + item.assignedName.split(' ')[0]) : ' · Unassigned';
+                    const labelLeft = (clippedLeft ? '← ' : '') + item.product + ' (' + item.qty + ' ' + unitWord + ')' + staffShort;
                     const labelRight = (item.health === 'Overdue' ? '! Overdue' : ('Due ' + formatShortMonthDay(item.effEnd))) + (clippedRight ? ' →' : '');
 
                     html += '<button type="button" class="ganttBar ' + barCls + '" style="grid-column: ' + clampedStart + ' / ' + clampedEnd + ';" ' +
-                        'title="#PO-' + escPlanningHtml(item.orderId) + ' • ' + escPlanningHtml(item.product) + ' (' + escPlanningHtml(item.dateLabel) + ')" ' +
+                        'title="#PO-' + escPlanningHtml(item.orderId) + ' • ' + escPlanningHtml(item.product) + ' (' + escPlanningHtml(item.dateLabel) + ') • Staff: ' + escPlanningHtml(item.assignedName || 'Unassigned') + '" ' +
                         'data-oid="' + escPlanningHtml(item.orderId) + '" data-prod="' + escPlanningHtml(item.product) + '" ' +
-                        'data-start="' + escPlanningHtml(item.startIso) + '" data-due="' + escPlanningHtml(item.dueIso) + '" ' +
-                        (canEdit ? 'onclick="openScheduleFromDataset(this)"' : '') + '>' +
+                        'data-start="' + escPlanningHtml(item.startIso) + '" data-due="' + escPlanningHtml(item.dueIso) + '" data-staff="' + escPlanningHtml(item.assignedId) + '" ' +
+                        ((canEdit && item.status !== 'Completed') ? 'onclick="openScheduleFromDataset(this)"' : '') + '>' +
                         '<span style="overflow: hidden; text-overflow: ellipsis;">' + escPlanningHtml(labelLeft) + '</span>' +
                         '<span style="font-size: 10.5px; opacity: 0.88; flex-shrink: 0;">' + escPlanningHtml(labelRight) + '</span>' +
                         '</button>';

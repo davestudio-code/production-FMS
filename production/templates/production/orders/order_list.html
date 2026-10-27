@@ -44,7 +44,7 @@
             </button>
         </div>
 
-        {% if session.get('role') == 'prodManager' %}
+        {% if isManager %}
         <button type="button" class="actionButton" style="padding: 8px 16px; font-size: 13px; white-space: nowrap;" onclick="openModal('createOrderModal')">+ New Production Order</button>
         {% endif %}
         <input type="hidden" id="orderStatusSelect" value="{{ '__stockouts__' if showStockoutsTab else (statusFilter or '') }}">
@@ -102,7 +102,7 @@
                             <a href="/production/orders/{{ ord.orderID }}" class="actionButton secondary" style="padding: 4px 10px; font-size: 12px; text-decoration: none;">
                                 View Details
                             </a>
-                            {% if ord.status == 'Draft' and session.get('role') == 'prodManager' %}
+                            {% if ord.status == 'Draft' and isManager %}
                             <form method="POST" action="/production/orders/delete/{{ ord.orderID }}" onsubmit="return confirm('Delete Draft Order #PO-{{ ord.orderID }}?');" style="display: inline;">
                                 <button type="submit" class="actionButton secondary" style="padding: 4px 10px; font-size: 12px; color: #9a4a3a; border-color: #e2bcb3;">
                                     Delete
@@ -181,7 +181,7 @@
                             {% endif %}
                         </td>
                         <td>
-                            {% if session.get('role') == 'prodManager' %}
+                            {% if isManager %}
                                 {% if alert.active_order_id %}
                                 <a href="/production/orders/{{ alert.active_order_id }}" class="actionButton secondary" style="padding: 5px 11px; font-size: 12px; text-decoration: none; white-space: nowrap;">
                                     View Order &rarr;
@@ -241,7 +241,7 @@
             <div class="formGroup">
                 <label>Furniture Product (Must have configured BOM)</label>
                 <select name="furnitureID" id="modalFurnitureSelect" onchange="updateLiveMrpCheck()" required>
-                    <option value="">-- Select Product --</option>
+                    <option value="">Select Product...</option>
                     {% for f in furnitureItems %}
                         <option value="{{ f.furnitureID }}">{{ f.furnitureName }} ({{ f.furnitureType }})</option>
                     {% endfor %}
@@ -258,18 +258,8 @@
                 </div>
                 <div id="mrpComponentList" style="font-size: 12px; display: flex; flex-direction: column; gap: 4px;"></div>
             </div>
-            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px;">
-                <div class="formGroup">
-                    <label>Planned Start Date (Optional)</label>
-                    <input type="date" name="plannedStartDate">
-                </div>
-                <div class="formGroup">
-                    <label>Target Due Date (Optional)</label>
-                    <input type="date" name="dueDate">
-                </div>
-            </div>
             <div class="bannerNotice" style="margin-top: 6px; font-size: 12.5px; line-height: 1.45;">
-                Orders are created in <b>Draft</b> status. Release to scheduling and shop-floor execution occurs in subsequent workflow steps.
+                Orders are created in <b>Draft</b> status. Timeline scheduling and workshop staff assignment are managed in <b>Production Planning</b> prior to release.
             </div>
             <div class="modalActions" style="margin-top: 18px;">
                 <button type="button" class="actionButton secondary" onclick="closeModal('createOrderModal')">Cancel</button>

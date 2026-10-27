@@ -33,7 +33,7 @@
                     <span style="color: var(--mt); font-size: 13px;">Batch Size: <b>{{ order.plannedQuantity }}
                             units</b> &middot; Ordered: {{ order.orderDate|date_fmt }}</span>
                 </div>
-                {% if session.get('role') == 'prodManager' %}
+                {% if isManager %}
                 <form method="POST" action="/production/issuance/issue/{{ order.orderID }}"
                     onsubmit="return confirm('Deduct required materials from inventory and start workshop production for Order #PO-{{ order.orderID }}?');">
                     <button type="submit" class="actionButton" style="padding: 9px 18px; font-size: 13px;">

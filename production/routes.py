@@ -4,7 +4,16 @@ from decimal import Decimal, InvalidOperation
 from datetime import date, timedelta
 from psycopg2.errors import UniqueViolation
 from .db import openTransaction
-from .auth import authenticate_credentials, login_required, roles_required
+from .auth import (
+    authenticate_credentials,
+    login_required,
+    manager_required,
+    is_manager_session,
+    is_staff_session,
+    sync_and_verify_session,
+    clear_employee_verify_cache,
+    MANAGER_POSITION_ID
+)
 from .models.furniture import Furniture
 from .models.material import Material
 from .models.billofmaterials import BillOfMaterials
@@ -14,6 +23,13 @@ from .models.materialissuance import MaterialIssuance
 from .models.monitoring import ProductionMonitoring
 from .models.productionoutput import ProductionOutput
 from .models.productioncost import ProductionCost
+from .models.workflow import (
+    ProductionAttachment,
+    uploadToSupabaseStorage,
+    getLiveNotificationsForUser,
+    getProductionStaffRoster,
+    isValidActiveProdStaff
+)
 from . import integration
 from .cache import clearAllCache, invalidateKeys
 
@@ -45,11 +61,16 @@ def requireLogin():
         return
     if not session.get("user_id"):
         return redirect(url_for("production.login", next=request.path))
+    if not sync_and_verify_session():
+        session.clear()
+        flash("Access restricted to active Production Department Managers and Production Staff.", "warning")
+        return redirect(url_for("production.login"))
 
 @productionBlueprint.route("/login", methods=["GET", "POST"])
 def login():
-    if session.get("user_id"):
+    if session.get("user_id") and sync_and_verify_session():
         return redirect(url_for("production.index"))
+    session.clear()
     if request.method == "POST":
         email = request.form.get("email", "").strip()
         password = request.form.get("password", "")
@@ -59,14 +80,20 @@ def login():
                 return jsonify({"success": False, "error": error_message}), 401
             flash(error_message, "danger")
             return render_template("production/loginpage/login.html")
-        session["user_id"] = user_record.get("user_id") or user_record.get("employee_id") or user_record.get("auth_user_id")
+        emp_id = int(user_record["employee_id"])
+        dept_id = int(user_record["department_id"])
+        pos_id = int(user_record["position_id"])
+        session["user_id"] = user_record.get("user_id") or emp_id or str(user_record.get("auth_user_id"))
+        session["employee_id"] = emp_id
+        session["department_id"] = dept_id
+        session["position_id"] = pos_id
         session["email"] = user_record.get("email")
         name = user_record.get("name") or ""
         last_name = user_record.get("last_name") or ""
         full_name = f"{name} {last_name}".strip()
         session["employee_name"] = full_name if full_name else user_record.get("email")
-        session["role"] = user_record.get("assigned_role", "prodStaff")
-        session["position"] = user_record.get("position_name")
+        session["position"] = user_record.get("position_name") or ("Manager" if pos_id == MANAGER_POSITION_ID else "Production Staff")
+        clear_employee_verify_cache(emp_id)
         flash(f"Welcome back, {session['employee_name']}!", "success")
         next_page = request.args.get("next")
         next_url = next_page if (next_page and next_page.startswith("/production") and not next_page.startswith("/production/logout") and not next_page.startswith("/production/login")) else url_for("production.index")
@@ -87,6 +114,7 @@ def loginpageStatic(filename):
 
 @productionBlueprint.route("/logout")
 def logout():
+    clear_employee_verify_cache(session.get("employee_id"))
     session.clear()
     flash("You have been signed out successfully.", "info")
     return redirect(url_for("production.login"))
@@ -94,6 +122,7 @@ def logout():
 @productionBlueprint.route("/refresh", methods=["POST", "GET"])
 def refreshCache():
     clearAllCache()
+    clear_employee_verify_cache()
     if request.headers.get("X-Requested-With") == "XMLHttpRequest" or request.is_json:
         return jsonify({"status": "success", "message": "Live database synchronized."})
     flash("Live database synchronized.", "success")
@@ -110,11 +139,44 @@ def getDatabaseStatus():
 
 @productionBlueprint.context_processor
 def injectGlobalNavData():
+    isMgr = is_manager_session()
+    isStaff = is_staff_session()
+    if not session.get("user_id"):
+        return {
+            "isManager": False,
+            "isProdStaff": False,
+            "stockoutAlertCount": 0,
+            "navNotifications": [],
+            "accountUnreadCount": 0,
+            "totalNotifBadgeCount": 0
+        }
+    stockoutCount = 0
     try:
-        stockouts = integration.get_warehouse_stockouts()
-        return {"stockoutAlertCount": len(stockouts)}
+        if isMgr:
+            stockouts = integration.get_warehouse_stockouts()
+            stockoutCount = len(stockouts)
     except Exception:
-        return {"stockoutAlertCount": 0}
+        stockoutCount = 0
+
+    try:
+        navNotifications = getLiveNotificationsForUser(
+            employeeID=session.get("employee_id"),
+            isManager=isMgr,
+            isProdStaff=isStaff
+        )
+    except Exception:
+        navNotifications = []
+
+    accountUnreadCount = len(navNotifications)
+    totalBadgeCount = accountUnreadCount + (1 if (isMgr and stockoutCount > 0) else 0)
+    return {
+        "isManager": isMgr,
+        "isProdStaff": isStaff,
+        "stockoutAlertCount": stockoutCount,
+        "navNotifications": navNotifications,
+        "accountUnreadCount": accountUnreadCount,
+        "totalNotifBadgeCount": totalBadgeCount
+    }
 
 @productionBlueprint.route("/")
 def index():
@@ -368,7 +430,7 @@ def furnitureList():
     )
 
 @productionBlueprint.route("/furniture/add", methods=["POST"])
-@roles_required("prodManager")
+@manager_required
 def addFurniture():
     furnitureName = request.form.get("furnitureName", "").strip()
     furnitureType = request.form.get("furnitureType", "").strip()
@@ -404,7 +466,7 @@ def addFurniture():
     return redirect(url_for("production.furnitureList"))
 
 @productionBlueprint.route("/furniture/edit/<int:furnitureID>", methods=["POST"])
-@roles_required("prodManager")
+@manager_required
 def editFurniture(furnitureID):
     furnitureName = request.form.get("furnitureName", "").strip()
     furnitureType = request.form.get("furnitureType", "").strip()
@@ -443,7 +505,7 @@ def editFurniture(furnitureID):
     return redirect(url_for("production.furnitureList"))
 
 @productionBlueprint.route("/furniture/delete/<int:furnitureID>", methods=["POST"])
-@roles_required("prodManager")
+@manager_required
 def deleteFurniture(furnitureID):
     try:
         Furniture.deleteFurniture(furnitureID)
@@ -538,7 +600,7 @@ def bomList():
 
 @productionBlueprint.route("/bom/add", methods=["POST"])
 @productionBlueprint.route("/bom/items/add", methods=["POST"])
-@roles_required("prodManager")
+@manager_required
 def addBomItem():
     furnitureID = request.form.get("furnitureID", "").strip()
     materialID = request.form.get("materialID", "").strip()
@@ -594,7 +656,7 @@ def addBomItem():
 
 @productionBlueprint.route("/bom/remove/<int:bomItemID>", methods=["POST"])
 @productionBlueprint.route("/bom/items/delete/<int:bomItemID>", methods=["POST"])
-@roles_required("prodManager")
+@manager_required
 def removeBomItem(bomItemID):
     furnitureID = request.form.get("furnitureID", "").strip()
     if not furnitureID or not furnitureID.isdigit():
@@ -615,7 +677,7 @@ def removeBomItem(bomItemID):
     return redirect(url_for("production.bomList", furniture_id=furnitureID))
 
 @productionBlueprint.route("/bom/update-price", methods=["POST"])
-@roles_required("prodManager")
+@manager_required
 def updateFurniturePriceFromBom():
     furnitureID = request.form.get("furnitureID", "").strip()
     priceRaw = request.form.get("sellingPrice", "").strip()
@@ -765,6 +827,7 @@ def orderDetail(orderID):
         qaRecords = ProductionOutput.getByOrderID(orderID)
         qaSummary = ProductionOutput.getOrderInspectionSummary(orderID)
         costRecord = ProductionCost.getByOrderID(orderID)
+        stageProofs = ProductionAttachment.getByOrderID(orderID)
     except Exception as err:
         flash(f"Failed to load order details: {str(err)}", "error")
         return redirect(url_for("production.orderList"))
@@ -780,12 +843,13 @@ def orderDetail(orderID):
         qaRecords=qaRecords,
         qaSummary=qaSummary,
         costRecord=costRecord,
+        stageProofs=stageProofs,
         estimatedUnitMaterialCost=estimatedUnitMaterialCost,
         estimatedBatchMaterialCost=estimatedBatchMaterialCost
     )
 
 @productionBlueprint.route("/orders/create", methods=["POST"])
-@roles_required("prodManager")
+@manager_required
 def createOrder():
     furnitureIDRaw = request.form.get("furnitureID", "").strip()
     quantityRaw = request.form.get("plannedQuantity", "").strip()
@@ -855,7 +919,7 @@ def createOrder():
     return redirect(url_for("production.orderList"))
 
 @productionBlueprint.route("/orders/delete/<int:orderID>", methods=["POST"])
-@roles_required("prodManager")
+@manager_required
 def deleteOrder(orderID):
     try:
         ProductionOrder.deleteOrder(orderID)
@@ -873,38 +937,42 @@ def planningList():
     searchQuery = request.args.get("q", "").strip()
     try:
         plannedOrders = ProductionOrder.getPlanningOrders()
+        staffRoster = getProductionStaffRoster()
         totalCount = len(plannedOrders)
         scheduledCount = sum(1 for o in plannedOrders if o.scheduleHealth == "On Schedule")
-        needsDatesCount = sum(1 for o in plannedOrders if o.scheduleHealth == "Needs Dates")
+        needsPlanCount = sum(1 for o in plannedOrders if o.scheduleHealth == "Needs Plan")
         overdueCount = sum(1 for o in plannedOrders if o.scheduleHealth == "Overdue")
         summary = {
             "total": totalCount,
             "scheduled": scheduledCount,
-            "needsDates": needsDatesCount,
+            "needsPlan": needsPlanCount,
             "overdue": overdueCount
         }
     except Exception as err:
         flash(f"Failed to load production planning orders: {str(err)}", "error")
         plannedOrders = []
-        summary = {"total": 0, "scheduled": 0, "needsDates": 0, "overdue": 0}
+        staffRoster = []
+        summary = {"total": 0, "scheduled": 0, "needsPlan": 0, "overdue": 0}
 
     return render_template(
         "production/planning/planning.html",
         activeTab="planning",
         plannedOrders=plannedOrders,
+        staffRoster=staffRoster,
         summary=summary,
         statusFilter=statusFilter,
         searchQuery=searchQuery
     )
 
 @productionBlueprint.route("/planning/update/<int:orderID>", methods=["POST"])
-@roles_required("prodManager")
+@manager_required
 def updateOrderSchedule(orderID):
     nextUrl = request.form.get("next_url") or request.args.get("next_url")
     targetRedirect = nextUrl if (nextUrl and nextUrl.startswith("/production/")) else url_for("production.planningList")
 
     startDateRaw = request.form.get("plannedStartDate", "").strip()
     dueDateRaw = request.form.get("dueDate", "").strip()
+    assignedToRaw = request.form.get("assignedTo", "").strip()
 
     parsedStartDate = None
     if startDateRaw:
@@ -926,9 +994,26 @@ def updateOrderSchedule(orderID):
         flash("Target due date cannot be earlier than planned start date.", "error")
         return redirect(targetRedirect)
 
+    assignedToID = int(assignedToRaw) if (assignedToRaw and assignedToRaw.isdigit()) else None
+    if not parsedStartDate or not parsedDueDate or not assignedToID:
+        flash("Please specify Planned Start Date, Target Due Date, and Assigned Workshop Staff to save the production plan.", "warning")
+        return redirect(targetRedirect)
+
+    if not isValidActiveProdStaff(assignedToID):
+        flash("Selected employee is not an active Production Department Workshop Staff member.", "error")
+        return redirect(targetRedirect)
+
     try:
-        ProductionOrder.updateSchedule(orderID, parsedStartDate, parsedDueDate)
-        flash(f"Schedule updated for Order #PO-{orderID}.", "success")
+        ProductionOrder.updateSchedule(
+            orderID,
+            parsedStartDate,
+            parsedDueDate,
+            assignedTo=assignedToID,
+            updateAssignment=True
+        )
+        updatedOrder = ProductionOrder.getByID(orderID)
+        staffLabel = updatedOrder.assignedStaffName if updatedOrder and updatedOrder.assignedStaffName else "assigned staff"
+        flash(f"Production plan saved for Order #PO-{orderID} (Assigned to {staffLabel}).", "success")
     except ValueError as valErr:
         flash(str(valErr), "warning")
     except Exception as err:
@@ -1053,7 +1138,7 @@ def requirementList():
 
 @productionBlueprint.route("/requirements/release/<int:orderID>", methods=["POST"])
 @productionBlueprint.route("/requirement/release/<int:orderID>", methods=["POST"])
-@roles_required("prodManager")
+@manager_required
 def releaseOrder(orderID):
     try:
         order = ProductionOrder.getByID(orderID)
@@ -1063,6 +1148,10 @@ def releaseOrder(orderID):
 
         if order.status != "Draft":
             flash(f"Order #PO-{orderID} cannot be released because it is currently '{order.status}'.", "warning")
+            return redirect(url_for("production.requirementList", order_id=orderID))
+
+        if not order.plannedStartDate or not order.dueDate or not order.assignedTo:
+            flash(f"Release blocked: Complete Production Planning (Timeline Dates and Assigned Workshop Staff) for Order #PO-{orderID} before releasing.", "warning")
             return redirect(url_for("production.requirementList", order_id=orderID))
 
         bom = BillOfMaterials.getByFurnitureID(order.furnitureID, autoCreate=True)
@@ -1122,7 +1211,7 @@ def issuanceList():
     )
 
 @productionBlueprint.route("/issuance/issue/<int:orderID>", methods=["POST"])
-@roles_required("prodManager")
+@manager_required
 def issueOrderMaterials(orderID):
     try:
         order = ProductionOrder.getByID(orderID)
@@ -1170,15 +1259,20 @@ def issueOrderMaterials(orderID):
 def monitoringList():
     try:
         productionMonitoringList = ProductionMonitoring.getAll()
+        latestProofMap = ProductionAttachment.getLatestByOrderIDs([m.orderID for m in productionMonitoringList])
+        for m in productionMonitoringList:
+            m.latestProof = latestProofMap.get(m.orderID)
+        currentEmpID = session.get("employee_id")
         summary = {
             "total": len(productionMonitoringList),
             "inProgress": sum(1 for m in productionMonitoringList if m.progress < 100),
-            "completed": sum(1 for m in productionMonitoringList if m.progress >= 100)
+            "completed": sum(1 for m in productionMonitoringList if m.progress >= 100),
+            "myAssigned": sum(1 for m in productionMonitoringList if m.progress < 100 and currentEmpID and m.assignedTo == currentEmpID)
         }
     except Exception as err:
         flash(f"Failed to load monitoring records: {str(err)}", "error")
         productionMonitoringList = []
-        summary = {"total": 0, "inProgress": 0, "completed": 0}
+        summary = {"total": 0, "inProgress": 0, "completed": 0, "myAssigned": 0}
 
     return render_template(
         "production/manufacturing/monitoring_list.html",
@@ -1197,6 +1291,9 @@ def updateMonitoringProgress(monitoringID):
         100: "QA Passed & Completed"
     }
     progressRaw = request.form.get("progress", "").strip()
+    stageNote = request.form.get("stageNote", "").strip()
+    proofFile = request.files.get("proofPhoto")
+
     try:
         progressVal = float(progressRaw)
         if progressVal < 0 or progressVal > 100:
@@ -1212,15 +1309,70 @@ def updateMonitoringProgress(monitoringID):
             flash(f"Order #PO-{existing.orderID} is '{existing.orderStatus}'. Stage updates are only permitted while 'In Progress'.", "warning")
             return redirect(url_for("production.monitoringList"))
 
-        updated = ProductionMonitoring.updateProgress(monitoringID, progressVal)
+        currentEmpID = session.get("employee_id")
+        if not is_staff_session() or not existing.assignedTo or currentEmpID != existing.assignedTo:
+            ownerLabel = existing.assignedStaffName or "Unassigned — assign in Production Planning"
+            flash(f"Workshop stage updates are restricted to the assigned Production Staff ({ownerLabel}).", "warning")
+            return redirect(url_for("production.monitoringList"))
+
+        rawBytes = None
+        cleanMime = None
+        cleanFilename = None
+        if proofFile and proofFile.filename:
+            mimeCandidate = (proofFile.mimetype or "").lower().strip()
+            if mimeCandidate == "image/jpg":
+                mimeCandidate = "image/jpeg"
+            if mimeCandidate not in ("image/jpeg", "image/png", "image/webp"):
+                flash("Proof attachment must be a JPG, PNG, or WebP image.", "error")
+                return redirect(url_for("production.monitoringList"))
+            dataBytes = proofFile.read()
+            if len(dataBytes) > 4 * 1024 * 1024:
+                flash("Proof photo exceeds the 4 MB maximum file size.", "error")
+                return redirect(url_for("production.monitoringList"))
+            if len(dataBytes) > 0:
+                rawBytes = dataBytes
+                cleanMime = mimeCandidate
+                cleanFilename = os.path.basename(proofFile.filename)[:180]
+
+        stageInt = int(round(progressVal))
+        isRollback = progressVal < existing.progress
+        isAdvancingToQA = (stageInt >= 90 and not isRollback)
+        if isAdvancingToQA and not rawBytes:
+            flash("A workshop photo proof is required when submitting Stage 4 (Ready for QA Inspection).", "error")
+            return redirect(url_for("production.monitoringList"))
+
+        uploadedFileUrl = None
+        if rawBytes:
+            uploadedFileUrl = uploadToSupabaseStorage(
+                rawBytes=rawBytes,
+                mimeType=cleanMime,
+                entityType="stage_proof",
+                orderID=existing.orderID,
+                stageProgress=stageInt
+            )
+
+        with openTransaction() as conn:
+            updated = ProductionMonitoring.updateProgress(monitoringID, progressVal, conn=conn)
+            if updated and stageInt in (25, 50, 75, 90) and (not isRollback or stageNote or uploadedFileUrl):
+                ProductionAttachment.createAttachment(
+                    orderID=existing.orderID,
+                    stageProgress=stageInt,
+                    note=stageNote,
+                    fileName=cleanFilename,
+                    fileUrl=uploadedFileUrl,
+                    uploadedBy=currentEmpID,
+                    entityType="stage_proof",
+                    conn=conn
+                )
+
         if updated:
-            stageName = stageLabels.get(int(round(progressVal)), f"{int(round(progressVal))}% Progress")
-            if progressVal >= 90 and progressVal < 100:
-                flash(f"Order #PO-{updated.orderID} workshop assembly completed: {stageName} ({int(round(progressVal))}%)! Ready for Quality Inspection.", "success")
-            elif progressVal >= 100:
-                flash(f"Order #PO-{updated.orderID} finalized: {stageName} (100%)!", "success")
+            stageName = stageLabels.get(stageInt, f"{stageInt}% Progress")
+            if stageInt >= 90 and stageInt < 100:
+                flash(f"Order #PO-{updated.orderID} submitted with Stage 4 proof! Ready for Manager Quality Inspection.", "success")
             else:
-                flash(f"Order #PO-{updated.orderID} updated to {stageName} ({int(round(progressVal))}%).", "success")
+                flash(f"Order #PO-{updated.orderID} updated to {stageName} ({stageInt}%).", "success")
+    except RuntimeError as storageErr:
+        flash(str(storageErr), "error")
     except ValueError:
         flash("Invalid progress percentage entered.", "error")
     except Exception as err:
@@ -1244,6 +1396,10 @@ def finishedGoodsList():
                 pendingOrders.append(m)
             else:
                 needsAttentionOrders.append(m)
+
+        latestImgMap = ProductionAttachment.getLatestByOrderIDs([m.orderID for m in pendingOrders], requireImage=True)
+        for m in pendingOrders:
+            m.latestProof = latestImgMap.get(m.orderID)
 
         outputRecords = ProductionOutput.getAll()
         passedOrderIDs = {o.orderID for o in outputRecords if o.qualityStatus == "Passed"}
@@ -1272,7 +1428,7 @@ def finishedGoodsList():
     )
 
 @productionBlueprint.route("/finished-goods/inspect/<int:orderID>", methods=["POST"])
-@roles_required("prodManager")
+@manager_required
 def recordInspection(orderID):
     passedRaw = request.form.get("passedQuantity", "").strip()
     failedRaw = request.form.get("failedQuantity", "").strip()
@@ -1309,7 +1465,7 @@ def recordInspection(orderID):
         with openTransaction() as conn:
             with conn.cursor() as cursor:
                 cursor.execute("""
-                    SELECT po.order_id, po.furniture_id, po.planned_quantity, po.status, f.furniture_name
+                    SELECT po.order_id, po.furniture_id, po.planned_quantity, po.status, po.assigned_to, f.furniture_name
                     FROM prod_productionorder po
                     JOIN prod_furniture f ON po.furniture_id = f.furniture_id
                     WHERE po.order_id = %s
@@ -1431,7 +1587,7 @@ def recordInspection(orderID):
     return redirect(url_for("production.finishedGoodsList"))
 
 @productionBlueprint.route("/costing")
-@roles_required("prodManager")
+@manager_required
 def costingList():
     try:
         allOrders = ProductionOrder.getAll()
@@ -1487,7 +1643,7 @@ def costingList():
     )
 
 @productionBlueprint.route("/costing/save/<int:orderID>", methods=["POST"])
-@roles_required("prodManager")
+@manager_required
 def saveOrderCost(orderID):
     matRaw = request.form.get("materialCost", "").strip()
     labRaw = request.form.get("laborCost", "").strip()
@@ -1540,7 +1696,7 @@ def saveOrderCost(orderID):
 
 @productionBlueprint.route("/report")
 @productionBlueprint.route("/reports")
-@roles_required("prodManager")
+@manager_required
 def reportView():
     statusFilter = request.args.get("status", "All").strip()
 
@@ -1685,7 +1841,7 @@ def reportView():
     )
 
 @productionBlueprint.route("/logs")
-@roles_required("prodManager")
+@manager_required
 def logsView():
     return redirect(url_for("production.reportView", tab="audit"))
 

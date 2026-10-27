@@ -99,7 +99,7 @@
             </thead>
             <tbody>
                 {% for ord in pendingOrders %}
-                <tr class="qaPendingRow" data-search="po-{{ ord.orderID }} {{ ord.furnitureName|lower }}">
+                <tr class="qaPendingRow" data-search="po-{{ ord.orderID }} {{ ord.furnitureName|lower }} {{ (ord.assignedStaffName or '')|lower }}">
                     <td data-label="Order">
                         <div>
                             <a href="/production/orders/{{ ord.orderID }}"
@@ -111,6 +111,9 @@
                         <div>
                             <b>{{ ord.furnitureName }}</b> &middot; {{ ord.plannedQuantity }} unit{% if ord.plannedQuantity != 1 %}s{% endif %}
                         </div>
+                        <div style="font-size: 11.5px; color: var(--mt); margin-top: 2px;">
+                            Staff: <b>{{ ord.assignedStaffName or 'Unassigned' }}</b>
+                        </div>
                     </td>
                     <td data-label="Progress">
                         <div style="display: flex; align-items: center; gap: 8px;">
@@ -120,6 +123,19 @@
                             <span style="font-size: 12px; font-weight: 700; color: #526638;">{{ ord.progress | round |
                                 int }}%</span>
                         </div>
+                        {% if ord.latestProof and ord.latestProof.hasImage %}
+                        <div style="margin-top: 5px;">
+                            <button type="button" class="proofThumbBtn"
+                                data-proof-url="{{ ord.latestProof.fileUrl }}"
+                                data-proof-title="Order #PO-{{ ord.orderID }} · {{ ord.latestProof.stageLabel }}"
+                                data-proof-meta="Submitted by {{ ord.latestProof.submittedBy }} on {{ ord.latestProof.formattedCreatedAt }}"
+                                data-proof-note="{{ ord.latestProof.note }}"
+                                onclick="window.openProofLightbox(this.dataset.proofUrl, this.dataset.proofTitle, this.dataset.proofMeta, this.dataset.proofNote)">
+                                <img src="{{ ord.latestProof.fileUrl }}" alt="Stage 4 Proof" class="proofThumbImg" loading="lazy">
+                                <span>Stage 4 Proof</span>
+                            </button>
+                        </div>
+                        {% endif %}
                     </td>
                     <td data-label="Due Date">
                         {% if ord.formattedDueDate %}
@@ -135,10 +151,16 @@
                         <span style="font-size: 12.5px; font-weight: 600;">{{ ord.reworkCount or 0 }}/2</span>
                     </td>
                     <td data-label="Action" style="text-align: right;">
-                        {% if session.get('role') == 'prodManager' %}
+                        {% if isManager %}
                         <button type="button" class="btn btnPrimary qaInspectBtn"
                             data-order-id="{{ ord.orderID }}"
                             data-furniture-name="{{ ord.furnitureName }}"
+                            data-staff-name="{{ ord.assignedStaffName or '' }}"
+                            data-proof-url="{{ ord.latestProof.fileUrl if ord.latestProof and ord.latestProof.hasImage else '' }}"
+                            data-proof-by="{{ ord.latestProof.submittedBy if ord.latestProof else '' }}"
+                            data-proof-time="{{ ord.latestProof.formattedCreatedAt if ord.latestProof else '' }}"
+                            data-proof-note="{{ ord.latestProof.note if ord.latestProof else '' }}"
+                            data-proof-stage="{{ ord.latestProof.stageLabel if ord.latestProof else 'Stage 4: Ready for QA' }}"
                             data-pending-qty="{{ ord.pendingInspectionQty }}"
                             data-passed-qty="{{ ord.alreadyPassed }}"
                             data-failed-qty="{{ ord.alreadyFailed }}"
@@ -258,6 +280,17 @@
 
         <div id="qaSummaryLine" class="qaSummaryLine"></div>
 
+        <div id="qaProofPreviewBox" style="display: none; padding: 10px 12px; background: #faf8f2; border: 1px solid var(--bd); border-radius: 8px; align-items: center; justify-content: space-between; gap: 10px;">
+            <div style="min-width: 0; flex: 1;">
+                <div id="qaProofStaffLine" style="font-size: 12px; font-weight: 700; color: var(--tx);"></div>
+                <div id="qaProofNoteLine" style="font-size: 11.5px; color: var(--mt); margin-top: 2px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;"></div>
+            </div>
+            <button type="button" id="qaProofViewBtn" class="proofThumbBtn" style="flex-shrink: 0;">
+                <img id="qaProofThumbImg" src="" alt="Stage 4 Proof" class="proofThumbImg">
+                <span>View Photo</span>
+            </button>
+        </div>
+
         <form id="qaModalForm" method="POST" action="">
             <div class="qaFieldGroup" style="margin-bottom: 12px;">
                 <div class="qaGridInputs">
@@ -366,15 +399,56 @@ function openQAModal(btn) {
     lastFocusedBtn = btn;
     var orderID = btn.dataset.orderId;
     var furnitureName = btn.dataset.furnitureName;
+    var staffName = btn.dataset.staffName || '';
+    var proofUrl = btn.dataset.proofUrl || '';
+    var proofBy = btn.dataset.proofBy || staffName || 'Workshop Staff';
+    var proofTime = btn.dataset.proofTime || '';
+    var proofNote = btn.dataset.proofNote || '';
+    var proofStage = btn.dataset.proofStage || 'Stage 4: Ready for QA';
     currentPendingQty = parseInt(btn.dataset.pendingQty || 0, 10);
     var alreadyPassed = parseInt(btn.dataset.passedQty || 0, 10);
     var alreadyFailed = parseInt(btn.dataset.failedQty || 0, 10);
     currentReworkCount = parseInt(btn.dataset.reworkCount || 0, 10);
 
     qaModalForm.action = btn.dataset.inspectUrl;
+    qaModalForm.dataset.submitting = 'false';
     qaModalTitle.textContent = 'Quality Inspection - Order #PO-' + orderID;
-    qaModalSubtitle.textContent = furnitureName;
+    qaModalSubtitle.textContent = staffName ? (furnitureName + ' · Assigned: ' + staffName) : furnitureName;
     qaSummaryLine.textContent = currentPendingQty + ' pending, ' + alreadyPassed + ' passed, ' + alreadyFailed + ' scrapped so far';
+
+    var proofBox = document.getElementById('qaProofPreviewBox');
+    var proofStaffEl = document.getElementById('qaProofStaffLine');
+    var proofNoteEl = document.getElementById('qaProofNoteLine');
+    var proofThumbEl = document.getElementById('qaProofThumbImg');
+    var proofBtn = document.getElementById('qaProofViewBtn');
+    if (proofBox) {
+        if (proofUrl) {
+            if (proofStaffEl) {
+                proofStaffEl.textContent = proofStage + ' · Submitted by ' + proofBy;
+            }
+            if (proofNoteEl) {
+                proofNoteEl.textContent = proofNote ? ('Note: ' + proofNote) : (proofTime || 'Click View Photo to inspect workshop submission');
+            }
+            if (proofThumbEl) {
+                proofThumbEl.src = proofUrl;
+            }
+            if (proofBtn) {
+                proofBtn.onclick = function() {
+                    if (typeof window.openProofLightbox === 'function') {
+                        window.openProofLightbox(
+                            proofUrl,
+                            'Order #PO-' + orderID + ' · ' + proofStage,
+                            'Submitted by ' + proofBy + (proofTime ? (' on ' + proofTime) : ''),
+                            proofNote
+                        );
+                    }
+                };
+            }
+            proofBox.style.display = 'flex';
+        } else {
+            proofBox.style.display = 'none';
+        }
+    }
 
     qaPassedInput.value = '';
     qaPassedInput.max = currentPendingQty;

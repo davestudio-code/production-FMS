@@ -5,7 +5,7 @@
 <div class="headerRow">
     <div>
         <h2>Production Planning</h2>
-        <span style="color: var(--mt); font-size: 13.5px;">Master workshop schedule, visual batch timelines, and deadline conflict tracking</span>
+        <span style="color: var(--mt); font-size: 13.5px;">Master workshop schedule, workforce allocation, and batch deadline tracking</span>
     </div>
 </div>
 
@@ -16,10 +16,10 @@
                 <span>All</span>
                 <span class="workspaceTabCount">{{ summary.total }}</span>
             </button>
-            <button type="button" class="workspaceTabBtn" data-health="Needs Dates" onclick="setPlanningHealthTab('Needs Dates')">
+            <button type="button" class="workspaceTabBtn" data-health="Needs Plan" onclick="setPlanningHealthTab('Needs Plan')">
                 <span class="tabStatusDot draft"></span>
-                <span>Needs Dates</span>
-                <span class="workspaceTabCount">{{ summary.needsDates }}</span>
+                <span>Needs Plan</span>
+                <span class="workspaceTabCount">{{ summary.needsPlan }}</span>
             </button>
             <button type="button" class="workspaceTabBtn" data-health="On Schedule" onclick="setPlanningHealthTab('On Schedule')">
                 <span class="tabStatusDot completed"></span>
@@ -36,7 +36,7 @@
         <div class="workspaceSearchGroup">
             <input type="hidden" id="planningHealthSelect" value="">
             <input type="hidden" id="planningViewSelect" value="{{ initialView }}">
-            <input type="hidden" id="planningCanEdit" value="{{ '1' if session.get('role') == 'prodManager' else '0' }}">
+            <input type="hidden" id="planningCanEdit" value="{{ '1' if isManager else '0' }}">
 
             <div class="viewModeToggle" role="group" aria-label="Planning View Switcher">
                 <button type="button" class="viewModeBtn {{ 'active' if initialView == 'list' else '' }}" data-planview="list" onclick="setPlanningView('list')">
@@ -66,9 +66,9 @@
                 <tr>
                     <th>Order Ref</th>
                     <th>Furniture Product</th>
-                    <th>Batch Qty</th>
                     <th>Stage</th>
                     <th>Timeline</th>
+                    <th>Assigned Staff</th>
                     <th>Health</th>
                     <th>Action</th>
                 </tr>
@@ -82,16 +82,17 @@
                     data-qty="{{ ord.plannedQuantity }}"
                     data-status="{{ ord.status }}"
                     data-health="{{ ord.scheduleHealth }}"
+                    data-assigned-id="{{ ord.assignedTo or '' }}"
+                    data-assigned-name="{{ ord.assignedStaffName or '' }}"
                     data-start="{{ ord.plannedStartDate.isoformat() if ord.plannedStartDate else '' }}"
                     data-due="{{ ord.dueDate.isoformat() if ord.dueDate else '' }}"
                     data-date-label="{{ (ord.plannedStartDate|date_fmt or '—') ~ ' → ' ~ (ord.dueDate|date_fmt or '—') }}"
-                    data-search="po-{{ ord.orderID }} {{ ord.furnitureName|lower }} {{ ord.furnitureType|lower }}">
+                    data-search="po-{{ ord.orderID }} {{ ord.furnitureName|lower }} {{ ord.furnitureType|lower }} {{ (ord.assignedStaffName or 'unassigned')|lower }}">
                     <td><a href="/production/orders/{{ ord.orderID }}" style="color: var(--p); font-weight: 700; text-decoration: none;">#PO-{{ ord.orderID }}</a></td>
                     <td>
                         <b>{{ ord.furnitureName }}</b>
-                        <span style="display: block; font-size: 12px; color: var(--mt);">{{ ord.furnitureType }}</span>
+                        <span style="display: block; font-size: 12px; color: var(--mt);">{{ ord.furnitureType }} &middot; <b>{{ ord.plannedQuantity }} {{ 'unit' if ord.plannedQuantity == 1 else 'units' }}</b></span>
                     </td>
-                    <td><b>{{ ord.plannedQuantity }} {{ 'unit' if ord.plannedQuantity == 1 else 'units' }}</b></td>
                     <td>
                         <span
                             class="statusBadge {{ 'completed' if ord.status == 'Completed' else ('inProgress' if ord.status == 'In Progress' else ('released' if ord.status == 'Released' else 'draft')) }}">
@@ -106,6 +107,16 @@
                         {% endif %}
                     </td>
                     <td>
+                        {% if ord.assignedStaffName %}
+                        <span class="staffAssignChip">
+                            <span class="staffAvatarMini">{{ ord.assignedStaffName[:1]|upper }}</span>
+                            <span>{{ ord.assignedStaffName }}</span>
+                        </span>
+                        {% else %}
+                        <span style="color: #8e622a; font-size: 12.5px; font-weight: 600;">Unassigned</span>
+                        {% endif %}
+                    </td>
+                    <td>
                         {% if ord.scheduleHealth == 'Overdue' %}
                         <span class="statusBadge"
                             style="background: rgba(154, 74, 58, 0.12); color: #9a4a3a; border: 1px solid rgba(154, 74, 58, 0.3);">Overdue</span>
@@ -116,23 +127,23 @@
                         {% elif ord.scheduleHealth == 'Completed' %}
                         <span class="statusBadge completed">Completed</span>
                         {% else %}
-                        <span class="statusBadge draft">Needs Dates</span>
+                        <span class="statusBadge draft">{{ ord.planGapLabel }}</span>
                         {% endif %}
                     </td>
                     <td>
                         <div style="display: flex; gap: 6px; align-items: center;">
-                            {% if session.get('role') == 'prodManager' %}
+                            {% if isManager and ord.status != 'Completed' %}
                             <button type="button" class="actionButton secondary" style="padding: 4px 9px; font-size: 11.5px;"
-                                onclick="openScheduleModal('{{ ord.orderID }}', '{{ ord.furnitureName|replace('\'', '\\\'') }}', '{{ ord.plannedStartDate or '' }}', '{{ ord.dueDate or '' }}')">
-                                {{ 'Edit Dates' if (ord.plannedStartDate or ord.dueDate) else '+ Set Dates' }}
+                                onclick="openScheduleModal('{{ ord.orderID }}', '{{ ord.furnitureName|replace('\'', '\\\'') }}', '{{ ord.plannedStartDate or '' }}', '{{ ord.dueDate or '' }}', '{{ ord.assignedTo or '' }}')">
+                                {{ 'Edit Plan' if ord.isFullyPlanned else '+ Plan & Assign' }}
                             </button>
-                            {% if ord.status == 'Draft' %}
+                            {% if ord.status == 'Draft' and ord.isFullyPlanned %}
                             <a href="/production/requirement?order_id={{ ord.orderID }}" class="actionButton" style="padding: 4px 9px; font-size: 11.5px; text-decoration: none; white-space: nowrap;">
                                 Release &rarr;
                             </a>
                             {% endif %}
                             {% else %}
-                            <span style="color: var(--mt); font-size: 12px;">View Only</span>
+                            <span style="color: var(--mt); font-size: 12px;">{{ 'Finalized' if ord.status == 'Completed' else 'View Only' }}</span>
                             {% endif %}
                         </div>
                     </td>
@@ -175,8 +186,8 @@
 <div id="scheduleModal" class="modalOverlay">
     <div class="modalCard" style="max-width: 480px;">
         <div class="modalHeader">
-            <h3 id="scheduleModalTitle">Edit Production Schedule</h3>
-            <button class="modalClose" onclick="closeModal('scheduleModal')">&times;</button>
+            <h3 id="scheduleModalTitle">Plan &amp; Assign Production Order</h3>
+            <button type="button" class="modalClose" onclick="closeModal('scheduleModal')">&times;</button>
         </div>
         <form id="scheduleForm" method="POST" action="">
             <input type="hidden" id="scheduleNextUrlInput" name="next_url" value="">
@@ -185,21 +196,37 @@
                 <span id="scheduleOrderProduct" style="font-weight: 600; font-size: 14px;"></span>
             </div>
             <div class="formGroup">
-                <label>Planned Start Date</label>
-                <input type="date" id="scheduleStartDate" name="plannedStartDate">
+                <label>Assigned Workshop Staff</label>
+                <select id="scheduleAssignedTo" name="assignedTo" required>
+                    <option value="">Select Production Staff...</option>
+                    {% for staff in staffRoster %}
+                    <option value="{{ staff.employeeID }}">
+                        {{ staff.fullName }} ({{ staff.activeBatches }} active {{ 'batch' if staff.activeBatches == 1 else 'batches' }})
+                    </option>
+                    {% endfor %}
+                </select>
+                {% if not staffRoster %}
+                <small style="display: block; margin-top: 5px; font-size: 11.5px; color: #8e622a;">No active Production Staff (Dept 6, Position 2) found in employee records yet.</small>
+                {% endif %}
             </div>
-            <div class="formGroup">
-                <label>Target Due Date</label>
-                <input type="date" id="scheduleDueDate" name="dueDate">
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px;">
+                <div class="formGroup">
+                    <label>Planned Start Date</label>
+                    <input type="date" id="scheduleStartDate" name="plannedStartDate" required>
+                </div>
+                <div class="formGroup">
+                    <label>Target Due Date</label>
+                    <input type="date" id="scheduleDueDate" name="dueDate" required>
+                </div>
             </div>
-            <div class="modalActions" style="margin-top: 18px;">
+            <div class="modalActions" style="margin-top: 14px;">
                 <button type="button" class="actionButton secondary"
                     onclick="closeModal('scheduleModal')">Cancel</button>
-                <button type="submit" class="actionButton">Save Schedule</button>
+                <button type="submit" class="actionButton">Save Plan &amp; Assignment</button>
             </div>
         </form>
     </div>
 </div>
 
-<script src="/production/feature-static/planning/planning.js?v=20261027b"></script>
+<script src="/production/feature-static/planning/planning.js?v=20261027c"></script>
 {% endblock %}
