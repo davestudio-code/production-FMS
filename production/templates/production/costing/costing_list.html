@@ -3,42 +3,39 @@
 {% block content %}
 <link rel="stylesheet" href="/production/feature-static/costing/costing.css">
 
+{% set costedInTable = costOrders | selectattr('hasCostSheet') | list | length %}
+
 <div class="headerRow">
     <div>
         <h2>Production Costing</h2>
-        <span style="color: var(--mt); font-size: 13.5px;">Accredited cost &amp; automatic {{
-            summary.overheadPercent }}% overhead calculation for Team 5 Finance (prod_productioncost)</span>
-    </div>
-</div>
-
-<div class="metricGrid">
-    <div class="metricCard">
-        <small>Total Recorded Cost</small>
-        <b>₱{{ "{:,.2f}".format(summary.totalCost) }}</b>
-    </div>
-    <div class="metricCard">
-        <small>Costed Batches</small>
-        <b>{{ summary.costedOrders }} Orders</b>
-    </div>
-    <div class="metricCard">
-        <small>Pending Cost Sheets</small>
-        <b>{{ summary.pendingCosting }} Orders</b>
-    </div>
-    <div class="metricCard">
-        <small>Factory Overhead</small>
-        <b>{{ summary.overheadPercent }}% Standard</b>
+        <span style="color: var(--mt); font-size: 13.5px;">Direct material costs from issued stock with automatic {{ summary.overheadPercent }}% factory overhead for Finance</span>
     </div>
 </div>
 
 <div class="card">
-    <div class="headerRow" style="margin-bottom: 14px;">
-        <div>
-            <h3 style="margin: 0;">Batch Production Cost Sheets</h3>
-            <small style="color: var(--mt);">Direct material costs auto-calculated from issued raw materials with {{
-                summary.overheadPercent }}% factory overhead</small>
+    <div class="workspaceToolbar">
+        <div class="workspaceFilterTabs" role="tablist">
+            <button type="button" class="workspaceTabBtn active" data-costed="" onclick="setCostingTab('')">
+                <span>All</span>
+                <span class="workspaceTabCount">{{ costOrders|length }}</span>
+            </button>
+            <button type="button" class="workspaceTabBtn" data-costed="pending" onclick="setCostingTab('pending')">
+                <span class="tabStatusDot inProgress"></span>
+                <span>Pending Cost Sheet</span>
+                <span class="workspaceTabCount">{{ summary.pendingCosting }}</span>
+            </button>
+            <button type="button" class="workspaceTabBtn" data-costed="costed" onclick="setCostingTab('costed')">
+                <span class="tabStatusDot completed"></span>
+                <span>Saved Cost Sheets</span>
+                <span class="workspaceTabCount">{{ costedInTable }}</span>
+            </button>
         </div>
-        <span class="statusBadge {{ 'inProgress' if summary.pendingCosting > 0 else 'completed' }}">{{
-            summary.activeOrders }} Active / Complete</span>
+
+        <div class="workspaceMetaGroup">
+            <span class="workspaceMetaPill">{{ summary.overheadPercent }}% Overhead</span>
+            <span class="workspaceMetaPill success">Recorded Total: <b>₱{{ "{:,.2f}".format(summary.totalCost) }}</b></span>
+        </div>
+        <input type="hidden" id="costingFilterSelect" value="">
     </div>
 
     <div class="tableContainer">
@@ -58,7 +55,7 @@
             </thead>
             <tbody>
                 {% for ord in costOrders %}
-                <tr>
+                <tr class="costingRow" data-costed="{{ 'costed' if ord.hasCostSheet else 'pending' }}" data-search="po-{{ ord.orderID }} {{ ord.furnitureName|lower }} {{ ord.status|lower }}">
                     <td data-label="Order">
                         <div>
                             <a href="/production/orders/{{ ord.orderID }}"
@@ -118,14 +115,69 @@
                 </tr>
                 {% else %}
                 <tr>
-                    <td colspan="8" style="text-align: center; color: var(--mt); padding: 28px;">
+                    <td colspan="9" style="text-align: center; color: var(--mt); padding: 28px;">
                         No production orders currently eligible for costing. Issue materials to an order to begin cost
                         tracking.
                     </td>
                 </tr>
                 {% endfor %}
+                <tr id="costingEmptyFilterRow" style="display: none;">
+                    <td colspan="9" style="text-align: center; color: var(--mt); padding: 28px;">
+                        No batch cost sheets match your filter criteria.
+                    </td>
+                </tr>
             </tbody>
         </table>
     </div>
 </div>
+
+<script>
+window.setCostingTab = function(filterVal) {
+    const nextVal = filterVal || '';
+    const filterInput = document.getElementById('costingFilterSelect');
+    if (filterInput) {
+        filterInput.value = nextVal;
+    }
+    const tabs = document.querySelectorAll('.workspaceFilterTabs .workspaceTabBtn[data-costed]');
+    tabs.forEach(function(tab) {
+        if ((tab.getAttribute('data-costed') || '') === nextVal) {
+            tab.classList.add('active');
+        } else {
+            tab.classList.remove('active');
+        }
+    });
+    window.filterCostingTable();
+};
+
+window.filterCostingTable = function() {
+    const q = (document.getElementById('globalTabSearchInput')?.value || '').toLowerCase().trim();
+    const costed = (document.getElementById('costingFilterSelect')?.value || '').trim();
+    const rows = document.querySelectorAll('tr.costingRow');
+    let visibleCount = 0;
+    rows.forEach(function(row) {
+        const rowCosted = row.dataset.costed || '';
+        const rowSearch = row.dataset.search || '';
+        const matchCosted = !costed || rowCosted === costed;
+        const matchSearch = !q || rowSearch.includes(q);
+        if (matchCosted && matchSearch) {
+            row.style.display = '';
+            visibleCount++;
+        } else {
+            row.style.display = 'none';
+        }
+    });
+    const emptyRow = document.getElementById('costingEmptyFilterRow');
+    if (emptyRow) {
+        emptyRow.style.display = (visibleCount === 0 && rows.length > 0) ? '' : 'none';
+    }
+};
+
+if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', function() {
+        window.filterCostingTable();
+    });
+} else {
+    window.filterCostingTable();
+}
+</script>
 {% endblock %}

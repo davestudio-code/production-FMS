@@ -3,67 +3,86 @@
 {% block content %}
 <link rel="stylesheet" href="/production/feature-static/manufacturing/finished_goods.css">
 
+{% set passedRecordCount = outputRecords | selectattr('qualityStatus', 'equalto', 'Passed') | list | length %}
+{% set reworkRecordCount = outputRecords | selectattr('qualityStatus', 'equalto', 'Rework') | list | length %}
+{% set failedRecordCount = outputRecords | selectattr('qualityStatus', 'equalto', 'Failed') | list | length %}
+
 <div class="headerRow">
     <div>
         <h2>Quality Inspection &amp; Finished Goods</h2>
-        <span style="color: var(--mt); font-size: 13.5px;">Authoritative QA inspection gating and inventory stock
-            handoff to Team 2 (Finished Goods)</span>
+        <span style="color: var(--mt); font-size: 13.5px;">Authoritative QA inspection gating and inventory stock handoff to Finished Goods</span>
     </div>
 </div>
 
-<div class="metricGrid">
-    <div class="metricCard">
-        <small>Awaiting QA Check</small>
-        <b>{{ summary.pending }} Orders</b>
-    </div>
-    <div class="metricCard">
-        <small>Passed &amp; Stocked</small>
-        <b>{{ summary.passed }} Orders</b>
-    </div>
-    <div class="metricCard">
-        <small>Rework Required</small>
-        <b>{{ summary.rework }} Orders</b>
-    </div>
-    <div class="metricCard">
-        <small>Finished Units Credited</small>
-        <b>{{ summary.totalUnits }} units</b>
-    </div>
-</div>
-
-{% if needsAttentionOrders %}
-<!-- Diagnostic list: should normally be empty -->
-<div class="card" style="margin-bottom: 24px; border-left: 4px solid #c97a3e;">
-    <div class="headerRow" style="margin-bottom: 8px;">
-        <div>
-            <h4 style="margin: 0; color: #a25622;">Orders Needing Attention (0 Units Pending QA)</h4>
-            <small style="color: var(--mt);">Diagnostic list (should normally be empty): these orders are marked 'In Progress' at 90%+ but all planned units have already been inspected (passed or failed). Review them to finalize their order status.</small>
+<div class="card">
+    <div class="workspaceToolbar">
+        <div class="workspaceFilterTabs" role="tablist">
+            <button type="button" class="workspaceTabBtn active" data-qatab="pending" onclick="setQAWorkspaceTab('pending')">
+                <span class="tabStatusDot inProgress"></span>
+                <span>Awaiting QA</span>
+                <span class="workspaceTabCount">{{ summary.pending }}</span>
+            </button>
+            <span class="workspaceTabDivider"></span>
+            <button type="button" class="workspaceTabBtn" data-qatab="history:" onclick="setQAWorkspaceTab('history:')">
+                <span>All History</span>
+                <span class="workspaceTabCount">{{ outputRecords|length }}</span>
+            </button>
+            <button type="button" class="workspaceTabBtn" data-qatab="history:Passed" onclick="setQAWorkspaceTab('history:Passed')">
+                <span class="tabStatusDot completed"></span>
+                <span>Passed</span>
+                <span class="workspaceTabCount">{{ passedRecordCount }}</span>
+            </button>
+            <button type="button" class="workspaceTabBtn" data-qatab="history:Rework" onclick="setQAWorkspaceTab('history:Rework')">
+                <span class="tabStatusDot draft"></span>
+                <span>Rework</span>
+                <span class="workspaceTabCount">{{ reworkRecordCount }}</span>
+            </button>
+            <button type="button" class="workspaceTabBtn" data-qatab="history:Failed" onclick="setQAWorkspaceTab('history:Failed')">
+                <span class="tabStatusDot overdue"></span>
+                <span>Failed</span>
+                <span class="workspaceTabCount">{{ failedRecordCount }}</span>
+            </button>
         </div>
-        <span class="statusBadge alert">{{ needsAttentionOrders | length }} Needs Review</span>
+
+        <div class="workspaceMetaGroup">
+            {% if summary.rework > 0 %}
+            <span class="workspaceMetaPill warn">
+                <span class="tabStatusDot inProgress"></span>
+                <span><b>{{ summary.rework }}</b> In Rework</span>
+            </span>
+            {% endif %}
+            <span class="workspaceMetaPill success">
+                <span class="tabStatusDot completed"></span>
+                <span>Credited Stock: <b>{{ summary.totalUnits }} units</b></span>
+            </span>
+        </div>
+        <input type="hidden" id="qaActiveSectionInput" value="pending">
+        <input type="hidden" id="qaHistoryStatusSelect" value="">
     </div>
-    <div style="display: flex; flex-direction: column; gap: 8px;">
-        {% for ord in needsAttentionOrders %}
-        <div style="display: flex; justify-content: space-between; align-items: center; padding: 8px 12px; background: #fbf7ef; border: 1px solid var(--bd); border-radius: 6px;">
-            <div>
-                <a href="/production/orders/{{ ord.orderID }}" style="color: var(--p); font-weight: 700; text-decoration: none; font-size: 13.5px;">Order #PO-{{ ord.orderID }}</a>
-                &middot; <b>{{ ord.furnitureName }}</b> (Planned: {{ ord.plannedQuantity }}, Passed: {{ ord.alreadyPassed }}, Scrapped: {{ ord.alreadyFailed }})
+
+    <div id="qaPendingSection">
+        {% if needsAttentionOrders %}
+        <div style="margin-bottom: 16px; padding: 12px 14px; background: #fbf7ef; border: 1px solid var(--bd); border-left: 4px solid #c97a3e; border-radius: 8px;">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; gap: 10px; flex-wrap: wrap;">
+                <div>
+                    <b style="color: #a25622; font-size: 13.5px;">Orders Needing Attention (0 Units Pending QA)</b>
+                    <div style="color: var(--mt); font-size: 12px;">Marked 'In Progress' at 90%+ with all planned units already inspected. Review to finalize status.</div>
+                </div>
+                <span class="statusBadge alert">{{ needsAttentionOrders | length }} Needs Review</span>
             </div>
-            <a href="/production/orders/{{ ord.orderID }}" class="btn btnSecondary" style="font-size: 12px; padding: 4px 10px;">View Order</a>
+            <div style="display: flex; flex-direction: column; gap: 6px;">
+                {% for ord in needsAttentionOrders %}
+                <div style="display: flex; justify-content: space-between; align-items: center; padding: 7px 10px; background: #ffffff; border: 1px solid var(--bd); border-radius: 6px;">
+                    <div style="font-size: 13px;">
+                        <a href="/production/orders/{{ ord.orderID }}" style="color: var(--p); font-weight: 700; text-decoration: none;">Order #PO-{{ ord.orderID }}</a>
+                        &middot; <b>{{ ord.furnitureName }}</b> (Planned: {{ ord.plannedQuantity }}, Passed: {{ ord.alreadyPassed }}, Scrapped: {{ ord.alreadyFailed }})
+                    </div>
+                    <a href="/production/orders/{{ ord.orderID }}" class="btn btnSecondary" style="font-size: 12px; padding: 4px 10px;">View Order</a>
+                </div>
+                {% endfor %}
+            </div>
         </div>
-        {% endfor %}
-    </div>
-</div>
-{% endif %}
-
-<div class="card" style="margin-bottom: 24px;">
-    <div class="headerRow" style="margin-bottom: 14px;">
-        <div>
-            <h3 style="margin: 0;">Orders Awaiting Quality Inspection</h3>
-            <small style="color: var(--mt);">Completed workshop assembly (Stage 4: 90%+). Perform final QA check before
-                stock handoff.</small>
-        </div>
-        <span class="statusBadge {{ 'inProgress' if summary.pending > 0 else 'draft' }}">{{ summary.pending }}
-            Pending</span>
-    </div>
+        {% endif %}
 
     <div class="tableContainer">
         <table class="monitoringTable">
@@ -80,7 +99,7 @@
             </thead>
             <tbody>
                 {% for ord in pendingOrders %}
-                <tr>
+                <tr class="qaPendingRow" data-search="po-{{ ord.orderID }} {{ ord.furnitureName|lower }}">
                     <td data-label="Order">
                         <div>
                             <a href="/production/orders/{{ ord.orderID }}"
@@ -140,29 +159,17 @@
                     </td>
                 </tr>
                 {% endfor %}
+                <tr id="qaPendingEmptyRow" style="display: none;">
+                    <td colspan="7" style="text-align: center; color: var(--mt); padding: 28px;">
+                        No awaiting QA orders match your search criteria.
+                    </td>
+                </tr>
             </tbody>
         </table>
     </div>
-</div>
-
-<div class="card">
-    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 14px; flex-wrap: wrap; gap: 12px;">
-        <div>
-            <h3 style="margin: 0;">Inspection History</h3>
-            <small style="color: var(--mt);">Authoritative record of quality inspection outcomes, reasons, and inspectors.</small>
-        </div>
-        <form class="toolBar" style="margin-bottom: 0;" onsubmit="return false;">
-            <input type="text" id="qaHistorySearchInput" placeholder="Search order, product, inspector..." style="width: 250px;" oninput="filterQAHistoryTable()">
-            <select id="qaHistoryStatusSelect" style="width: 150px;" onchange="filterQAHistoryTable()">
-                <option value="">All Outcomes</option>
-                <option value="Passed">Passed</option>
-                <option value="Rework">Rework</option>
-                <option value="Failed">Failed</option>
-            </select>
-            <button type="button" id="qaHistoryResetBtn" class="actionButton secondary" style="padding: 7px 14px; font-size: 13px; display: none;" onclick="resetQAHistoryFilter()">Reset</button>
-        </form>
     </div>
 
+    <div id="qaHistorySection" style="display: none;">
     <div class="tableContainer">
         <table class="monitoringTable">
             <thead>
@@ -235,6 +242,7 @@
             <span id="qaHistoryPageIndicator" style="font-size: 12.5px; font-weight: 600; color: var(--tx);"></span>
             <button type="button" class="actionButton secondary" id="qaHistoryNextBtn" onclick="changeQAHistoryPage(1)" style="padding: 5px 12px; font-size: 12px;">Next &rarr;</button>
         </div>
+    </div>
     </div>
 </div>
 
@@ -474,19 +482,69 @@ window.addEventListener('pageshow', function() {
     }
 });
 
-let currentQAHistoryPage = 1;
-let qaHistoryPageSize = 10;
+var currentQAHistoryPage = 1;
+var qaHistoryPageSize = 10;
+
+window.setQAWorkspaceTab = function(tabKey) {
+    const key = tabKey || 'pending';
+    const pendingSection = document.getElementById('qaPendingSection');
+    const historySection = document.getElementById('qaHistorySection');
+    const activeInput = document.getElementById('qaActiveSectionInput');
+    const statusInput = document.getElementById('qaHistoryStatusSelect');
+    const qInput = document.getElementById('globalTabSearchInput');
+
+    const tabs = document.querySelectorAll('.workspaceFilterTabs .workspaceTabBtn[data-qatab]');
+    tabs.forEach(function(tab) {
+        if ((tab.getAttribute('data-qatab') || '') === key) {
+            tab.classList.add('active');
+        } else {
+            tab.classList.remove('active');
+        }
+    });
+
+    if (key === 'pending') {
+        if (activeInput) activeInput.value = 'pending';
+        if (pendingSection) pendingSection.style.display = 'block';
+        if (historySection) historySection.style.display = 'none';
+        if (qInput) qInput.placeholder = 'Search orders awaiting QA (#PO or product)...';
+    } else {
+        const outcome = key.startsWith('history:') ? key.slice(8) : '';
+        if (activeInput) activeInput.value = 'history';
+        if (statusInput) statusInput.value = outcome;
+        if (pendingSection) pendingSection.style.display = 'none';
+        if (historySection) historySection.style.display = 'block';
+        if (qInput) qInput.placeholder = 'Search inspection history (#PO, product, reason, inspector)...';
+    }
+
+    window.filterQAWorkspace(true);
+};
+
+window.filterQAWorkspace = function(resetPage = true) {
+    const q = (document.getElementById('globalTabSearchInput')?.value || '').toLowerCase().trim();
+    const pendingRows = document.querySelectorAll('tr.qaPendingRow');
+    let pendingVisible = 0;
+    pendingRows.forEach(function(row) {
+        const rowSearch = row.dataset.search || '';
+        if (!q || rowSearch.includes(q)) {
+            row.style.display = '';
+            pendingVisible++;
+        } else {
+            row.style.display = 'none';
+        }
+    });
+    const pendingEmpty = document.getElementById('qaPendingEmptyRow');
+    if (pendingEmpty) {
+        pendingEmpty.style.display = (pendingVisible === 0 && pendingRows.length > 0) ? '' : 'none';
+    }
+    window.filterQAHistoryTable(resetPage);
+};
 
 window.filterQAHistoryTable = function(resetPage = true) {
     if (resetPage) {
         currentQAHistoryPage = 1;
     }
-    const q = (document.getElementById('qaHistorySearchInput')?.value || '').toLowerCase().trim();
+    const q = (document.getElementById('globalTabSearchInput')?.value || '').toLowerCase().trim();
     const status = (document.getElementById('qaHistoryStatusSelect')?.value || '').trim();
-    const resetBtn = document.getElementById('qaHistoryResetBtn');
-    if (resetBtn) {
-        resetBtn.style.display = (q || status) ? 'inline-block' : 'none';
-    }
     const allRows = Array.from(document.querySelectorAll('tr.qaHistoryRow'));
     const matchingRows = allRows.filter(function(row) {
         const rowStatus = row.dataset.status || '';
@@ -566,23 +624,23 @@ window.changeQAHistoryPageSize = function(newSize) {
 };
 
 window.resetQAHistoryFilter = function() {
-    const qInput = document.getElementById('qaHistorySearchInput');
-    const statusSelect = document.getElementById('qaHistoryStatusSelect');
+    const qInput = document.getElementById('globalTabSearchInput');
     if (qInput) qInput.value = '';
-    if (statusSelect) statusSelect.value = '';
-    currentQAHistoryPage = 1;
-    window.filterQAHistoryTable(true);
+    if (typeof window.updateGlobalSearchClearBtn === 'function') {
+        window.updateGlobalSearchClearBtn();
+    }
+    window.setQAWorkspaceTab('history:');
 };
 
 if (document.readyState === 'loading') {
     document.addEventListener('DOMContentLoaded', function() {
-        window.filterQAHistoryTable(true);
+        window.filterQAWorkspace(true);
     });
 } else {
-    window.filterQAHistoryTable(true);
+    window.filterQAWorkspace(true);
 }
 window.addEventListener('pageshow', function() {
-    window.filterQAHistoryTable(false);
+    window.filterQAWorkspace(false);
 });
 </script>
 

@@ -100,8 +100,8 @@ window.updateLiveMrpCheck = function() {
     }
 };
 
-let currentOrdersPage = 1;
-let ordersPageSize = 10;
+var currentOrdersPage = 1;
+var ordersPageSize = 10;
 
 window.filterOrdersTable = function(resetPage = true) {
     if (resetPage) {

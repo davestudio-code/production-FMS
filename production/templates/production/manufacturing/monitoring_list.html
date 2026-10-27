@@ -6,34 +6,36 @@
 <div class="headerRow">
     <div>
         <h2>Production Progress Monitoring</h2>
-        <span style="color: var(--mt); font-size: 13.5px;">Live progress tracking of workshop
-            orders(prod_productionmonitoring)</span>
-    </div>
-</div>
-
-<div class="metricGrid">
-    <div class="metricCard">
-        <small>Active in Workshop</small>
-        <b>{{ summary.inProgress }} Orders</b>
-    </div>
-    <div class="metricCard">
-        <small>Assembly Completed</small>
-        <b>{{ summary.completed }} Orders</b>
-    </div>
-    <div class="metricCard">
-        <small>Total Monitored Orders</small>
-        <b>{{ summary.total }} Orders</b>
+        <span style="color: var(--mt); font-size: 13.5px;">Live workshop milestone tracking across active production batches</span>
     </div>
 </div>
 
 <div class="card">
-    <div class="headerRow" style="margin-bottom: 14px;">
-        <div>
-            <h3 style="margin: 0;">Workshop Production Line</h3>
-            <small style="color: var(--mt);">Real-time progress monitoring of actively assembling orders</small>
+    <div class="workspaceToolbar">
+        <div class="workspaceFilterTabs" role="tablist">
+            <button type="button" class="workspaceTabBtn active" data-state="" onclick="setMonitoringTab('')">
+                <span>All</span>
+                <span class="workspaceTabCount">{{ summary.total }}</span>
+            </button>
+            <button type="button" class="workspaceTabBtn" data-state="active" onclick="setMonitoringTab('active')">
+                <span class="tabStatusDot inProgress"></span>
+                <span>Active in Workshop</span>
+                <span class="workspaceTabCount">{{ summary.inProgress }}</span>
+            </button>
+            <button type="button" class="workspaceTabBtn" data-state="completed" onclick="setMonitoringTab('completed')">
+                <span class="tabStatusDot completed"></span>
+                <span>Completed</span>
+                <span class="workspaceTabCount">{{ summary.completed }}</span>
+            </button>
         </div>
-        <span class="statusBadge {{ 'inProgress' if summary.inProgress > 0 else 'draft' }}">{{ summary.inProgress }}
-            Active</span>
+
+        <div class="workspaceMetaGroup">
+            <span class="workspaceMetaPill {{ 'warn' if summary.inProgress > 0 else '' }}">
+                <span class="tabStatusDot inProgress"></span>
+                <span><b>{{ summary.inProgress }}</b> Active on Floor</span>
+            </span>
+        </div>
+        <input type="hidden" id="monitoringStateSelect" value="">
     </div>
 
     <div class="tableContainer">
@@ -49,7 +51,7 @@
             </thead>
             <tbody>
                 {% for mon in monitorings %}
-                <tr>
+                <tr class="monitoringRow" data-state="{{ 'completed' if mon.progress >= 100 else 'active' }}" data-search="po-{{ mon.orderID }} {{ mon.furnitureName|lower }} {{ 'completed qa passed' if mon.progress >= 100 else ('ready for qa' if mon.progress >= 90 else ('sanding finishing' if mon.progress >= 75 else ('joinery assembly' if mon.progress >= 50 else 'cutting sizing'))) }}">
                     <td data-label="Order">
                         <div>
                             <a href="/production/orders/{{ mon.orderID }}"
@@ -148,6 +150,9 @@
             under monitoring. Orders move here automatically once materials are issued.</td>
     </tr>
     {% endfor %}
+    <tr id="monitoringEmptyFilterRow" style="display: none;">
+        <td colspan="5" style="text-align: center; color: var(--mt); padding: 28px;">No monitored orders match your filter criteria.</td>
+    </tr>
     </tbody>
     </table>
 </div>

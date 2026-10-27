@@ -1,78 +1,110 @@
 {% extends "production/base.html" %}
 
 {% block content %}
+{% set initialView = 'timeline' if request.args.get('view') == 'timeline' else 'list' %}
 <div class="headerRow">
     <div>
         <h2>Production Planning</h2>
-        <span style="color: var(--mt); font-size: 13.5px;">Schedule workshop timelines and monitor milestone
-            dates</span>
-    </div>
-</div>
-
-<div
-    style="display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 14px; margin-bottom: 20px;">
-    <div class="card" style="padding: 14px 18px;">
-        <span style="font-size: 12px; color: var(--mt); text-transform: uppercase; font-weight: 600;">Total
-            Orders</span>
-        <div style="font-size: 24px; font-weight: 700; color: var(--t); margin-top: 4px;">{{ summary.total }}</div>
-    </div>
-    <div class="card" style="padding: 14px 18px;">
-        <span style="font-size: 12px; color: var(--mt); text-transform: uppercase; font-weight: 600;">Scheduled</span>
-        <div style="font-size: 24px; font-weight: 700; color: #2e628e; margin-top: 4px;">{{ summary.scheduled }}</div>
-    </div>
-    <div class="card" style="padding: 14px 18px;">
-        <span style="font-size: 12px; color: var(--mt); text-transform: uppercase; font-weight: 600;">Needs Dates</span>
-        <div style="font-size: 24px; font-weight: 700; color: #8e622a; margin-top: 4px;">{{ summary.needsDates }}</div>
-    </div>
-    <div class="card" style="padding: 14px 18px;">
-        <span style="font-size: 12px; color: var(--mt); text-transform: uppercase; font-weight: 600;">Overdue</span>
-        <div style="font-size: 24px; font-weight: 700; color: #9a4a3a; margin-top: 4px;">{{ summary.overdue }}</div>
+        <span style="color: var(--mt); font-size: 13.5px;">Master workshop schedule, visual batch timelines, and deadline conflict tracking</span>
     </div>
 </div>
 
 <div class="card">
-    <form class="toolBar" style="margin-bottom: 16px;" onsubmit="return false;">
-        <select id="planningStatusSelect" style="width: 190px;" onchange="filterPlanningTable()">
-            <option value="">All Lifecycle Stages</option>
-            <option value="Draft">Draft</option>
-            <option value="Released">Released</option>
-            <option value="In Progress">In Progress</option>
-            <option value="Completed">Completed</option>
-        </select>
-        <button type="button" id="planningResetBtn" class="actionButton secondary" style="padding: 8px 14px; font-size: 13px; display: none;" onclick="resetPlanningFilter()">Reset</button>
-    </form>
+    <div class="workspaceToolbar">
+        <div class="workspaceFilterTabs" role="tablist">
+            <button type="button" class="workspaceTabBtn active" data-health="" onclick="setPlanningHealthTab('')">
+                <span>All</span>
+                <span class="workspaceTabCount">{{ summary.total }}</span>
+            </button>
+            <button type="button" class="workspaceTabBtn" data-health="Needs Dates" onclick="setPlanningHealthTab('Needs Dates')">
+                <span class="tabStatusDot draft"></span>
+                <span>Needs Dates</span>
+                <span class="workspaceTabCount">{{ summary.needsDates }}</span>
+            </button>
+            <button type="button" class="workspaceTabBtn" data-health="On Schedule" onclick="setPlanningHealthTab('On Schedule')">
+                <span class="tabStatusDot completed"></span>
+                <span>On Schedule</span>
+                <span class="workspaceTabCount">{{ summary.scheduled }}</span>
+            </button>
+            <button type="button" class="workspaceTabBtn stockoutTab {{ 'hasAlerts' if summary.overdue > 0 else '' }}" data-health="Overdue" onclick="setPlanningHealthTab('Overdue')">
+                <span class="stockoutExclaim">!</span>
+                <span>Overdue</span>
+                <span class="workspaceTabCount">{{ summary.overdue }}</span>
+            </button>
+        </div>
 
+        <div class="workspaceSearchGroup">
+            <input type="hidden" id="planningHealthSelect" value="">
+            <input type="hidden" id="planningViewSelect" value="{{ initialView }}">
+            <input type="hidden" id="planningCanEdit" value="{{ '1' if session.get('role') == 'prodManager' else '0' }}">
+
+            <div class="viewModeToggle" role="group" aria-label="Planning View Switcher">
+                <button type="button" class="viewModeBtn {{ 'active' if initialView == 'list' else '' }}" data-planview="list" onclick="setPlanningView('list')">
+                    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><line x1="8" y1="6" x2="21" y2="6"></line><line x1="8" y1="12" x2="21" y2="12"></line><line x1="8" y1="18" x2="21" y2="18"></line><line x1="3" y1="6" x2="3.01" y2="6"></line><line x1="3" y1="12" x2="3.01" y2="12"></line><line x1="3" y1="18" x2="3.01" y2="18"></line></svg>
+                    <span>List</span>
+                </button>
+                <button type="button" class="viewModeBtn {{ 'active' if initialView == 'timeline' else '' }}" data-planview="timeline" onclick="setPlanningView('timeline')">
+                    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect><line x1="16" y1="2" x2="16" y2="6"></line><line x1="8" y1="2" x2="8" y2="6"></line><line x1="3" y1="10" x2="21" y2="10"></line></svg>
+                    <span>Calendar</span>
+                </button>
+            </div>
+
+            <select id="planningStatusSelect" style="width: 155px; padding: 6px 10px; font-size: 12.5px;" onchange="filterPlanningTable()">
+                <option value="" {{ 'selected' if not statusFilter else '' }}>All Stages</option>
+                <option value="Draft" {{ 'selected' if statusFilter == 'Draft' else '' }}>Draft</option>
+                <option value="Released" {{ 'selected' if statusFilter == 'Released' else '' }}>Released</option>
+                <option value="In Progress" {{ 'selected' if statusFilter == 'In Progress' else '' }}>In Progress</option>
+                <option value="Completed" {{ 'selected' if statusFilter == 'Completed' else '' }}>Completed</option>
+            </select>
+        </div>
+    </div>
+
+    <div id="planningListSection" style="{{ 'display: none;' if initialView == 'timeline' else '' }}">
     <div class="tableContainer">
         <table>
             <thead>
                 <tr>
                     <th>Order Ref</th>
                     <th>Furniture Product</th>
-                    <th>Batch Quantity</th>
-                    <th>Order Stage</th>
-                    <th>Planned Start</th>
-                    <th>Target Due Date</th>
-                    <th>Schedule Health</th>
+                    <th>Batch Qty</th>
+                    <th>Stage</th>
+                    <th>Timeline</th>
+                    <th>Health</th>
                     <th>Action</th>
                 </tr>
             </thead>
             <tbody>
                 {% for ord in plannedOrders %}
-                <tr class="planningRow" data-status="{{ ord.status }}" data-search="po-{{ ord.orderID }} {{ ord.furnitureName|lower }} {{ ord.furnitureType|lower }}">
-                    <td><b>#PO-{{ ord.orderID }}</b></td>
+                <tr class="planningRow"
+                    data-order-id="{{ ord.orderID }}"
+                    data-product="{{ ord.furnitureName }}"
+                    data-category="{{ ord.furnitureType }}"
+                    data-qty="{{ ord.plannedQuantity }}"
+                    data-status="{{ ord.status }}"
+                    data-health="{{ ord.scheduleHealth }}"
+                    data-start="{{ ord.plannedStartDate.isoformat() if ord.plannedStartDate else '' }}"
+                    data-due="{{ ord.dueDate.isoformat() if ord.dueDate else '' }}"
+                    data-date-label="{{ (ord.plannedStartDate|date_fmt or '—') ~ ' → ' ~ (ord.dueDate|date_fmt or '—') }}"
+                    data-search="po-{{ ord.orderID }} {{ ord.furnitureName|lower }} {{ ord.furnitureType|lower }}">
+                    <td><a href="/production/orders/{{ ord.orderID }}" style="color: var(--p); font-weight: 700; text-decoration: none;">#PO-{{ ord.orderID }}</a></td>
                     <td>
                         <b>{{ ord.furnitureName }}</b>
                         <span style="display: block; font-size: 12px; color: var(--mt);">{{ ord.furnitureType }}</span>
                     </td>
-                    <td><b>{{ ord.plannedQuantity }} units</b></td>
+                    <td><b>{{ ord.plannedQuantity }} {{ 'unit' if ord.plannedQuantity == 1 else 'units' }}</b></td>
                     <td>
                         <span
                             class="statusBadge {{ 'completed' if ord.status == 'Completed' else ('inProgress' if ord.status == 'In Progress' else ('released' if ord.status == 'Released' else 'draft')) }}">
                             {{ ord.status }}
                         </span>
                     </td>
-                    <td>{{ ord.plannedStartDate|date_fmt or '—' }}</td>
-                    <td><b>{{ ord.dueDate|date_fmt or '—' }}</b></td>
+                    <td>
+                        {% if ord.plannedStartDate or ord.dueDate %}
+                        <b>{{ ord.plannedStartDate|date_fmt or '—' }} &rarr; {{ ord.dueDate|date_fmt or '—' }}</b>
+                        {% else %}
+                        <span style="color: var(--mt); font-size: 12.5px;">Not Scheduled</span>
+                        {% endif %}
+                    </td>
                     <td>
                         {% if ord.scheduleHealth == 'Overdue' %}
                         <span class="statusBadge"
@@ -92,7 +124,7 @@
                             {% if session.get('role') == 'prodManager' %}
                             <button type="button" class="actionButton secondary" style="padding: 4px 9px; font-size: 11.5px;"
                                 onclick="openScheduleModal('{{ ord.orderID }}', '{{ ord.furnitureName|replace('\'', '\\\'') }}', '{{ ord.plannedStartDate or '' }}', '{{ ord.dueDate or '' }}')">
-                                Edit Dates
+                                {{ 'Edit Dates' if (ord.plannedStartDate or ord.dueDate) else '+ Set Dates' }}
                             </button>
                             {% if ord.status == 'Draft' %}
                             <a href="/production/requirement?order_id={{ ord.orderID }}" class="actionButton" style="padding: 4px 9px; font-size: 11.5px; text-decoration: none; white-space: nowrap;">
@@ -107,18 +139,36 @@
                 </tr>
                 {% else %}
                 <tr>
-                    <td colspan="8" style="text-align: center; color: var(--mt); padding: 28px;">
+                    <td colspan="7" style="text-align: center; color: var(--mt); padding: 28px;">
                         No production orders found. Create orders in 'Production Order' to schedule them here.
                     </td>
                 </tr>
                 {% endfor %}
                 <tr id="planningEmptyRow" style="display: none;">
-                    <td colspan="8" style="text-align: center; color: var(--mt); padding: 28px;">
+                    <td colspan="7" style="text-align: center; color: var(--mt); padding: 28px;">
                         No planned orders match your filter criteria.
                     </td>
                 </tr>
             </tbody>
         </table>
+    </div>
+    </div>
+
+    <div id="planningTimelineSection" style="{{ '' if initialView == 'timeline' else 'display: none;' }}">
+        <div class="ganttHeaderBar">
+            <div class="ganttNavControls">
+                <button type="button" class="actionButton secondary" style="padding: 5px 11px; font-size: 12px;" onclick="shiftPlanningTimeline(-7)">&larr; Prev</button>
+                <button type="button" class="actionButton secondary" style="padding: 5px 11px; font-size: 12px;" onclick="shiftPlanningTimeline(0)">Today</button>
+                <button type="button" class="actionButton secondary" style="padding: 5px 11px; font-size: 12px;" onclick="shiftPlanningTimeline(7)">Next &rarr;</button>
+                <span id="ganttRangeLabel" class="ganttRangeTitle"></span>
+            </div>
+
+            <span id="ganttTodayLoadPill" class="workspaceMetaPill"></span>
+        </div>
+
+        <div class="ganttScrollWrap">
+            <div id="ganttGridContainer"></div>
+        </div>
     </div>
 </div>
 
@@ -129,6 +179,7 @@
             <button class="modalClose" onclick="closeModal('scheduleModal')">&times;</button>
         </div>
         <form id="scheduleForm" method="POST" action="">
+            <input type="hidden" id="scheduleNextUrlInput" name="next_url" value="">
             <div
                 style="margin-bottom: 14px; padding: 10px 14px; background: var(--bg); border: 1px solid var(--s); border-radius: 6px;">
                 <span id="scheduleOrderProduct" style="font-weight: 600; font-size: 14px;"></span>
@@ -150,5 +201,5 @@
     </div>
 </div>
 
-<script src="/production/feature-static/planning/planning.js"></script>
+<script src="/production/feature-static/planning/planning.js?v=20261027b"></script>
 {% endblock %}

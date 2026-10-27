@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>Velmora Co. &middot; Production ERP</title>
     <link rel="icon" type="image/png" href="/production/static/images/velmora-logo.png">
-    <link rel="stylesheet" href="/production/static/css/style.css">
+    <link rel="stylesheet" href="/production/static/css/style.css?v=20261027b">
 </head>
 <body>
     <div class="container">
@@ -397,16 +397,13 @@
             const navLinks = document.querySelectorAll('.navLinksContainer a');
             const mainContainer = document.querySelector('main');
 
-            function getSkeletonHtml() {
-                return `
-                    <div class="skeletonContainer">
-                        <div class="headerRow">
-                            <div>
-                                <div class="skeletonBlock skeletonTitle"></div>
-                                <div class="skeletonBlock skeletonSubtitle"></div>
-                            </div>
-                            <div class="skeletonBlock skeletonButton"></div>
-                        </div>
+            function getSkeletonHtml(targetUrl) {
+                let targetPath = '/production';
+                try {
+                    targetPath = new URL(targetUrl || window.location.href, window.location.origin).pathname.replace(/\/+$/, '') || '/production';
+                } catch (e) {}
+                const showKpiRow = (targetPath === '/production' || targetPath === '/production/reports');
+                const kpiHtml = showKpiRow ? `
                         <div class="skeletonMetricGrid">
                             <div class="skeletonCard skeletonMetricCard">
                                 <div class="skeletonBlock" style="width: 70px; height: 12px; margin-bottom: 10px;"></div>
@@ -424,11 +421,21 @@
                                 <div class="skeletonBlock" style="width: 70px; height: 12px; margin-bottom: 10px;"></div>
                                 <div class="skeletonBlock" style="width: 50px; height: 26px;"></div>
                             </div>
+                        </div>` : '';
+
+                return `
+                    <div class="skeletonContainer">
+                        <div class="headerRow">
+                            <div>
+                                <div class="skeletonBlock skeletonTitle"></div>
+                                <div class="skeletonBlock skeletonSubtitle"></div>
+                            </div>
                         </div>
+                        ${kpiHtml}
                         <div class="skeletonCard" style="padding: 20px;">
-                            <div style="display: flex; gap: 12px; margin-bottom: 18px;">
-                                <div class="skeletonBlock" style="width: 240px; height: 36px; border-radius: 8px;"></div>
-                                <div class="skeletonBlock" style="width: 140px; height: 36px; border-radius: 8px;"></div>
+                            <div style="display: flex; justify-content: space-between; gap: 12px; margin-bottom: 18px;">
+                                <div class="skeletonBlock" style="width: 340px; height: 36px; border-radius: 10px;"></div>
+                                <div class="skeletonBlock" style="width: 150px; height: 36px; border-radius: 8px;"></div>
                             </div>
                             <div class="skeletonBlock" style="width: 100%; height: 34px; margin-bottom: 12px; border-radius: 6px;"></div>
                             <div class="skeletonBlock" style="width: 100%; height: 44px; margin-bottom: 10px; opacity: 0.85;"></div>
@@ -455,8 +462,14 @@
                 if (p === '/production/planning') return 'Search scheduled orders, #PO, or products...';
                 if (p === '/production/requirement') return 'Search required raw materials...';
                 if (p === '/production/issuance') return 'Search orders awaiting material dispatch...';
-                if (p === '/production/monitoring') return 'Search active workshop orders or products...';
-                if (p === '/production/finished-goods') return 'Search QA queue, #PO, product, or inspector...';
+                if (p === '/production/monitoring') return 'Search workshop orders, #PO, products, or stage...';
+                if (p === '/production/finished-goods') {
+                    const qaSec = document.getElementById('qaActiveSectionInput');
+                    if (qaSec && qaSec.value === 'history') {
+                        return 'Search inspection history (#PO, product, reason, inspector)...';
+                    }
+                    return 'Search orders awaiting QA (#PO or product)...';
+                }
                 if (p === '/production/costing') return 'Search batch cost sheets by order or product...';
                 if (p === '/production/reports') return 'Search report & audit records...';
                 if (p === '/production/materials') return 'Search raw materials...';
@@ -504,19 +517,16 @@
                     window.filterPlanningTable();
                     return;
                 }
-                if (p === '/production/finished-goods') {
-                    const qaInput = document.getElementById('qaHistorySearchInput');
-                    if (qaInput) {
-                        qaInput.value = rawVal || '';
-                        if (typeof window.filterQAHistoryTable === 'function') {
-                            window.filterQAHistoryTable(true);
-                        }
-                    }
-                    const firstCardRows = document.querySelectorAll('main .card:first-of-type table tbody tr');
-                    firstCardRows.forEach(function(row) {
-                        if (row.querySelector('td[colspan]')) return;
-                        row.style.display = (!q || row.textContent.toLowerCase().includes(q)) ? '' : 'none';
-                    });
+                if (p === '/production/monitoring' && typeof window.filterMonitoringTable === 'function') {
+                    window.filterMonitoringTable();
+                    return;
+                }
+                if (p === '/production/finished-goods' && typeof window.filterQAWorkspace === 'function') {
+                    window.filterQAWorkspace(true);
+                    return;
+                }
+                if (p === '/production/costing' && typeof window.filterCostingTable === 'function') {
+                    window.filterCostingTable();
                     return;
                 }
                 if (p === '/production/reports') {
@@ -645,7 +655,7 @@
                 });
 
                 if (mainContainer) {
-                    mainContainer.innerHTML = getSkeletonHtml();
+                    mainContainer.innerHTML = getSkeletonHtml(targetUrl);
                 }
 
                 console.log('[SPA Navigation] Requesting tab content for:', targetUrl);

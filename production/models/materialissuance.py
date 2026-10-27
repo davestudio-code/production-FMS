@@ -84,6 +84,7 @@ class MaterialIssuance:
                            mi.material_id,
                            mi.quantity_issued,
                            mi.issue_date,
+                           mi.recorded_by,
                            im.item_name AS material_name,
                            im.unit AS unit,
                            f.furniture_name AS furniture_name

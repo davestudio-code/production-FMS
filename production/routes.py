@@ -711,7 +711,60 @@ def orderDetail(orderID):
         bomItems = bom.getItems() if bom else []
         estimatedUnitMaterialCost = sum((item.quantityRequired * item.unitCost for item in bomItems), Decimal("0.00"))
         estimatedBatchMaterialCost = estimatedUnitMaterialCost * Decimal(str(order.plannedQuantity))
-        requirements = bom.calculateRequirements(order.plannedQuantity) if bom else []
+        rawRequirements = bom.calculateRequirements(order.plannedQuantity) if bom else []
+
+        reservedMap = {}
+        if order.status == "Draft":
+            otherReleased = [o for o in ProductionOrder.getAll() if o.status == "Released" and o.orderID != order.orderID]
+            for ro in otherReleased:
+                try:
+                    roBom = BillOfMaterials.getByFurnitureID(ro.furnitureID, autoCreate=False)
+                    if roBom:
+                        for r in roBom.calculateRequirements(Decimal(str(ro.plannedQuantity))):
+                            mid = r["materialID"]
+                            reservedMap[mid] = reservedMap.get(mid, Decimal("0.000")) + r["batchQuantity"]
+                except Exception:
+                    pass
+
+        matsMap = {m.materialID: m for m in Material.getAll()}
+        issuances = MaterialIssuance.getByOrderID(orderID)
+        issuedByMaterial = {}
+        for iss in issuances:
+            issuedByMaterial[iss.materialID] = issuedByMaterial.get(iss.materialID, Decimal("0.000")) + iss.quantityIssued
+
+        requirements = []
+        shortageCount = 0
+        for req in rawRequirements:
+            mid = req["materialID"]
+            mat = matsMap.get(mid)
+            onHand = mat.currentStock if mat else Decimal("0.000")
+            reserved = reservedMap.get(mid, Decimal("0.000"))
+            availableNet = max(Decimal("0.000"), onHand - reserved)
+            required = req["batchQuantity"]
+            if order.status == "Draft":
+                isShort = availableNet < required
+                shortage = max(Decimal("0.000"), required - availableNet)
+            elif order.status == "Released":
+                isShort = onHand < required
+                shortage = max(Decimal("0.000"), required - onHand)
+            else:
+                isShort = False
+                shortage = Decimal("0.000")
+            if isShort:
+                shortageCount += 1
+            enriched = dict(req)
+            enriched["itemCode"] = (mat.itemCode if mat and mat.itemCode else req.get("itemCode")) or f"RM-{mid:03d}"
+            enriched["onHandQuantity"] = onHand
+            enriched["availableNet"] = availableNet
+            enriched["shortageQuantity"] = shortage
+            enriched["isShort"] = isShort
+            enriched["issuedQuantity"] = issuedByMaterial.get(mid, Decimal("0.000"))
+            requirements.append(enriched)
+
+        monitoring = ProductionMonitoring.getByOrderID(orderID)
+        qaRecords = ProductionOutput.getByOrderID(orderID)
+        qaSummary = ProductionOutput.getOrderInspectionSummary(orderID)
+        costRecord = ProductionCost.getByOrderID(orderID)
     except Exception as err:
         flash(f"Failed to load order details: {str(err)}", "error")
         return redirect(url_for("production.orderList"))
@@ -721,6 +774,12 @@ def orderDetail(orderID):
         activeTab="orders",
         order=order,
         requirements=requirements,
+        shortageCount=shortageCount,
+        monitoring=monitoring,
+        issuances=issuances,
+        qaRecords=qaRecords,
+        qaSummary=qaSummary,
+        costRecord=costRecord,
         estimatedUnitMaterialCost=estimatedUnitMaterialCost,
         estimatedBatchMaterialCost=estimatedBatchMaterialCost
     )
@@ -813,10 +872,10 @@ def planningList():
     statusFilter = request.args.get("status", "").strip()
     searchQuery = request.args.get("q", "").strip()
     try:
-        plannedOrders = ProductionOrder.getPlanningOrders(statusFilter=statusFilter, searchQuery=searchQuery)
+        plannedOrders = ProductionOrder.getPlanningOrders()
         totalCount = len(plannedOrders)
-        scheduledCount = sum(1 for o in plannedOrders if o.plannedStartDate and o.dueDate)
-        needsDatesCount = sum(1 for o in plannedOrders if not o.plannedStartDate and not o.dueDate)
+        scheduledCount = sum(1 for o in plannedOrders if o.scheduleHealth == "On Schedule")
+        needsDatesCount = sum(1 for o in plannedOrders if o.scheduleHealth == "Needs Dates")
         overdueCount = sum(1 for o in plannedOrders if o.scheduleHealth == "Overdue")
         summary = {
             "total": totalCount,

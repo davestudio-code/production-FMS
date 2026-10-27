@@ -1,15 +1,16 @@
 {% extends "production/base.html" %}
 
 {% block content %}
-<div style="margin-bottom: 14px;">
+{% set activityCount = (issuances|length) + (qaRecords|length) + (1 if costRecord else 0) %}
+<div style="margin-bottom: 12px;">
     <a href="/production/orders" style="color: var(--p); text-decoration: none; font-size: 13px; font-weight: 600; display: inline-flex; align-items: center; gap: 6px;">
         &larr; Back to Production Orders
     </a>
 </div>
 
-<div class="headerRow" style="align-items: flex-start; margin-bottom: 20px; gap: 16px;">
-    <div style="flex-shrink: 0;">
-        <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 4px; flex-wrap: nowrap;">
+<div class="headerRow" style="align-items: flex-start; margin-bottom: 18px; gap: 16px;">
+    <div>
+        <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 4px; flex-wrap: wrap;">
             <h2 style="margin: 0; white-space: nowrap;">Order #PO-{{ order.orderID }}</h2>
             <span class="statusBadge {{ 'completed' if order.status == 'Completed' else ('inProgress' if order.status == 'In Progress' else ('released' if order.status == 'Released' else 'draft')) }}" style="white-space: nowrap;">
                 {{ order.status }}
@@ -24,175 +25,354 @@
             </span>
             {% endif %}
         </div>
-        <span style="color: var(--mt); font-size: 13.5px; white-space: nowrap;">{{ order.furnitureName }} ({{ order.furnitureType }}) &bull; Ordered on {{ order.orderDate|date_fmt }}</span>
+        <span style="color: var(--mt); font-size: 13.5px;"><b>{{ order.furnitureName }}</b> ({{ order.furnitureType }}) &bull; Ordered on {{ order.orderDate|date_fmt }}</span>
     </div>
 
-    {% if order.status == 'Draft' and session.get('role') == 'prodManager' %}
-    <div style="display: flex; gap: 8px; align-items: center; flex-wrap: nowrap;">
-        {% if not order.plannedStartDate or not order.dueDate %}
-        <a href="/production/planning?q=PO-{{ order.orderID }}" class="actionButton" style="padding: 6px 12px; font-size: 12.5px; text-decoration: none; white-space: nowrap;">Schedule in Planning &rarr;</a>
-        <a href="/production/requirement?order_id={{ order.orderID }}" class="actionButton secondary" style="padding: 6px 12px; font-size: 12.5px; text-decoration: none; white-space: nowrap;">Check Requirements & Release &rarr;</a>
-        {% else %}
-        <a href="/production/requirement?order_id={{ order.orderID }}" class="actionButton" style="padding: 6px 12px; font-size: 12.5px; text-decoration: none; white-space: nowrap;">Check Requirements & Release &rarr;</a>
-        <a href="/production/planning?q=PO-{{ order.orderID }}" class="actionButton secondary" style="padding: 6px 12px; font-size: 12.5px; text-decoration: none; white-space: nowrap;">Production Planning &rarr;</a>
-        {% endif %}
+    <div style="display: flex; gap: 8px; align-items: center; flex-wrap: wrap;">
+        <a href="/production/planning?view=timeline" class="actionButton secondary" style="padding: 7px 13px; font-size: 12.5px; text-decoration: none; white-space: nowrap;">Master Timeline &rarr;</a>
+        {% if order.status == 'Draft' and session.get('role') == 'prodManager' %}
+        <a href="/production/requirement?order_id={{ order.orderID }}" class="actionButton" style="padding: 7px 14px; font-size: 12.5px; text-decoration: none; white-space: nowrap;">Verify Stock &amp; Release &rarr;</a>
         <form method="POST" action="/production/orders/delete/{{ order.orderID }}" onsubmit="return confirm('Are you sure you want to delete Draft Order #PO-{{ order.orderID }}?');" style="display: inline; margin: 0;">
-            <button type="submit" class="actionButton secondary" style="color: #9a4a3a; border-color: #e2bcb3; padding: 6px 12px; font-size: 12.5px; white-space: nowrap;">Delete Draft Order</button>
+            <button type="submit" class="actionButton secondary" style="color: #9a4a3a; border-color: #e2bcb3; padding: 7px 12px; font-size: 12.5px; white-space: nowrap;">Delete Draft</button>
         </form>
+        {% elif order.status == 'Released' and session.get('role') == 'prodManager' %}
+        <a href="/production/issuance" class="actionButton" style="padding: 7px 14px; font-size: 12.5px; text-decoration: none; white-space: nowrap;">Dispatch Materials &rarr;</a>
+        {% elif order.status == 'In Progress' %}
+            {% if monitoring and monitoring.progress >= 90 %}
+            <a href="/production/finished-goods" class="actionButton" style="padding: 7px 14px; font-size: 12.5px; text-decoration: none; white-space: nowrap;">Inspect in Finished Goods &rarr;</a>
+            {% else %}
+            <a href="/production/monitoring" class="actionButton" style="padding: 7px 14px; font-size: 12.5px; text-decoration: none; white-space: nowrap;">Update Shop Floor &rarr;</a>
+            {% endif %}
+        {% elif order.status == 'Completed' and session.get('role') == 'prodManager' %}
+        <a href="/production/costing" class="actionButton" style="padding: 7px 14px; font-size: 12.5px; text-decoration: none; white-space: nowrap;">{{ 'Batch Cost Sheet' if costRecord else 'Finalize Batch Cost' }} &rarr;</a>
+        {% endif %}
     </div>
-    {% elif order.status == 'Released' and session.get('role') == 'prodManager' %}
-    <div style="display: flex; gap: 8px; align-items: center; flex-wrap: nowrap;">
-        <a href="/production/issuance" class="actionButton" style="padding: 6px 12px; font-size: 12.5px; text-decoration: none; white-space: nowrap;">Issue Materials &rarr;</a>
-        <a href="/production/planning?q=PO-{{ order.orderID }}" class="actionButton secondary" style="padding: 6px 12px; font-size: 12.5px; text-decoration: none; white-space: nowrap;">View in Planning &rarr;</a>
-    </div>
-    {% endif %}
 </div>
 
-<div class="card" style="margin-bottom: 20px; padding: 14px 18px; background: #faf8f3;">
+<div class="card" style="margin-bottom: 20px; padding: 18px 20px;">
     <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; flex-wrap: wrap; gap: 8px;">
-        <span style="font-size: 11px; font-weight: 700; text-transform: uppercase; color: var(--mt); letter-spacing: 0.5px;">Order Lifecycle & Workflow</span>
-        <span style="font-size: 12px; color: var(--mt);">Current Stage: <b>{{ order.status }}</b></span>
+        <span style="font-size: 11px; font-weight: 700; text-transform: uppercase; color: var(--mt); letter-spacing: 0.5px;">Order Lifecycle &amp; Workflow</span>
+        <span style="font-size: 12px; color: var(--mt);">
+            {% if order.scheduleHealth == 'Overdue' %}
+            <span style="color: #9a4a3a; font-weight: 700;">! Overdue Schedule</span>
+            {% elif order.scheduleHealth == 'On Schedule' %}
+            <span style="color: #357a58; font-weight: 600;">&bull; On Schedule</span>
+            {% elif order.status == 'Completed' %}
+            <span style="color: #357a58; font-weight: 600;">&checkmark; Order Finalized</span>
+            {% else %}
+            <span>Awaiting Timeline Dates</span>
+            {% endif %}
+        </span>
     </div>
-    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(130px, 1fr)); gap: 8px;">
-        <div style="border-radius: 6px; padding: 8px 10px; background: rgba(53, 122, 88, 0.12); border: 1px solid rgba(53, 122, 88, 0.3);">
-            <span style="font-size: 10.5px; font-weight: 600; color: #357a58; display: block;">1. Order Created</span>
-            <span style="font-size: 11.5px; font-weight: 600; color: var(--tx);">Draft Registered</span>
+
+    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(135px, 1fr)); gap: 8px;">
+        <div style="border-radius: 7px; padding: 8px 11px; background: rgba(53, 122, 88, 0.10); border: 1px solid rgba(53, 122, 88, 0.28);">
+            <span style="font-size: 10.5px; font-weight: 700; color: #357a58; display: block;">1. Order Created</span>
+            <span style="font-size: 12px; font-weight: 600; color: var(--tx);">{{ order.orderDate|date_fmt }}</span>
         </div>
-        <div style="border-radius: 6px; padding: 8px 10px; background: {% if order.plannedStartDate and order.dueDate %}rgba(53, 122, 88, 0.12){% elif order.status == 'Draft' %}rgba(181, 143, 85, 0.15){% else %}rgba(0,0,0,0.03){% endif %}; border: 1px solid {% if order.plannedStartDate and order.dueDate %}rgba(53, 122, 88, 0.3){% elif order.status == 'Draft' %}rgba(181, 143, 85, 0.4){% else %}var(--bd){% endif %};">
-            <span style="font-size: 10.5px; font-weight: 600; color: {% if order.plannedStartDate and order.dueDate %}#357a58{% else %}#8e622a{% endif %}; display: block;">2. Planning</span>
-            <a href="/production/planning?q=PO-{{ order.orderID }}" style="font-size: 11.5px; font-weight: 600; color: var(--tx); text-decoration: none;">
+        <div style="border-radius: 7px; padding: 8px 11px; background: {% if order.plannedStartDate and order.dueDate %}rgba(53, 122, 88, 0.10){% elif order.status == 'Draft' %}rgba(181, 143, 85, 0.14){% else %}rgba(0,0,0,0.025){% endif %}; border: 1px solid {% if order.plannedStartDate and order.dueDate %}rgba(53, 122, 88, 0.28){% elif order.status == 'Draft' %}rgba(181, 143, 85, 0.36){% else %}var(--bd){% endif %};">
+            <span style="font-size: 10.5px; font-weight: 700; color: {% if order.plannedStartDate and order.dueDate %}#357a58{% else %}#8e622a{% endif %}; display: block;">2. Planning</span>
+            <a href="/production/planning?view=timeline" style="font-size: 12px; font-weight: 600; color: var(--tx); text-decoration: none;">
                 {{ 'Scheduled' if order.plannedStartDate and order.dueDate else 'Needs Dates →' }}
             </a>
         </div>
-        <div style="border-radius: 6px; padding: 8px 10px; background: {% if order.status in ['Released', 'In Progress', 'Completed'] %}rgba(53, 122, 88, 0.12){% elif order.status == 'Draft' and order.plannedStartDate and order.dueDate %}rgba(102, 117, 76, 0.15){% else %}rgba(0,0,0,0.03){% endif %}; border: 1px solid {% if order.status in ['Released', 'In Progress', 'Completed'] %}rgba(53, 122, 88, 0.3){% elif order.status == 'Draft' and order.plannedStartDate and order.dueDate %}rgba(102, 117, 76, 0.4){% else %}var(--bd){% endif %};">
-            <span style="font-size: 10.5px; font-weight: 600; color: {% if order.status in ['Released', 'In Progress', 'Completed'] %}#357a58{% else %}var(--mt){% endif %}; display: block;">3. MRP & Release</span>
-            <a href="/production/requirement?order_id={{ order.orderID }}" style="font-size: 11.5px; font-weight: 600; color: var(--tx); text-decoration: none;">
-                {{ 'Released' if order.status in ['Released', 'In Progress', 'Completed'] else 'Check Stock →' }}
+        <div style="border-radius: 7px; padding: 8px 11px; background: {% if order.status in ['Released', 'In Progress', 'Completed'] %}rgba(53, 122, 88, 0.10){% elif order.status == 'Draft' and shortageCount == 0 and requirements|length > 0 %}rgba(102, 117, 76, 0.14){% else %}rgba(0,0,0,0.025){% endif %}; border: 1px solid {% if order.status in ['Released', 'In Progress', 'Completed'] %}rgba(53, 122, 88, 0.28){% elif order.status == 'Draft' and shortageCount == 0 and requirements|length > 0 %}rgba(102, 117, 76, 0.36){% else %}var(--bd){% endif %};">
+            <span style="font-size: 10.5px; font-weight: 700; color: {% if order.status in ['Released', 'In Progress', 'Completed'] %}#357a58{% else %}var(--mt){% endif %}; display: block;">3. MRP &amp; Release</span>
+            <a href="/production/requirement?order_id={{ order.orderID }}" style="font-size: 12px; font-weight: 600; color: var(--tx); text-decoration: none;">
+                {{ 'Released' if order.status in ['Released', 'In Progress', 'Completed'] else ('Shortage (' ~ shortageCount ~ ') →' if shortageCount > 0 else 'Ready to Release →') }}
             </a>
         </div>
-        <div style="border-radius: 6px; padding: 8px 10px; background: {% if order.status in ['In Progress', 'Completed'] %}rgba(53, 122, 88, 0.12){% elif order.status == 'Released' %}rgba(102, 117, 76, 0.15){% else %}rgba(0,0,0,0.03){% endif %}; border: 1px solid {% if order.status in ['In Progress', 'Completed'] %}rgba(53, 122, 88, 0.3){% elif order.status == 'Released' %}rgba(102, 117, 76, 0.4){% else %}var(--bd){% endif %};">
-            <span style="font-size: 10.5px; font-weight: 600; color: {% if order.status in ['In Progress', 'Completed'] %}#357a58{% else %}var(--mt){% endif %}; display: block;">4. Material Issuance</span>
-            <a href="/production/issuance" style="font-size: 11.5px; font-weight: 600; color: var(--tx); text-decoration: none;">
-                {{ 'Issued' if order.status in ['In Progress', 'Completed'] else ('Issue Now →' if order.status == 'Released' else 'Pending Release') }}
+        <div style="border-radius: 7px; padding: 8px 11px; background: {% if order.status in ['In Progress', 'Completed'] %}rgba(53, 122, 88, 0.10){% elif order.status == 'Released' %}rgba(102, 117, 76, 0.14){% else %}rgba(0,0,0,0.025){% endif %}; border: 1px solid {% if order.status in ['In Progress', 'Completed'] %}rgba(53, 122, 88, 0.28){% elif order.status == 'Released' %}rgba(102, 117, 76, 0.36){% else %}var(--bd){% endif %};">
+            <span style="font-size: 10.5px; font-weight: 700; color: {% if order.status in ['In Progress', 'Completed'] %}#357a58{% else %}var(--mt){% endif %}; display: block;">4. Material Issuance</span>
+            <a href="/production/issuance" style="font-size: 12px; font-weight: 600; color: var(--tx); text-decoration: none;">
+                {{ 'Dispatched' if order.status in ['In Progress', 'Completed'] else ('Dispatch Now →' if order.status == 'Released' else 'Pending Release') }}
             </a>
         </div>
-        <div style="border-radius: 6px; padding: 8px 10px; background: {% if order.status == 'Completed' %}rgba(53, 122, 88, 0.12){% elif order.status == 'In Progress' %}rgba(46, 98, 142, 0.15){% else %}rgba(0,0,0,0.03){% endif %}; border: 1px solid {% if order.status == 'Completed' %}rgba(53, 122, 88, 0.3){% elif order.status == 'In Progress' %}rgba(46, 98, 142, 0.4){% else %}var(--bd){% endif %};">
-            <span style="font-size: 10.5px; font-weight: 600; color: {% if order.status == 'Completed' %}#357a58{% elif order.status == 'In Progress' %}#2e628e{% else %}var(--mt){% endif %}; display: block;">5. Shop Floor</span>
-            <a href="/production/monitoring" style="font-size: 11.5px; font-weight: 600; color: var(--tx); text-decoration: none;">
-                {{ 'Finished' if order.status == 'Completed' else ('Monitoring →' if order.status == 'In Progress' else 'Pending Issuance') }}
+        <div style="border-radius: 7px; padding: 8px 11px; background: {% if order.status == 'Completed' %}rgba(53, 122, 88, 0.10){% elif order.status == 'In Progress' %}rgba(46, 98, 142, 0.12){% else %}rgba(0,0,0,0.025){% endif %}; border: 1px solid {% if order.status == 'Completed' %}rgba(53, 122, 88, 0.28){% elif order.status == 'In Progress' %}rgba(46, 98, 142, 0.34){% else %}var(--bd){% endif %};">
+            <span style="font-size: 10.5px; font-weight: 700; color: {% if order.status == 'Completed' %}#357a58{% elif order.status == 'In Progress' %}#2e628e{% else %}var(--mt){% endif %}; display: block;">5. Shop Floor</span>
+            <a href="/production/monitoring" style="font-size: 12px; font-weight: 600; color: var(--tx); text-decoration: none;">
+                {% if order.status == 'Completed' %}
+                100% Finished
+                {% elif order.status == 'In Progress' and monitoring %}
+                {{ monitoring.progress|round|int }}% In Assembly →
+                {% else %}
+                Pending Issuance
+                {% endif %}
             </a>
         </div>
-        <div style="border-radius: 6px; padding: 8px 10px; background: {% if order.status == 'Completed' %}rgba(53, 122, 88, 0.12){% else %}rgba(0,0,0,0.03){% endif %}; border: 1px solid {% if order.status == 'Completed' %}rgba(53, 122, 88, 0.3){% else %}var(--bd){% endif %};">
-            <span style="font-size: 10.5px; font-weight: 600; color: {% if order.status == 'Completed' %}#357a58{% else %}var(--mt){% endif %}; display: block;">6. Finished Goods</span>
-            <a href="/production/finished-goods" style="font-size: 11.5px; font-weight: 600; color: var(--tx); text-decoration: none;">
-                {{ 'Completed' if order.status == 'Completed' else 'Pending Inspection' }}
+        <div style="border-radius: 7px; padding: 8px 11px; background: {% if order.status == 'Completed' %}rgba(53, 122, 88, 0.10){% elif monitoring and monitoring.progress >= 90 %}rgba(196, 137, 39, 0.14){% else %}rgba(0,0,0,0.025){% endif %}; border: 1px solid {% if order.status == 'Completed' %}rgba(53, 122, 88, 0.28){% elif monitoring and monitoring.progress >= 90 %}rgba(196, 137, 39, 0.36){% else %}var(--bd){% endif %};">
+            <span style="font-size: 10.5px; font-weight: 700; color: {% if order.status == 'Completed' %}#357a58{% elif monitoring and monitoring.progress >= 90 %}#8e622a{% else %}var(--mt){% endif %}; display: block;">6. Finished Goods</span>
+            <a href="/production/finished-goods" style="font-size: 12px; font-weight: 600; color: var(--tx); text-decoration: none;">
+                {% if order.status == 'Completed' %}
+                {{ qaSummary.passed }} Stocked
+                {% elif monitoring and monitoring.progress >= 90 %}
+                Awaiting QA →
+                {% else %}
+                Pending Inspection
+                {% endif %}
             </a>
         </div>
     </div>
-</div>
 
-<div class="card" style="margin-bottom: 20px;">
-    <h3 style="font-size: 15px; margin: 0 0 14px; padding-bottom: 10px; border-bottom: 1px solid var(--s);">Order Specifications & Schedule</h3>
-    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 16px;">
+    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 16px; margin-top: 16px; padding-top: 16px; border-top: 1px solid var(--bd);">
         <div>
-            <span style="font-size: 12px; color: var(--mt); display: block;">Furniture Product</span>
-            <b style="font-size: 14.5px;">{{ order.furnitureName }}</b>
+            <span style="font-size: 11.5px; color: var(--mt); display: block; text-transform: uppercase; font-weight: 600;">Batch Quantity</span>
+            <b style="font-size: 16px; color: var(--p); display: block; margin-top: 2px;">{{ order.plannedQuantity }} {{ 'unit' if order.plannedQuantity == 1 else 'units' }}</b>
+            {% if qaSummary.passed > 0 or qaSummary.failed > 0 %}
+            <span style="font-size: 11.5px; color: var(--mt);">{{ qaSummary.passed }} passed &middot; {{ qaSummary.failed }} scrapped</span>
+            {% else %}
+            <span style="font-size: 11.5px; color: var(--mt);">Target production output</span>
+            {% endif %}
         </div>
+
         <div>
-            <span style="font-size: 12px; color: var(--mt); display: block;">Category</span>
-            <b style="font-size: 14.5px;">{{ order.furnitureType }}</b>
-        </div>
-        <div>
-            <span style="font-size: 12px; color: var(--mt); display: block;">Planned Batch Quantity</span>
-            <b style="font-size: 14.5px; color: var(--p);">{{ order.plannedQuantity }} units</b>
-        </div>
-        <div>
-            <span style="font-size: 12px; color: var(--mt); display: block;">Order Purpose</span>
-            <b style="font-size: 14.5px;">{{ order.purpose or order.orderType }}</b>
-        </div>
-        <div>
-            <span style="font-size: 12px; color: var(--mt); display: block;">Planned Start Date</span>
-            <div style="display: flex; align-items: center; gap: 8px; margin-top: 2px;">
-                <b style="font-size: 14.5px;">{{ order.plannedStartDate|date_fmt or 'Not Scheduled' }}</b>
-                {% if order.status == 'Draft' and session.get('role') == 'prodManager' %}
-                <button type="button" class="actionButton secondary" style="padding: 2px 7px; font-size: 11px;" onclick="openModal('quickScheduleModal')">Edit</button>
+            <span style="font-size: 11.5px; color: var(--mt); display: block; text-transform: uppercase; font-weight: 600;">Workshop Timeline</span>
+            <div style="display: flex; align-items: center; gap: 8px; margin-top: 2px; flex-wrap: wrap;">
+                {% if order.plannedStartDate or order.dueDate %}
+                <b style="font-size: 14.5px;">{{ order.plannedStartDate|date_fmt or '—' }} &rarr; {{ order.dueDate|date_fmt or '—' }}</b>
+                {% else %}
+                <b style="font-size: 14.5px; color: var(--mt);">Not Scheduled</b>
+                {% endif %}
+                {% if order.status in ('Draft', 'Released') and session.get('role') == 'prodManager' %}
+                <button type="button" class="actionButton secondary" style="padding: 2px 8px; font-size: 11px;" onclick="openModal('quickScheduleModal')">Edit</button>
                 {% endif %}
             </div>
-        </div>
-        <div>
-            <span style="font-size: 12px; color: var(--mt); display: block;">Target Due Date</span>
-            <div style="display: flex; align-items: center; gap: 8px; margin-top: 2px;">
-                <b style="font-size: 14.5px;">{{ order.dueDate|date_fmt or 'Not Scheduled' }}</b>
-                {% if order.status == 'Draft' and session.get('role') == 'prodManager' %}
-                <button type="button" class="actionButton secondary" style="padding: 2px 7px; font-size: 11px;" onclick="openModal('quickScheduleModal')">Edit</button>
+            <span style="font-size: 11.5px; color: var(--mt);">
+                {% if monitoring and monitoring.completionDate %}
+                Completed {{ monitoring.formattedCompletionDate }}
+                {% elif order.dueDate %}
+                Target completion deadline
+                {% else %}
+                Click Edit or use Master Timeline
                 {% endif %}
-            </div>
+            </span>
         </div>
+
+        <div>
+            {% if order.status in ('Draft', 'Released') %}
+            <span style="font-size: 11.5px; color: var(--mt); display: block; text-transform: uppercase; font-weight: 600;">Material Readiness</span>
+            {% if not requirements %}
+            <b style="font-size: 15px; color: #8e622a; display: block; margin-top: 2px;">No BOM Recipe</b>
+            <span style="font-size: 11.5px; color: var(--mt);">Configure components in BOM</span>
+            {% elif shortageCount > 0 %}
+            <b style="font-size: 15px; color: var(--rd); display: block; margin-top: 2px;">{{ shortageCount }} Component Shortage{{ 's' if shortageCount != 1 else '' }}</b>
+            <span style="font-size: 11.5px; color: var(--mt);">{{ requirements|length - shortageCount }} of {{ requirements|length }} materials ready</span>
+            {% else %}
+            <b style="font-size: 15px; color: #357a58; display: block; margin-top: 2px;">{{ requirements|length }}/{{ requirements|length }} Materials in Stock</b>
+            <span style="font-size: 11.5px; color: var(--mt);">Sufficient warehouse stock</span>
+            {% endif %}
+            {% else %}
+            <span style="font-size: 11.5px; color: var(--mt); display: block; text-transform: uppercase; font-weight: 600;">Shop Floor Progress</span>
+            {% set progVal = (monitoring.progress if monitoring else (100 if order.status == 'Completed' else 0))|round|int %}
+            <div style="display: flex; align-items: center; gap: 8px; margin-top: 4px;">
+                <div style="flex: 1; max-width: 110px; height: 9px; background: #e2d8bd; border-radius: 6px; overflow: hidden;">
+                    <span style="display: block; height: 100%; width: {{ progVal }}%; background: #526638; border-radius: 6px;"></span>
+                </div>
+                <b style="font-size: 14.5px; color: var(--tx);">{{ progVal }}%</b>
+            </div>
+            <span style="font-size: 11.5px; color: var(--mt);">
+                {% if progVal >= 100 %}QA Passed &amp; Stocked{% elif progVal >= 90 %}Stage 4: Ready for QA{% elif progVal >= 75 %}Stage 3: Sanding &amp; Finishing{% elif progVal >= 50 %}Stage 2: Joinery &amp; Assembly{% elif progVal >= 25 %}Stage 1: Cutting &amp; Sizing{% else %}Dispatched to Workshop{% endif %}
+                {% if monitoring and monitoring.reworkCount > 0 %} &middot; Rework {{ monitoring.reworkCount }}/2{% endif %}
+            </span>
+            {% endif %}
+        </div>
+
         {% if session.get('role') == 'prodManager' %}
         <div>
-            <span style="font-size: 12px; color: var(--mt); display: block;">Estimated Material Cost per Unit</span>
-            <b style="font-size: 14.5px;">₱{{ "{:,.2f}".format(estimatedUnitMaterialCost) }}</b>
-        </div>
-        <div>
-            <span style="font-size: 12px; color: var(--mt); display: block;">Estimated Material Cost for Batch</span>
-            <b style="font-size: 14.5px; color: var(--p);">₱{{ "{:,.2f}".format(estimatedBatchMaterialCost) }}</b>
+            {% if costRecord %}
+            <span style="font-size: 11.5px; color: var(--mt); display: block; text-transform: uppercase; font-weight: 600;">Final Batch Cost</span>
+            <b style="font-size: 16px; color: #357a58; display: block; margin-top: 2px;">₱{{ "{:,.2f}".format(costRecord.totalCost) }}</b>
+            <span style="font-size: 11.5px; color: var(--mt);">₱{{ "{:,.2f}".format(costRecord.unitCost) }} / unit (Saved Sheet)</span>
+            {% else %}
+            <span style="font-size: 11.5px; color: var(--mt); display: block; text-transform: uppercase; font-weight: 600;">Est. Material Cost</span>
+            <b style="font-size: 16px; color: var(--p); display: block; margin-top: 2px;">₱{{ "{:,.2f}".format(estimatedBatchMaterialCost) }}</b>
+            <span style="font-size: 11.5px; color: var(--mt);">₱{{ "{:,.2f}".format(estimatedUnitMaterialCost) }} / unit standard BOM</span>
+            {% endif %}
         </div>
         {% endif %}
-        <div>
-            <span style="font-size: 12px; color: var(--mt); display: block;">Current Production Status</span>
-            <b style="font-size: 14.5px;">{{ order.status }}</b>
-        </div>
-        <div style="grid-column: 1 / -1; margin-top: 4px; padding-top: 8px; border-top: 1px dashed var(--s); font-size: 12px; color: var(--mt);">
-            <i>Based on current standard unit costs. Actual material cost is calculated at completion from issued quantities.</i>
-        </div>
     </div>
 </div>
 
 <div class="card">
-    <div class="headerRow" style="margin-bottom: 12px;">
-        <div>
-            <h3 style="font-size: 15px; margin: 0;">Bill of Materials Requirements (Read-Only)</h3>
-            <span style="color: var(--mt); font-size: 12px;">Component material breakdown needed for batch of {{ order.plannedQuantity }} units</span>
+    <div class="workspaceToolbar">
+        <div class="workspaceFilterTabs" role="tablist">
+            <button type="button" class="workspaceTabBtn active" data-dossiertab="bom" onclick="setOrderDossierTab('bom')">
+                <span>BOM &amp; Stock Readiness</span>
+                <span class="workspaceTabCount">{{ requirements|length }}</span>
+            </button>
+            <button type="button" class="workspaceTabBtn" data-dossiertab="history" onclick="setOrderDossierTab('history')">
+                <span>Execution &amp; QA Log</span>
+                <span class="workspaceTabCount">{{ activityCount }}</span>
+            </button>
         </div>
-        {% if session.get('role') == 'prodManager' %}
-        <div>
-            <span style="font-size: 13px; color: var(--mt); margin-right: 6px;">Estimated Material Cost for Batch:</span>
-            <b style="font-size: 16px; color: var(--p);">₱{{ "{:,.2f}".format(estimatedBatchMaterialCost) }}</b>
+
+        <div class="workspaceMetaGroup">
+            {% if order.status in ('In Progress', 'Completed') %}
+            <span class="workspaceMetaPill success">Materials Dispatched</span>
+            {% elif shortageCount > 0 %}
+            <span class="workspaceMetaPill warn"><b>{{ shortageCount }}</b> Deficit{{ 's' if shortageCount != 1 else '' }}</span>
+            {% else %}
+            <span class="workspaceMetaPill success">All Stock Ready</span>
+            {% endif %}
         </div>
-        {% endif %}
     </div>
 
-    <div class="tableContainer">
-        <table>
-            <thead>
-                <tr>
-                    <th>Material Component</th>
-                    <th>Per 1 Unit</th>
-                    <th>Required for Batch ({{ order.plannedQuantity }} units)</th>
-                    {% if session.get('role') == 'prodManager' %}
-                    <th>Standard Unit Cost</th>
-                    <th>Estimated Component Cost</th>
-                    {% endif %}
-                </tr>
-            </thead>
-            <tbody>
-                {% for req in requirements %}
-                <tr>
-                    <td><b>{{ req.materialName }}</b></td>
-                    <td>{{ "{:,.3f}".format(req.quantityRequired).rstrip('0').rstrip('.') or '0' }} {{ req.unit }}</td>
-                    <td><b>{{ "{:,.3f}".format(req.batchQuantity).rstrip('0').rstrip('.') or '0' }} {{ req.unit }}</b></td>
-                    {% if session.get('role') == 'prodManager' %}
-                    <td>₱{{ "{:,.2f}".format(req.unitCost) }}</td>
-                    <td>₱{{ "{:,.2f}".format(req.batchCost) }}</td>
-                    {% endif %}
-                </tr>
-                {% else %}
-                <tr>
-                    <td colspan="{{ '5' if session.get('role') == 'prodManager' else '3' }}" style="text-align: center; color: var(--mt); padding: 24px;">No bill of materials recipe found for this product.</td>
-                </tr>
-                {% endfor %}
-            </tbody>
-        </table>
+    <div id="orderDossierBomSection">
+        <div class="tableContainer">
+            <table>
+                <thead>
+                    <tr>
+                        <th>Material Component</th>
+                        <th>Per Unit</th>
+                        <th>Batch Required</th>
+                        <th>{{ 'Dispatched' if order.status in ('In Progress', 'Completed') else 'Available Net' }}</th>
+                        {% if session.get('role') == 'prodManager' %}
+                        <th>Unit Cost</th>
+                        <th>Est. Line Cost</th>
+                        {% endif %}
+                        <th>Readiness</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for req in requirements %}
+                    <tr>
+                        <td>
+                            <b>{{ req.materialName }}</b>
+                            <span style="display: block; font-size: 11.5px; color: var(--mt); font-family: monospace;">{{ req.itemCode }}</span>
+                        </td>
+                        <td>{{ "{:,.3f}".format(req.quantityRequired).rstrip('0').rstrip('.') or '0' }} {{ req.unit }}</td>
+                        <td><b>{{ "{:,.3f}".format(req.batchQuantity).rstrip('0').rstrip('.') or '0' }} {{ req.unit }}</b></td>
+                        <td>
+                            {% if order.status in ('In Progress', 'Completed') %}
+                            <b>{{ "{:,.3f}".format(req.issuedQuantity).rstrip('0').rstrip('.') or '0' }} {{ req.unit }}</b>
+                            {% else %}
+                            <span style="color: {{ '#9a4a3a' if req.isShort else 'var(--tx)' }}; font-weight: {{ '700' if req.isShort else '500' }};">
+                                {{ "{:,.3f}".format(req.availableNet).rstrip('0').rstrip('.') or '0' }} {{ req.unit }}
+                            </span>
+                            {% endif %}
+                        </td>
+                        {% if session.get('role') == 'prodManager' %}
+                        <td>₱{{ "{:,.2f}".format(req.unitCost) }}</td>
+                        <td><b>₱{{ "{:,.2f}".format(req.batchCost) }}</b></td>
+                        {% endif %}
+                        <td>
+                            {% if order.status in ('In Progress', 'Completed') %}
+                            <span class="statusBadge completed">Dispatched</span>
+                            {% elif req.isShort %}
+                            <span class="statusBadge alert">Short -{{ "{:,.2f}".format(req.shortageQuantity).rstrip('0').rstrip('.') }} {{ req.unit }}</span>
+                            {% else %}
+                            <span class="statusBadge completed">In Stock</span>
+                            {% endif %}
+                        </td>
+                    </tr>
+                    {% else %}
+                    <tr>
+                        <td colspan="{{ '7' if session.get('role') == 'prodManager' else '5' }}" style="text-align: center; color: var(--mt); padding: 24px;">No bill of materials recipe found for this product.</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <div id="orderDossierHistorySection" style="display: none;">
+        <div style="display: flex; flex-direction: column; gap: 18px;">
+            <div style="padding: 14px 16px; background: #faf8f2; border: 1px solid var(--bd); border-radius: 8px; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 12px;">
+                <div>
+                    <b style="font-size: 13.5px; display: block;">Workshop Assembly Milestone</b>
+                    <span style="font-size: 12.5px; color: var(--mt);">
+                        {% if monitoring %}
+                        Started {{ monitoring.formattedStartDate }}
+                        {% if monitoring.completionDate %} &middot; Finished {{ monitoring.formattedCompletionDate }}{% endif %}
+                        &middot; Reworks: {{ monitoring.reworkCount }}/2
+                        {% else %}
+                        Order has not entered workshop assembly yet (requires Material Issuance).
+                        {% endif %}
+                    </span>
+                </div>
+                <span class="statusBadge {{ 'completed' if order.status == 'Completed' else ('inProgress' if monitoring else 'draft') }}">
+                    {% if monitoring %}{{ monitoring.progress|round|int }}% Complete{% else %}Not Dispatched{% endif %}
+                </span>
+            </div>
+
+            <div>
+                <h4 style="margin: 0 0 8px; font-size: 13.5px; color: var(--tx);">Dispatched Raw Materials ({{ issuances|length }})</h4>
+                <div class="tableContainer">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Date</th>
+                                <th>Material</th>
+                                <th>Quantity Issued</th>
+                                <th>Dispatched By</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for iss in issuances %}
+                            <tr>
+                                <td>{{ iss.formattedIssueDate }}</td>
+                                <td><b>{{ iss.materialName }}</b></td>
+                                <td><b>{{ "{:,.3f}".format(iss.quantityIssued).rstrip('0').rstrip('.') or '0' }} {{ iss.unit }}</b></td>
+                                <td>{{ iss.recordedBy }}</td>
+                            </tr>
+                            {% else %}
+                            <tr>
+                                <td colspan="4" style="text-align: center; color: var(--mt); padding: 18px;">No raw materials dispatched yet.</td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <div>
+                <h4 style="margin: 0 0 8px; font-size: 13.5px; color: var(--tx);">Quality Inspection Outcomes ({{ qaRecords|length }})</h4>
+                <div class="tableContainer">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Date</th>
+                                <th>Outcome</th>
+                                <th>Units</th>
+                                <th>Notes / Reason</th>
+                                <th>Inspector</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for qa in qaRecords %}
+                            <tr>
+                                <td>{{ qa.formattedInspectionDate }}</td>
+                                <td>
+                                    <span class="statusBadge {{ 'completed' if qa.qualityStatus == 'Passed' else ('inProgress' if qa.qualityStatus == 'Rework' else 'cancelled') }}">{{ qa.qualityStatus }}</span>
+                                </td>
+                                <td><b>{{ qa.quantity }}</b> {{ 'unit' if qa.quantity == 1 else 'units' }}</td>
+                                <td>{{ qa.reason or '—' }}</td>
+                                <td>{{ qa.recordedBy }}</td>
+                            </tr>
+                            {% else %}
+                            <tr>
+                                <td colspan="5" style="text-align: center; color: var(--mt); padding: 18px;">No quality inspection records logged for this order yet.</td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            {% if costRecord and session.get('role') == 'prodManager' %}
+            <div style="padding: 14px 16px; background: rgba(53, 122, 88, 0.06); border: 1px solid rgba(53, 122, 88, 0.24); border-radius: 8px; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 12px;">
+                <div>
+                    <b style="font-size: 13.5px; color: #23553c;">Accredited Batch Cost Sheet (Recorded {{ costRecord.formattedCostDate }})</b>
+                    <div style="font-size: 12.5px; color: var(--mt); margin-top: 2px;">
+                        Materials: <b>₱{{ "{:,.2f}".format(costRecord.materialCost) }}</b> &middot;
+                        Labor: <b>₱{{ "{:,.2f}".format(costRecord.laborCost) }}</b> &middot;
+                        Overhead: <b>₱{{ "{:,.2f}".format(costRecord.overheadCost) }}</b>
+                    </div>
+                </div>
+                <b style="font-size: 16px; color: #23553c;">Total: ₱{{ "{:,.2f}".format(costRecord.totalCost) }}</b>
+            </div>
+            {% endif %}
+        </div>
     </div>
 </div>
 
@@ -219,4 +399,26 @@
         </form>
     </div>
 </div>
+
+<script>
+window.setOrderDossierTab = function(tabKey) {
+    const bomSec = document.getElementById('orderDossierBomSection');
+    const histSec = document.getElementById('orderDossierHistorySection');
+    const tabs = document.querySelectorAll('.workspaceFilterTabs .workspaceTabBtn[data-dossiertab]');
+    tabs.forEach(function(tab) {
+        if ((tab.getAttribute('data-dossiertab') || '') === tabKey) {
+            tab.classList.add('active');
+        } else {
+            tab.classList.remove('active');
+        }
+    });
+    if (tabKey === 'history') {
+        if (bomSec) bomSec.style.display = 'none';
+        if (histSec) histSec.style.display = 'block';
+    } else {
+        if (bomSec) bomSec.style.display = 'block';
+        if (histSec) histSec.style.display = 'none';
+    }
+};
+</script>
 {% endblock %}
