@@ -351,10 +351,7 @@ def furnitureList():
     searchQuery = request.args.get("q", "").strip()
     selectedCategory = request.args.get("category", "").strip()
     try:
-        furnitureItemList = Furniture.getAll(
-            searchQuery=searchQuery if searchQuery else None,
-            category=selectedCategory if selectedCategory else None
-        )
+        furnitureItemList = Furniture.getAll()
         categoriesList = Furniture.getCategories()
     except Exception as err:
         flash(f"Failed to load products from database: {str(err)}", "alert")
@@ -649,7 +646,7 @@ def orderList():
     statusFilter = request.args.get("status", "").strip()
     searchQuery = request.args.get("q", "").strip()
     try:
-        productionOrderList = ProductionOrder.getAll(statusFilter=statusFilter, searchQuery=searchQuery)
+        productionOrderList = ProductionOrder.getAll()
     except Exception as err:
         flash(f"Failed to load production orders: {str(err)}", "error")
         productionOrderList = []

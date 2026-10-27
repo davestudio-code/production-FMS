@@ -110,7 +110,13 @@
                         <circle cx="11" cy="11" r="8"></circle>
                         <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
                     </svg>
-                    <input type="text" class="topSearchInput" placeholder="Search orders, products, recipes..." onkeydown="if(event.key==='Enter'){window.location.href='/production/orders?q='+encodeURIComponent(this.value);}">
+                    <input type="text" id="globalTabSearchInput" class="topSearchInput" value="{{ searchQuery or '' }}" placeholder="Search orders, products, recipes..." autocomplete="off" oninput="window.handleGlobalTabSearch(this.value)" onkeydown="window.handleGlobalTabSearchKeydown(event)">
+                    <button type="button" id="globalSearchClearBtn" class="topSearchClearBtn" onclick="window.clearGlobalTabSearch()" title="Clear search">
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+                            <line x1="18" y1="6" x2="6" y2="18"></line>
+                            <line x1="6" y1="6" x2="18" y2="18"></line>
+                        </svg>
+                    </button>
                 </div>
                 <div class="topNavActions">
                     <button type="button" class="topIconBtn" onclick="triggerGlobalRefresh(this)" title="Sync Database Data">
@@ -120,7 +126,7 @@
                             <path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"></path>
                         </svg>
                     </button>
-                    <a href="/production/orders" class="topIconBtn" title="Warehouse Stockouts">
+                    <a href="/production/orders?stockouts=1" class="topIconBtn" title="Warehouse Stockouts" onclick="if(window.location.pathname==='/production/orders' && typeof window.setOrderStatusTab==='function'){event.preventDefault(); window.setOrderStatusTab('__stockouts__');}">
                         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
                             <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"></path>
                             <path d="M13.73 21a2 2 0 0 1-3.46 0"></path>
@@ -139,17 +145,6 @@
             </main>
         </div>
     </div>
-
-    <template id="refreshBtnTemplate">
-        <button id="refreshSyncBtn" class="refreshSyncBtn" onclick="triggerGlobalRefresh(this)" title="Fetch latest live data from database">
-            <svg class="refreshIconSvg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
-                <polyline points="23 4 23 10 17 10"></polyline>
-                <polyline points="1 20 1 14 7 14"></polyline>
-                <path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"></path>
-            </svg>
-            <span>Refresh</span>
-        </button>
-    </template>
 
     <div id="toastContainer" class="toastContainer" aria-live="polite"></div>
 
@@ -446,12 +441,156 @@
                 `;
             }
 
+            function getTabSearchPlaceholder(pathname) {
+                const p = (pathname || window.location.pathname).replace(/\/+$/, '') || '/production';
+                if (p === '/production/orders') {
+                    const statusEl = document.getElementById('orderStatusSelect');
+                    if (statusEl && statusEl.value === '__stockouts__') {
+                        return 'Search out-of-stock products...';
+                    }
+                    return 'Search production orders, #PO, or products...';
+                }
+                if (p === '/production/furniture') return 'Search catalog products or categories...';
+                if (p === '/production/bom') return 'Search BOM recipe components...';
+                if (p === '/production/planning') return 'Search scheduled orders, #PO, or products...';
+                if (p === '/production/requirement') return 'Search required raw materials...';
+                if (p === '/production/issuance') return 'Search orders awaiting material dispatch...';
+                if (p === '/production/monitoring') return 'Search active workshop orders or products...';
+                if (p === '/production/finished-goods') return 'Search QA queue, #PO, product, or inspector...';
+                if (p === '/production/costing') return 'Search batch cost sheets by order or product...';
+                if (p === '/production/reports') return 'Search report & audit records...';
+                if (p === '/production/materials') return 'Search raw materials...';
+                return 'Search orders or products (Press Enter)...';
+            }
+
+            window.updateGlobalSearchClearBtn = function() {
+                const input = document.getElementById('globalTabSearchInput');
+                const clearBtn = document.getElementById('globalSearchClearBtn');
+                if (input && clearBtn) {
+                    clearBtn.style.display = input.value.trim().length > 0 ? 'inline-flex' : 'none';
+                }
+            };
+
+            window.syncGlobalSearchContext = function(targetUrl, resetValue) {
+                const input = document.getElementById('globalTabSearchInput');
+                if (!input) return;
+                let parsedUrl;
+                try {
+                    parsedUrl = new URL(targetUrl || window.location.href, window.location.origin);
+                } catch (e) {
+                    parsedUrl = window.location;
+                }
+                if (resetValue) {
+                    input.value = parsedUrl.searchParams ? (parsedUrl.searchParams.get('q') || '') : '';
+                }
+                input.placeholder = getTabSearchPlaceholder(parsedUrl.pathname);
+                window.updateGlobalSearchClearBtn();
+            };
+
+            window.handleGlobalTabSearch = function(rawVal) {
+                window.updateGlobalSearchClearBtn();
+                const q = (rawVal || '').toLowerCase().trim();
+                const p = window.location.pathname.replace(/\/+$/, '') || '/production';
+
+                if (p === '/production/orders' && typeof window.filterOrdersTable === 'function') {
+                    window.filterOrdersTable(true);
+                    return;
+                }
+                if (p === '/production/furniture' && typeof window.filterFurnitureTable === 'function') {
+                    window.filterFurnitureTable(true);
+                    return;
+                }
+                if (p === '/production/planning' && typeof window.filterPlanningTable === 'function') {
+                    window.filterPlanningTable();
+                    return;
+                }
+                if (p === '/production/finished-goods') {
+                    const qaInput = document.getElementById('qaHistorySearchInput');
+                    if (qaInput) {
+                        qaInput.value = rawVal || '';
+                        if (typeof window.filterQAHistoryTable === 'function') {
+                            window.filterQAHistoryTable(true);
+                        }
+                    }
+                    const firstCardRows = document.querySelectorAll('main .card:first-of-type table tbody tr');
+                    firstCardRows.forEach(function(row) {
+                        if (row.querySelector('td[colspan]')) return;
+                        row.style.display = (!q || row.textContent.toLowerCase().includes(q)) ? '' : 'none';
+                    });
+                    return;
+                }
+                if (p === '/production/reports') {
+                    const auditInput = document.getElementById('auditSearchInput');
+                    if (auditInput) {
+                        auditInput.value = rawVal || '';
+                        if (typeof window.applyAuditFilters === 'function') {
+                            window.applyAuditFilters();
+                        }
+                    }
+                    return;
+                }
+                if (p === '/production/issuance') {
+                    const blocks = document.querySelectorAll('main .card > div > div[style*="border: 1px solid"]');
+                    blocks.forEach(function(block) {
+                        block.style.display = (!q || block.textContent.toLowerCase().includes(q)) ? '' : 'none';
+                    });
+                    return;
+                }
+                if (p === '/production' || p.startsWith('/production/orders/')) {
+                    return;
+                }
+
+                const genericRows = document.querySelectorAll('main table tbody tr');
+                genericRows.forEach(function(row) {
+                    if (row.querySelector('td[colspan]')) return;
+                    row.style.display = (!q || row.textContent.toLowerCase().includes(q)) ? '' : 'none';
+                });
+            };
+
+            window.handleGlobalTabSearchKeydown = function(event) {
+                if (event.key !== 'Enter') return;
+                event.preventDefault();
+                const input = document.getElementById('globalTabSearchInput');
+                const val = (input?.value || '').trim();
+                const p = window.location.pathname.replace(/\/+$/, '') || '/production';
+                if (p === '/production' || p.startsWith('/production/orders/')) {
+                    const dest = val ? ('/production/orders?q=' + encodeURIComponent(val)) : '/production/orders';
+                    if (typeof window.loadTabContent === 'function') {
+                        window.loadTabContent(dest, true);
+                    } else {
+                        window.location.href = dest;
+                    }
+                } else {
+                    window.handleGlobalTabSearch(input?.value || '');
+                }
+            };
+
+            window.clearGlobalTabSearch = function() {
+                const input = document.getElementById('globalTabSearchInput');
+                if (!input) return;
+                input.value = '';
+                window.handleGlobalTabSearch('');
+                input.focus();
+            };
+
             function applyTabHtml(pageHtml, targetUrl, shouldPushState) {
                 const domParser = new DOMParser();
                 const parsedDocument = domParser.parseFromString(pageHtml, 'text/html');
                 const incomingMain = parsedDocument.querySelector('main');
 
                 if (incomingMain && mainContainer) {
+                    let prevPath = window.location.pathname;
+                    let nextPath = prevPath;
+                    try {
+                        nextPath = new URL(targetUrl, window.location.origin).pathname;
+                    } catch (e) {}
+
+                    if (shouldPushState) {
+                        history.pushState({ targetUrl: targetUrl }, '', targetUrl);
+                    }
+
+                    window.syncGlobalSearchContext(targetUrl, shouldPushState || (prevPath !== nextPath));
+
                     mainContainer.innerHTML = incomingMain.innerHTML;
                     document.title = parsedDocument.title;
 
@@ -464,8 +603,10 @@
                         oldScript.parentNode.replaceChild(newScript, oldScript);
                     });
 
-                    if (shouldPushState) {
-                        history.pushState({ targetUrl: targetUrl }, '', targetUrl);
+                    window.syncGlobalSearchContext(targetUrl, false);
+                    const currentSearchVal = document.getElementById('globalTabSearchInput')?.value || '';
+                    if (currentSearchVal) {
+                        window.handleGlobalTabSearch(currentSearchVal);
                     }
 
                     navLinks.forEach(link => {
@@ -475,8 +616,6 @@
                             link.classList.remove('active');
                         }
                     });
-
-                    mountRefreshButton();
                 }
             }
 
@@ -606,19 +745,8 @@
                 }
             });
 
-            function mountRefreshButton() {
-                const mainHeader = document.querySelector('main .headerRow');
-                if (!mainHeader || mainHeader.querySelector('#refreshSyncBtn')) return;
-                const tmpl = document.getElementById('refreshBtnTemplate');
-                if (!tmpl) return;
-                const clone = tmpl.content.cloneNode(true);
-                const btn = clone.querySelector('#refreshSyncBtn');
-                if (btn) {
-                    mainHeader.appendChild(btn);
-                }
-            }
-
-            mountRefreshButton();
+            const initialSearchInput = document.getElementById('globalTabSearchInput');
+            window.syncGlobalSearchContext(window.location.href, !(initialSearchInput && initialSearchInput.value));
         });
     </script>
 </body>

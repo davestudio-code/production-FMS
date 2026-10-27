@@ -1,6 +1,7 @@
 {% extends "production/base.html" %}
 
 {% block content %}
+{% set showStockoutsTab = (request.args.get('stockouts') == '1') %}
 <div class="headerRow">
     <div>
         <h2>Production Orders</h2>
@@ -8,94 +9,48 @@
     </div>
 </div>
 
-{% if stockoutAlerts %}
-<div class="card" style="margin-bottom: 20px; border-left: 4px solid #b58f55; background: #fdfbf7; padding: 16px 20px;">
-    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; flex-wrap: wrap; gap: 8px;">
-        <div style="display: flex; align-items: center; gap: 8px;">
-            <span style="display: inline-flex; align-items: center; justify-content: center; width: 24px; height: 24px; border-radius: 50%; background: rgba(181, 143, 85, 0.2); color: #8e622a; font-size: 13px; font-weight: 700;">!</span>
-            <b style="font-size: 14.5px; color: var(--tx);">Team 2 Warehouse Stockout Alerts</b>
-            <span class="statusBadge alert" style="font-size: 11px;">{{ stockoutAlerts|length }} Item{{ 's' if stockoutAlerts|length != 1 else '' }} Out of Stock</span>
-        </div>
-        <span style="font-size: 12px; color: var(--mt);">Inventory warehouse has 0 stock for these products.</span>
-    </div>
-    <div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 12px; margin-top: 10px;">
-        {% for alert in stockoutAlerts %}
-        <div style="display: flex; justify-content: space-between; align-items: center; background: #fff; border: 1px solid var(--bd); border-radius: 8px; padding: 11px 14px; gap: 10px;">
-            <div>
-                <b style="font-size: 13.5px; display: block; color: var(--tx);">{{ alert.furniture_name }}</b>
-                <span style="font-size: 11.5px; color: var(--mt);">{{ alert.furniture_type }} &bull; <span style="color: #9a4a3a; font-weight: 600;">0 in warehouse</span></span>
-                {% if alert.active_order_id %}
-                <span class="statusBadge pending" style="display: inline-block; font-size: 10.5px; margin-top: 4px;">
-                    Restock Pending (#PO-{{ alert.active_order_id }} &bull; {{ alert.active_order_qty }} units)
-                </span>
-                {% elif alert.bom_item_count == 0 %}
-                <span class="statusBadge draft" style="display: inline-block; font-size: 10.5px; margin-top: 4px;">
-                    No BOM Configured
-                </span>
-                {% endif %}
-            </div>
-            {% if session.get('role') == 'prodManager' %}
-                {% if alert.active_order_id %}
-                <a href="/production/orders/{{ alert.active_order_id }}" class="actionButton secondary" style="padding: 5px 11px; font-size: 12px; text-decoration: none; white-space: nowrap;">
-                    View Order &rarr;
-                </a>
-                {% elif alert.bom_item_count == 0 %}
-                <a href="/production/bom?furniture_id={{ alert.furniture_id }}" class="actionButton" style="padding: 5px 11px; font-size: 12px; text-decoration: none; white-space: nowrap; background: #7a6a4d; border-color: #7a6a4d;">
-                    + Configure BOM
-                </a>
-                {% else %}
-                <button type="button" class="actionButton" style="padding: 5px 12px; font-size: 12px; white-space: nowrap;" onclick="openRestockModal('{{ alert.furniture_id }}')">
-                    + Restock
-                </button>
-                {% endif %}
-            {% endif %}
-        </div>
-        {% endfor %}
-    </div>
-</div>
-{% endif %}
-
-<div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); gap: 14px; margin-bottom: 20px;">
-    <div class="card" style="padding: 14px 18px;">
-        <span style="font-size: 12px; color: var(--mt); text-transform: uppercase; font-weight: 600;">Total Orders</span>
-        <div style="font-size: 24px; font-weight: 700; color: var(--t); margin-top: 4px;">{{ summary.total }}</div>
-    </div>
-    <div class="card" style="padding: 14px 18px;">
-        <span style="font-size: 12px; color: var(--mt); text-transform: uppercase; font-weight: 600;">Draft</span>
-        <div style="font-size: 24px; font-weight: 700; color: #8e622a; margin-top: 4px;">{{ summary.draft }}</div>
-    </div>
-    <div class="card" style="padding: 14px 18px;">
-        <span style="font-size: 12px; color: var(--mt); text-transform: uppercase; font-weight: 600;">Released</span>
-        <div style="font-size: 24px; font-weight: 700; color: #2e628e; margin-top: 4px;">{{ summary.released }}</div>
-    </div>
-    <div class="card" style="padding: 14px 18px;">
-        <span style="font-size: 12px; color: var(--mt); text-transform: uppercase; font-weight: 600;">In Progress</span>
-        <div style="font-size: 24px; font-weight: 700; color: #a05a1e; margin-top: 4px;">{{ summary.inProgress }}</div>
-    </div>
-    <div class="card" style="padding: 14px 18px;">
-        <span style="font-size: 12px; color: var(--mt); text-transform: uppercase; font-weight: 600;">Completed</span>
-        <div style="font-size: 24px; font-weight: 700; color: #357a58; margin-top: 4px;">{{ summary.completed }}</div>
-    </div>
-</div>
-
 <div class="card">
-    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; flex-wrap: wrap; gap: 12px;">
-        <form class="toolBar" style="margin-bottom: 0;" onsubmit="return false;">
-            <input type="text" id="orderSearchInput" placeholder="Search by product name or order ID..." style="width: 280px;" oninput="filterOrdersTable()">
-            <select id="orderStatusSelect" style="width: 190px;" onchange="filterOrdersTable()">
-                <option value="">All Lifecycle Stages</option>
-                <option value="Draft">Draft</option>
-                <option value="Released">Released</option>
-                <option value="In Progress">In Progress</option>
-                <option value="Completed">Completed</option>
-            </select>
-            <button type="button" id="orderResetBtn" class="actionButton secondary" style="padding: 8px 14px; font-size: 13px; display: none;" onclick="resetOrdersFilter()">Reset</button>
-        </form>
+    <div class="workspaceToolbar">
+        <div class="workspaceFilterTabs" role="tablist">
+            <button type="button" class="workspaceTabBtn {{ 'active' if not statusFilter and not showStockoutsTab else '' }}" data-status="" onclick="setOrderStatusTab('')">
+                <span>All</span>
+                <span class="workspaceTabCount">{{ summary.total }}</span>
+            </button>
+            <button type="button" class="workspaceTabBtn {{ 'active' if statusFilter == 'Draft' and not showStockoutsTab else '' }}" data-status="Draft" onclick="setOrderStatusTab('Draft')">
+                <span class="tabStatusDot draft"></span>
+                <span>Draft</span>
+                <span class="workspaceTabCount">{{ summary.draft }}</span>
+            </button>
+            <button type="button" class="workspaceTabBtn {{ 'active' if statusFilter == 'Released' and not showStockoutsTab else '' }}" data-status="Released" onclick="setOrderStatusTab('Released')">
+                <span class="tabStatusDot released"></span>
+                <span>Released</span>
+                <span class="workspaceTabCount">{{ summary.released }}</span>
+            </button>
+            <button type="button" class="workspaceTabBtn {{ 'active' if statusFilter == 'In Progress' and not showStockoutsTab else '' }}" data-status="In Progress" onclick="setOrderStatusTab('In Progress')">
+                <span class="tabStatusDot inProgress"></span>
+                <span>In Progress</span>
+                <span class="workspaceTabCount">{{ summary.inProgress }}</span>
+            </button>
+            <button type="button" class="workspaceTabBtn {{ 'active' if statusFilter == 'Completed' and not showStockoutsTab else '' }}" data-status="Completed" onclick="setOrderStatusTab('Completed')">
+                <span class="tabStatusDot completed"></span>
+                <span>Completed</span>
+                <span class="workspaceTabCount">{{ summary.completed }}</span>
+            </button>
+            <span class="workspaceTabDivider"></span>
+            <button type="button" class="workspaceTabBtn stockoutTab {{ 'hasAlerts' if stockoutAlerts|length > 0 else '' }} {{ 'active' if showStockoutsTab else '' }}" data-status="__stockouts__" onclick="setOrderStatusTab('__stockouts__')">
+                <span class="stockoutExclaim">!</span>
+                <span>Stockouts</span>
+                <span class="workspaceTabCount">{{ stockoutAlerts|length }}</span>
+            </button>
+        </div>
+
         {% if session.get('role') == 'prodManager' %}
-        <button type="button" class="actionButton" onclick="openModal('createOrderModal')">+ New Production Order</button>
+        <button type="button" class="actionButton" style="padding: 8px 16px; font-size: 13px; white-space: nowrap;" onclick="openModal('createOrderModal')">+ New Production Order</button>
         {% endif %}
+        <input type="hidden" id="orderStatusSelect" value="{{ '__stockouts__' if showStockoutsTab else (statusFilter or '') }}">
     </div>
 
+    <div id="ordersWorkspaceSection" style="{{ 'display: none;' if showStockoutsTab else '' }}">
     <div class="tableContainer">
         <table>
             <thead>
@@ -188,6 +143,77 @@
             <button type="button" class="actionButton secondary" id="ordersPrevBtn" onclick="changeOrdersPage(-1)" style="padding: 5px 12px; font-size: 12px;">&larr; Prev</button>
             <span id="ordersPageIndicator" style="font-size: 12.5px; font-weight: 600; color: var(--tx);"></span>
             <button type="button" class="actionButton secondary" id="ordersNextBtn" onclick="changeOrdersPage(1)" style="padding: 5px 12px; font-size: 12px;">Next &rarr;</button>
+        </div>
+    </div>
+    </div>
+
+    <div id="stockoutsWorkspaceSection" style="{{ '' if showStockoutsTab else 'display: none;' }}">
+        <div class="tableContainer">
+            <table>
+                <thead>
+                    <tr>
+                        <th>Furniture Product</th>
+                        <th>Category</th>
+                        <th>Warehouse Stock</th>
+                        <th>Restock &amp; Recipe Status</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for alert in stockoutAlerts %}
+                    <tr class="stockoutRow" data-search="{{ alert.furniture_name|lower }} {{ alert.furniture_type|lower }}">
+                        <td><b>{{ alert.furniture_name }}</b></td>
+                        <td><span style="color: var(--mt); font-size: 13px;">{{ alert.furniture_type }}</span></td>
+                        <td><span class="statusBadge alert">0 in warehouse</span></td>
+                        <td>
+                            {% if alert.active_order_id %}
+                            <span class="statusBadge released">
+                                Restock Pending (#PO-{{ alert.active_order_id }} &bull; {{ alert.active_order_qty }} units)
+                            </span>
+                            {% elif alert.bom_item_count == 0 %}
+                            <span class="statusBadge draft">
+                                No BOM Configured
+                            </span>
+                            {% else %}
+                            <span class="statusBadge inProgress">
+                                Ready to Restock ({{ alert.bom_item_count }} BOM item{{ '' if alert.bom_item_count == 1 else 's' }})
+                            </span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            {% if session.get('role') == 'prodManager' %}
+                                {% if alert.active_order_id %}
+                                <a href="/production/orders/{{ alert.active_order_id }}" class="actionButton secondary" style="padding: 5px 11px; font-size: 12px; text-decoration: none; white-space: nowrap;">
+                                    View Order &rarr;
+                                </a>
+                                {% elif alert.bom_item_count == 0 %}
+                                <a href="/production/bom?furniture_id={{ alert.furniture_id }}" class="actionButton" style="padding: 5px 11px; font-size: 12px; text-decoration: none; white-space: nowrap; background: #7a6a4d; border-color: #7a6a4d;">
+                                    + Configure BOM
+                                </a>
+                                {% else %}
+                                <button type="button" class="actionButton" style="padding: 5px 12px; font-size: 12px; white-space: nowrap;" onclick="openRestockModal('{{ alert.furniture_id }}')">
+                                    + Restock Order
+                                </button>
+                                {% endif %}
+                            {% else %}
+                                <span style="font-size: 12px; color: var(--mt); font-style: italic;">Awaiting Manager</span>
+                            {% endif %}
+                        </td>
+                    </tr>
+                    {% else %}
+                    <tr>
+                        <td colspan="5" style="text-align: center; color: var(--mt); padding: 28px;">
+                            All catalog products currently have available warehouse stock.
+                        </td>
+                    </tr>
+                    {% endfor %}
+                    <tr id="stockoutsEmptySearchRow" style="display: none;">
+                        <td colspan="5" style="text-align: center; color: var(--mt); padding: 28px;">
+                            No out-of-stock products match your search criteria.
+                        </td>
+                    </tr>
+                </tbody>
+            </table>
         </div>
     </div>
 </div>

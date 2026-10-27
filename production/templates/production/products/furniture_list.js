@@ -38,11 +38,11 @@ window.filterFurnitureTable = function(resetPage = true) {
     if (resetPage) {
         currentFurniturePage = 1;
     }
-    const q = (document.getElementById('furnitureSearchInput')?.value || '').toLowerCase().trim();
+    const q = (document.getElementById('globalTabSearchInput')?.value || '').toLowerCase().trim();
     const cat = (document.getElementById('furnitureCategorySelect')?.value || '').trim();
     const resetBtn = document.getElementById('furnitureResetBtn');
     if (resetBtn) {
-        resetBtn.style.display = (q || cat) ? 'inline-block' : 'none';
+        resetBtn.style.display = cat ? 'inline-block' : 'none';
     }
     const allRows = Array.from(document.querySelectorAll('tr.furnitureRow'));
     const matchingRows = allRows.filter(function(row) {
@@ -123,9 +123,12 @@ window.changeFurniturePageSize = function(newSize) {
 };
 
 window.resetFurnitureFilter = function() {
-    const qInput = document.getElementById('furnitureSearchInput');
+    const qInput = document.getElementById('globalTabSearchInput');
     const catSelect = document.getElementById('furnitureCategorySelect');
     if (qInput) qInput.value = '';
+    if (typeof window.updateGlobalSearchClearBtn === 'function') {
+        window.updateGlobalSearchClearBtn();
+    }
     if (catSelect) catSelect.value = '';
     currentFurniturePage = 1;
     window.filterFurnitureTable(true);

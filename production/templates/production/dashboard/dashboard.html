@@ -85,7 +85,7 @@
                 </li>
             </ul>
         </div>
-        <a href="/production/orders" class="dashboardInsightsLink">
+        <a href="/production/orders?stockouts=1" class="dashboardInsightsLink">
             <span>View Warehouse Stockouts</span>
             <span>&rarr;</span>
         </a>
@@ -260,7 +260,7 @@
                     metrics.stockoutTotal }}</span>
                 {% endif %}
             </div>
-            <a href="/production/orders"
+            <a href="/production/orders?stockouts=1"
                 style="font-size: 11.5px; color: var(--p); text-decoration: none; font-weight: 700;">View All</a>
         </div>
         <div style="display: flex; flex-direction: column; gap: 10px;">

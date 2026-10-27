@@ -107,12 +107,35 @@ window.filterOrdersTable = function(resetPage = true) {
     if (resetPage) {
         currentOrdersPage = 1;
     }
-    const q = (document.getElementById('orderSearchInput')?.value || '').toLowerCase().trim();
+    const qInput = document.getElementById('globalTabSearchInput');
+    const q = (qInput?.value || '').toLowerCase().trim();
     const status = (document.getElementById('orderStatusSelect')?.value || '').trim();
-    const resetBtn = document.getElementById('orderResetBtn');
-    if (resetBtn) {
-        resetBtn.style.display = (q || status) ? 'inline-block' : 'none';
+    const ordersSection = document.getElementById('ordersWorkspaceSection');
+    const stockoutsSection = document.getElementById('stockoutsWorkspaceSection');
+
+    if (status === '__stockouts__') {
+        if (ordersSection) ordersSection.style.display = 'none';
+        if (stockoutsSection) stockoutsSection.style.display = 'block';
+        if (qInput) qInput.placeholder = 'Search out-of-stock products...';
+        const stockoutRows = Array.from(document.querySelectorAll('tr.stockoutRow'));
+        let visibleStockouts = 0;
+        stockoutRows.forEach(function(row) {
+            const rowSearch = row.dataset.search || '';
+            const match = !q || rowSearch.includes(q);
+            row.style.display = match ? '' : 'none';
+            if (match) visibleStockouts++;
+        });
+        const emptyStockoutSearch = document.getElementById('stockoutsEmptySearchRow');
+        if (emptyStockoutSearch) {
+            emptyStockoutSearch.style.display = (visibleStockouts === 0 && stockoutRows.length > 0) ? '' : 'none';
+        }
+        return;
     }
+
+    if (ordersSection) ordersSection.style.display = 'block';
+    if (stockoutsSection) stockoutsSection.style.display = 'none';
+    if (qInput) qInput.placeholder = 'Search production orders, #PO, or products...';
+
     const allRows = Array.from(document.querySelectorAll('tr.orderRow'));
     const matchingRows = allRows.filter(function(row) {
         const rowStatus = row.dataset.status || '';
@@ -191,21 +214,63 @@ window.changeOrdersPageSize = function(newSize) {
     }
 };
 
+window.syncOrderStatusTabs = function(statusValue) {
+    const tabs = document.querySelectorAll('.workspaceFilterTabs .workspaceTabBtn');
+    tabs.forEach(function(tab) {
+        const tabStatus = tab.getAttribute('data-status') || '';
+        if (tabStatus === statusValue) {
+            tab.classList.add('active');
+        } else {
+            tab.classList.remove('active');
+        }
+    });
+};
+
+window.setOrderStatusTab = function(statusValue) {
+    const nextVal = statusValue || '';
+    const statusInput = document.getElementById('orderStatusSelect');
+    if (statusInput) {
+        statusInput.value = nextVal;
+    }
+    if (window.history && window.history.replaceState) {
+        const targetUrl = nextVal === '__stockouts__' ? '/production/orders?stockouts=1' : '/production/orders';
+        window.history.replaceState({ targetUrl: targetUrl }, '', targetUrl);
+    }
+    window.syncOrderStatusTabs(nextVal);
+    window.filterOrdersTable(true);
+};
+
 window.resetOrdersFilter = function() {
-    const qInput = document.getElementById('orderSearchInput');
+    const qInput = document.getElementById('globalTabSearchInput');
     const statusSelect = document.getElementById('orderStatusSelect');
     if (qInput) qInput.value = '';
-    if (statusSelect) statusSelect.value = '';
+    if (typeof window.updateGlobalSearchClearBtn === 'function') {
+        window.updateGlobalSearchClearBtn();
+    }
+    if (statusSelect && statusSelect.value !== '__stockouts__') {
+        statusSelect.value = '';
+        window.syncOrderStatusTabs('');
+    }
     currentOrdersPage = 1;
     window.filterOrdersTable(true);
 };
 
-if (document.readyState === 'loading') {
-    document.addEventListener('DOMContentLoaded', function() {
-        window.filterOrdersTable(true);
-    });
-} else {
+function initOrdersWorkspace() {
+    const params = new URLSearchParams(window.location.search);
+    const statusSelect = document.getElementById('orderStatusSelect');
+    if (params.get('stockouts') === '1' && statusSelect) {
+        statusSelect.value = '__stockouts__';
+    }
+    if (statusSelect) {
+        window.syncOrderStatusTabs(statusSelect.value || '');
+    }
     window.filterOrdersTable(true);
+}
+
+if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', initOrdersWorkspace);
+} else {
+    initOrdersWorkspace();
 }
 window.addEventListener('pageshow', function() {
     window.filterOrdersTable(false);

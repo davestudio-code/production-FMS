@@ -8,11 +8,11 @@ function openScheduleModal(orderID, productName, startDate, dueDate) {
 }
 
 window.filterPlanningTable = function() {
-    const q = (document.getElementById('planningSearchInput')?.value || '').toLowerCase().trim();
+    const q = (document.getElementById('globalTabSearchInput')?.value || '').toLowerCase().trim();
     const status = (document.getElementById('planningStatusSelect')?.value || '').trim();
     const resetBtn = document.getElementById('planningResetBtn');
     if (resetBtn) {
-        resetBtn.style.display = (q || status) ? 'inline-block' : 'none';
+        resetBtn.style.display = status ? 'inline-block' : 'none';
     }
     const rows = document.querySelectorAll('tr.planningRow');
     let visibleCount = 0;
@@ -35,9 +35,12 @@ window.filterPlanningTable = function() {
 };
 
 window.resetPlanningFilter = function() {
-    const qInput = document.getElementById('planningSearchInput');
+    const qInput = document.getElementById('globalTabSearchInput');
     const statusSelect = document.getElementById('planningStatusSelect');
     if (qInput) qInput.value = '';
+    if (typeof window.updateGlobalSearchClearBtn === 'function') {
+        window.updateGlobalSearchClearBtn();
+    }
     if (statusSelect) statusSelect.value = '';
     window.filterPlanningTable();
 };

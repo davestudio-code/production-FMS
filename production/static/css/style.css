@@ -316,7 +316,7 @@ nav {
 .topSearchWrapper .topSearchInput,
 input.topSearchInput {
     width: 100%;
-    padding: 8px 14px 8px 38px !important;
+    padding: 8px 34px 8px 38px !important;
     background: #ffffff;
     border: 1px solid var(--bd) !important;
     border-radius: 20px !important;
@@ -342,6 +342,39 @@ input.topSearchInput:focus {
     pointer-events: none;
     z-index: 2;
     display: block;
+}
+
+button.topSearchClearBtn {
+    position: absolute;
+    right: 10px;
+    top: 50%;
+    transform: translateY(-50%);
+    width: 22px;
+    height: 22px;
+    min-width: 22px;
+    min-height: 22px;
+    border-radius: 50%;
+    background: transparent;
+    color: var(--mt);
+    border: none;
+    padding: 0;
+    display: none;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    z-index: 3;
+    transition: color 0.15s ease, background 0.15s ease;
+}
+
+button.topSearchClearBtn svg {
+    display: block;
+    flex-shrink: 0;
+}
+
+button.topSearchClearBtn:hover {
+    background: rgba(102, 117, 76, 0.12);
+    color: var(--tx);
+    transform: translateY(-50%);
 }
 
 .topNavActions {
@@ -2014,4 +2047,174 @@ button.danger {
     margin-top: 2px;
 }
 
+.workspaceToolbar {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 12px;
+    margin-bottom: 12px;
+    flex-wrap: wrap;
+}
+
+.workspaceFilterTabs {
+    display: inline-flex;
+    align-items: center;
+    gap: 2px;
+    background: #f5f0e3;
+    border: 1px solid var(--bd);
+    padding: 4px;
+    border-radius: 10px;
+    flex-wrap: wrap;
+}
+
+.workspaceTabDivider {
+    width: 1px;
+    height: 18px;
+    background: #d8ccb3;
+    margin: 0 3px;
+    flex-shrink: 0;
+}
+
+button.workspaceTabBtn {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 6px 10px;
+    border: none;
+    border-radius: 7px;
+    background: transparent;
+    color: var(--mt);
+    font-family: inherit;
+    font-size: 12.5px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.15s ease;
+    white-space: nowrap;
+    transform: none;
+}
+
+button.workspaceTabBtn:hover {
+    background: rgba(255, 255, 255, 0.55);
+    color: var(--tx);
+    transform: none;
+}
+
+button.workspaceTabBtn.active {
+    background: #ffffff;
+    color: var(--tx);
+    font-weight: 700;
+    box-shadow: 0 1px 4px rgba(43, 51, 31, 0.08);
+}
+
+button.workspaceTabBtn.active:hover {
+    background: #ffffff;
+    color: var(--tx);
+    transform: none;
+}
+
+.tabStatusDot {
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    flex-shrink: 0;
+}
+
+.tabStatusDot.draft {
+    background: #8e622a;
+}
+
+.tabStatusDot.released {
+    background: #2e628e;
+}
+
+.tabStatusDot.inProgress {
+    background: #c48927;
+}
+
+.tabStatusDot.completed {
+    background: #357a58;
+}
+
+.stockoutExclaim {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 15px;
+    height: 15px;
+    border-radius: 50%;
+    background: rgba(43, 51, 31, 0.08);
+    color: var(--mt);
+    font-size: 10.5px;
+    font-weight: 800;
+    line-height: 1;
+    flex-shrink: 0;
+}
+
+button.workspaceTabBtn.stockoutTab.hasAlerts {
+    color: #7d3b2d;
+}
+
+button.workspaceTabBtn.stockoutTab.hasAlerts .stockoutExclaim {
+    background: rgba(154, 74, 58, 0.16);
+    color: var(--rd);
+}
+
+.workspaceTabCount {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 20px;
+    height: 18px;
+    padding: 0 6px;
+    border-radius: 10px;
+    font-size: 11px;
+    font-weight: 700;
+    background: rgba(43, 51, 31, 0.07);
+    color: var(--mt);
+    transition: all 0.15s ease;
+}
+
+button.workspaceTabBtn.active .workspaceTabCount {
+    background: rgba(102, 117, 76, 0.15);
+    color: var(--p);
+}
+
+button.workspaceTabBtn.stockoutTab.hasAlerts .workspaceTabCount {
+    background: #faebea;
+    color: var(--rd);
+}
+
+.workspaceSearchGroup {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-wrap: wrap;
+}
+
+.workspaceSearchGroup input[type="text"] {
+    padding: 7px 12px;
+    font-size: 13px;
+}
+
+@media (max-width: 768px) {
+    .workspaceToolbar {
+        flex-direction: column;
+        align-items: stretch;
+    }
+
+    .workspaceFilterTabs {
+        width: 100%;
+        overflow-x: auto;
+        flex-wrap: nowrap;
+    }
+
+    .workspaceSearchGroup {
+        width: 100%;
+    }
+
+    .workspaceSearchGroup input[type="text"] {
+        flex: 1;
+        width: 100% !important;
+    }
+}
 
