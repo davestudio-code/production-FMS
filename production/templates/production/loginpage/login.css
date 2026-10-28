@@ -148,6 +148,12 @@ body {
   border: 1px solid #C4DAFB;
 }
 
+.flash-warning {
+  background: #FEF7EA;
+  color: #8E622A;
+  border: 1px solid #F3DCAC;
+}
+
 .flash-success {
   background: #EFF7EE;
   color: #2D6B26;

@@ -55,6 +55,10 @@ def dateFmtFilter(val):
     except Exception:
         return str(val)
 
+def _clearAuthSessionKeys():
+    for key in ("user_id", "employee_id", "department_id", "position_id", "email", "employee_name", "position", "role"):
+        session.pop(key, None)
+
 @productionBlueprint.before_request
 def requireLogin():
     if request.endpoint in ("production.login", "production.logout", "production.static", "production.loginpageStatic", "production.featureStatic"):
@@ -62,15 +66,25 @@ def requireLogin():
     if not session.get("user_id"):
         return redirect(url_for("production.login", next=request.path))
     if not sync_and_verify_session():
-        session.clear()
+        _clearAuthSessionKeys()
         flash("Access restricted to active Production Department Managers and Production Staff.", "warning")
         return redirect(url_for("production.login"))
+
+@productionBlueprint.after_request
+def preventHtmlCacheAfterSignout(response):
+    if request.endpoint not in ("production.static", "production.loginpageStatic", "production.featureStatic"):
+        content_type = response.headers.get("Content-Type", "")
+        if "text/html" in content_type:
+            response.headers["Cache-Control"] = "no-store, no-cache, must-revalidate, max-age=0"
+            response.headers["Pragma"] = "no-cache"
+    return response
 
 @productionBlueprint.route("/login", methods=["GET", "POST"])
 def login():
     if session.get("user_id") and sync_and_verify_session():
         return redirect(url_for("production.index"))
-    session.clear()
+    if session.get("user_id"):
+        _clearAuthSessionKeys()
     if request.method == "POST":
         email = request.form.get("email", "").strip()
         password = request.form.get("password", "")
