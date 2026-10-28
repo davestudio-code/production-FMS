@@ -51,11 +51,11 @@
     <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); gap: 14px; padding: 14px 0; border-top: 1px solid var(--bd); border-bottom: 1px solid var(--bd); margin-bottom: 16px;">
         <div>
             <span style="font-size: 11.5px; color: var(--mt); display: block; text-transform: uppercase;">Recipe Components</span>
-            <b style="font-size: 15px; color: var(--p);">{{ bomItems|length }} {{ 'item' if bomItems|length == 1 else 'items' }}</b>
+            <b style="font-size: 15px;">{{ bomItems|length }} {{ 'item' if bomItems|length == 1 else 'items' }}</b>
         </div>
         <div>
             <span style="font-size: 11.5px; color: var(--mt); display: block; text-transform: uppercase;">Standard Material Cost</span>
-            <b style="font-size: 15px; color: var(--p);">₱{{ "{:,.2f}".format(unitTotalCost) }}</b>
+            <b style="font-size: 15px;">₱{{ "{:,.2f}".format(unitTotalCost) }}</b>
         </div>
         <div>
             <span style="font-size: 11.5px; color: var(--mt); display: block; text-transform: uppercase;">Catalog Selling Price</span>

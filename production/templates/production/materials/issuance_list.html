@@ -16,7 +16,7 @@
             <small style="color: var(--mt);">Approved orders in 'Released' status ready to receive materials and start
                 production</small>
         </div>
-        <span class="statusBadge released">{{ releasedOrders|length }} Orders Ready</span>
+        <span class="statusBadge released">{{ releasedOrders|length }} Ready</span>
     </div>
 
     {% if releasedOrders %}
@@ -68,8 +68,8 @@
     <div style="text-align: center; padding: 32px 16px; color: var(--mt);">
         <p style="margin: 0 0 8px 0; font-size: 14px;">No production orders are currently waiting for material issuance.
         </p>
-        <span style="font-size: 12.5px;">Orders must first be verified and approved in <a
-                href="/production/requirement" style="color: var(--p); font-weight: 600;">Material
+        <span style="font-size: 12.5px;">Orders must first be verified and approved in <a href="/production/requirement"
+                style="color: var(--p); font-weight: 600;">Material
                 Requirement</a> to transition from Draft &rarr; Released.</span>
     </div>
     {% endif %}

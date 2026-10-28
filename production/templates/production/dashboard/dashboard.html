@@ -148,11 +148,17 @@
         <div class="dashboardCardHeader">
             <h3 class="dashboardCardTitle">Order Deadlines</h3>
             {% if scheduleTracker.overdue > 0 %}
-            <span class="dashboardBadge" style="background: rgba(154, 74, 58, 0.12); color: var(--rd); font-weight: 700; white-space: nowrap;">{{ scheduleTracker.overdue }} Overdue</span>
+            <span class="dashboardBadge"
+                style="background: rgba(154, 74, 58, 0.12); color: var(--rd); font-weight: 700; white-space: nowrap;">{{
+                scheduleTracker.overdue }} Overdue</span>
             {% elif scheduleTracker.dueToday > 0 %}
-            <span class="dashboardBadge" style="background: rgba(196, 137, 39, 0.12); color: #8c5d12; font-weight: 700; white-space: nowrap;">{{ scheduleTracker.dueToday }} Due Today</span>
+            <span class="dashboardBadge"
+                style="background: rgba(196, 137, 39, 0.12); color: #8c5d12; font-weight: 700; white-space: nowrap;">{{
+                scheduleTracker.dueToday }} Due Today</span>
             {% else %}
-            <span class="dashboardBadge" style="background: rgba(102, 117, 76, 0.12); color: var(--p); font-weight: 600; white-space: nowrap;">On Schedule</span>
+            <span class="dashboardBadge"
+                style="background: rgba(102, 117, 76, 0.12); color: var(--p); font-weight: 600; white-space: nowrap;">On
+                Schedule</span>
             {% endif %}
         </div>
 
@@ -191,7 +197,8 @@
                 {% if item.hasDueDate %}
                 <span class="scheduleUrgencyTag {{ item.urgency }}">{{ item.tag }}</span>
                 {% else %}
-                <a href="/production/orders/{{ item.orderID }}" class="scheduleActionBtn" title="Set Target Date">Set Date &rarr;</a>
+                <a href="/production/orders/{{ item.orderID }}" class="scheduleActionBtn" title="Set Target Date">Set
+                    Date &rarr;</a>
                 {% endif %}
             </div>
             {% else %}
@@ -207,11 +214,15 @@
 
         <div class="scheduleFooterNote">
             {% if scheduleTracker.overdue > 0 %}
-            <span style="color: var(--rd); font-weight: 600;">Action required: {{ scheduleTracker.overdue }} batch{{ 'es' if scheduleTracker.overdue != 1 else '' }} past target due date.</span>
+            <span style="color: var(--rd); font-weight: 600;">Action required: {{ scheduleTracker.overdue }} batch{{
+                'es' if scheduleTracker.overdue != 1 else '' }} past target due date.</span>
             {% elif scheduleTracker.dueToday > 0 %}
-            <span style="color: #8c5d12; font-weight: 600;">{{ scheduleTracker.dueToday }} batch{{ 'es' if scheduleTracker.dueToday != 1 else '' }} scheduled for completion today.</span>
+            <span style="color: #8c5d12; font-weight: 600;">{{ scheduleTracker.dueToday }} batch{{ 'es' if
+                scheduleTracker.dueToday != 1 else '' }} scheduled for completion today.</span>
             {% elif scheduleTracker.needsDateCount > 0 %}
-            <a href="/production/orders" style="color: var(--p); text-decoration: none; font-weight: 600;">{{ scheduleTracker.needsDateCount }} draft batch{{ 'es' if scheduleTracker.needsDateCount != 1 else '' }} awaiting schedule dates &rarr;</a>
+            <a href="/production/orders" style="color: var(--p); text-decoration: none; font-weight: 600;">{{
+                scheduleTracker.needsDateCount }} draft batch{{ 'es' if scheduleTracker.needsDateCount != 1 else '' }}
+                awaiting schedule dates &rarr;</a>
             {% else %}
             <span style="color: var(--mt);">All active batches are currently on schedule.</span>
             {% endif %}
@@ -266,24 +277,26 @@
         <div style="display: flex; flex-direction: column; gap: 10px;">
             {% for item in metrics.stockouts %}
             <div
-                style="display: flex; justify-content: space-between; align-items: center; background: rgba(246, 238, 218, 0.35); border: 1px solid var(--bd); border-radius: 10px; padding: 10px 14px;">
-                <div>
-                    <b style="font-size: 13.5px; display: block; color: var(--tx); font-weight: 600;">{{
+                style="display: flex; justify-content: space-between; align-items: center; gap: 12px; background: rgba(246, 238, 218, 0.35); border: 1px solid var(--bd); border-radius: 10px; padding: 10px 14px;">
+                <div style="min-width: 0; flex: 1;">
+                    <b
+                        style="font-size: 13.5px; display: block; color: var(--tx); font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">{{
                         item.furniture_name }}</b>
-                    <span style="font-size: 11.5px; color: var(--mt);">{{ item.furniture_type }} &bull; <span
-                            style="color: var(--rd); font-weight: 600;">0 in warehouse</span></span>
+                    <span style="font-size: 11.5px; color: var(--mt); white-space: nowrap; display: block;">{{
+                        item.furniture_type }} &bull; <span style="color: var(--rd); font-weight: 600;">0 in
+                            warehouse</span></span>
                 </div>
                 {% if item.active_order_id %}
-                <span
-                    style="display: inline-flex; align-items: center; padding: 3px 9px; border-radius: 12px; font-size: 11px; font-weight: 600; background: rgba(102, 117, 76, 0.12); color: var(--p); border: 1px solid rgba(102, 117, 76, 0.28);">Restock
-                    Set</span>
+                <a href="/production/orders/{{ item.active_order_id }}"
+                    style="display: inline-flex; align-items: center; padding: 3px 9px; border-radius: 12px; font-size: 11px; font-weight: 600; background: rgba(102, 117, 76, 0.12); color: var(--p); border: 1px solid rgba(102, 117, 76, 0.28); white-space: nowrap; flex-shrink: 0; text-decoration: none;"
+                    title="View Active Order #PO-{{ item.active_order_id }}">Restock Set</a>
                 {% elif item.bom_item_count == 0 %}
-                <span
-                    style="display: inline-flex; align-items: center; padding: 3px 9px; border-radius: 12px; font-size: 11px; font-weight: 600; background: rgba(213, 199, 170, 0.35); color: #705f42; border: 1px solid var(--bd);">Need
-                    BOM</span>
+                <a href="/production/bom?furniture_id={{ item.furniture_id }}"
+                    style="display: inline-flex; align-items: center; padding: 3px 9px; border-radius: 12px; font-size: 11px; font-weight: 600; background: rgba(213, 199, 170, 0.35); color: #705f42; border: 1px solid var(--bd); white-space: nowrap; flex-shrink: 0; text-decoration: none;"
+                    title="Configure BOM Recipe">Need BOM</a>
                 {% else %}
-                <span
-                    style="display: inline-flex; align-items: center; padding: 3px 9px; border-radius: 12px; font-size: 11px; font-weight: 600; background: rgba(154, 74, 58, 0.1); color: var(--rd); border: 1px solid rgba(154, 74, 58, 0.25);">Urgent</span>
+                <a href="/production/orders?stockouts=1"
+                    style="display: inline-flex; align-items: center; padding: 3px 9px; border-radius: 12px; font-size: 11px; font-weight: 600; background: rgba(154, 74, 58, 0.1); color: var(--rd); border: 1px solid rgba(154, 74, 58, 0.25); white-space: nowrap; flex-shrink: 0; text-decoration: none;">Urgent</a>
                 {% endif %}
             </div>
             {% else %}
@@ -298,7 +311,7 @@
         <div class="dashboardCardHeader">
             <h3 class="dashboardCardTitle">Active Production Pipeline</h3>
             <a href="/production/orders"
-                style="font-size: 11.5px; color: var(--p); text-decoration: none; font-weight: 700;">View All Orders</a>
+                style="font-size: 11.5px; color: var(--p); text-decoration: none; font-weight: 700;">View All</a>
         </div>
         <div class="tableContainer">
             <table>
@@ -326,8 +339,7 @@
                         </td>
                         <td style="text-align: right;">
                             <a href="/production/orders/{{ order.orderID }}"
-                                style="font-size: 11.5px; color: var(--p); text-decoration: none; font-weight: 700;">View
-                                &rarr;</a>
+                                style="font-size: 11.5px; color: var(--p); text-decoration: none; font-weight: 700;">View</a>
                         </td>
                     </tr>
                     {% else %}
