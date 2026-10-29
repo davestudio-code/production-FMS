@@ -402,6 +402,74 @@ def index():
     recentOrdersList = allOrders[:6]
     integrationEventsList = []
 
+    def _safeEventDate(val):
+        if not val:
+            return today
+        if isinstance(val, date):
+            return val
+        if hasattr(val, "date"):
+            return val.date()
+        return today
+
+    activityTimeline = []
+    try:
+        recentOutputs = ProductionOutput.getAll()
+        for out in recentOutputs[:4]:
+            if out.qualityStatus == "Passed":
+                activityTimeline.append({
+                    "title": f"Order #PO-{out.orderID} passed Quality Inspection (QC)",
+                    "meta": "Transferred to finished goods",
+                    "sortKey": (_safeEventDate(out.inspectionDate), 4, int(out.outputID or 0))
+                })
+            elif out.qualityStatus == "Rework":
+                activityTimeline.append({
+                    "title": f"Order #PO-{out.orderID} flagged for rework ({out.furnitureName})",
+                    "meta": "Returned to workshop",
+                    "sortKey": (_safeEventDate(out.inspectionDate), 4, int(out.outputID or 0))
+                })
+    except Exception:
+        pass
+
+    for mon in activeMonitoring:
+        if mon.progress and mon.progress > 0:
+            stageLabel = "Cutting & Sizing" if mon.progress <= 25 else (
+                "Joinery & Assembly" if mon.progress <= 50 else (
+                    "Sanding & Finishing" if mon.progress <= 75 else "Ready for QA"
+                )
+            )
+            activityTimeline.append({
+                "title": f"Order #PO-{mon.orderID} advanced to {int(mon.progress)}% ({stageLabel})",
+                "meta": "Active in workshop",
+                "sortKey": (_safeEventDate(mon.startDate), 3, int(mon.monitoringID or 0))
+            })
+
+    try:
+        recentIssuances = MaterialIssuance.getAll()
+        seenIssuanceOrders = set()
+        for iss in recentIssuances:
+            if iss.orderID not in seenIssuanceOrders:
+                seenIssuanceOrders.add(iss.orderID)
+                activityTimeline.append({
+                    "title": f"Raw materials dispatched for Order #PO-{iss.orderID}",
+                    "meta": "Transferred to workshop",
+                    "sortKey": (_safeEventDate(iss.issueDate), 2, int(iss.issuanceID or 0))
+                })
+                if len(seenIssuanceOrders) >= 4:
+                    break
+    except Exception:
+        pass
+
+    for o in allOrders[:4]:
+        dateStr = f"Scheduled · Target {o.dueDate.strftime('%b. %d')}" if o.dueDate else "Draft · Awaiting schedule"
+        activityTimeline.append({
+            "title": f"Order #PO-{o.orderID} registered for {o.furnitureName} ({o.plannedQuantity} units)",
+            "meta": dateStr,
+            "sortKey": (_safeEventDate(o.orderDate), 1, int(o.orderID or 0))
+        })
+
+    activityTimeline.sort(key=lambda x: x["sortKey"], reverse=True)
+    activityTimeline = activityTimeline[:4]
+
     return render_template(
         "production/dashboard/dashboard.html",
         activeTab="dashboard",
@@ -409,6 +477,7 @@ def index():
         metrics=metricsData,
         recentOrders=recentOrdersList,
         integrationEvents=integrationEventsList,
+        activityTimeline=activityTimeline,
         weekActivity=weekActivity,
         weekDateRange=weekDateRangeStr,
         todayDateStr=today.strftime("%b. %d"),

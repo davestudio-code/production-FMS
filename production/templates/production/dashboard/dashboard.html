@@ -38,8 +38,13 @@
             <div class="dashboardHeroActions">
                 <a href="/production/orders" class="actionButton"
                     style="padding: 8px 18px; font-size: 13px; text-decoration: none;">View Production Orders</a>
+                {% if isManager %}
                 <a href="/production/planning" class="actionButton secondary"
                     style="padding: 8px 18px; font-size: 13px; text-decoration: none;">Production Planning</a>
+                {% else %}
+                <a href="/production/monitoring" class="actionButton secondary"
+                    style="padding: 8px 18px; font-size: 13px; text-decoration: none;">Production Monitoring</a>
+                {% endif %}
             </div>
         </div>
         <div class="dashboardHeroIllustration">
@@ -69,6 +74,7 @@
                     <span>All raw material inventories are currently well-stocked.</span>
                     {% endif %}
                 </li>
+                {% if isManager %}
                 <li>
                     {% if metrics.stockoutTotal > 0 %}
                     <span><b>{{ metrics.stockoutTotal }} products</b> have 0 stock in inventory warehouse.</span>
@@ -83,12 +89,35 @@
                     <span>All registered orders have been released or completed.</span>
                     {% endif %}
                 </li>
+                {% else %}
+                <li>
+                    {% if metrics.inProgressOrders > 0 %}
+                    <span><b>{{ metrics.inProgressOrders }} batch(es)</b> active in the workshop.</span>
+                    {% else %}
+                    <span>No active batches currently in the workshop.</span>
+                    {% endif %}
+                </li>
+                <li>
+                    {% if scheduleTracker.dueToday > 0 %}
+                    <span><b>{{ scheduleTracker.dueToday }} batch(es)</b> scheduled for completion today.</span>
+                    {% else %}
+                    <span>All active batches are progressing on schedule.</span>
+                    {% endif %}
+                </li>
+                {% endif %}
             </ul>
         </div>
+        {% if isManager %}
         <a href="/production/orders?stockouts=1" class="dashboardInsightsLink">
             <span>View Warehouse Stockouts</span>
             <span>&rarr;</span>
         </a>
+        {% else %}
+        <a href="/production/monitoring" class="dashboardInsightsLink">
+            <span>Go to Production Monitoring</span>
+            <span>&rarr;</span>
+        </a>
+        {% endif %}
     </div>
 </div>
 
@@ -260,7 +289,8 @@
     </div>
 </div>
 
-<div class="dashboardBottomGrid">
+<div class="dashboardBottomGrid" style="{{ '' if isManager else 'grid-template-columns: 1.6fr 1fr;' }}">
+    {% if isManager %}
     <div class="dashboardCard">
         <div class="dashboardCardHeader">
             <div style="display: flex; align-items: center; gap: 8px;">
@@ -306,6 +336,7 @@
             {% endfor %}
         </div>
     </div>
+    {% endif %}
 
     <div class="dashboardCard">
         <div class="dashboardCardHeader">
@@ -359,22 +390,16 @@
             <span class="dashboardBadge">Recent</span>
         </div>
         <div class="timelineFeed">
+            {% for item in activityTimeline %}
             <div class="timelineFeedItem">
-                <div class="timelineFeedTitle">Draft Order #PO-1 registered for Dining Chair</div>
-                <div class="timelineFeedTime">Active in production pipeline</div>
+                <div class="timelineFeedTitle">{{ item.title }}</div>
+                <div class="timelineFeedTime">{{ item.meta }}</div>
             </div>
-            <div class="timelineFeedItem">
-                <div class="timelineFeedTitle">Finished goods inventory memory sync active</div>
-                <div class="timelineFeedTime">Lateral 1-to-1 matching online</div>
+            {% else %}
+            <div style="text-align: center; color: var(--mt); padding: 18px 0; font-size: 12.5px;">
+                No recent workshop activity recorded.
             </div>
-            <div class="timelineFeedItem">
-                <div class="timelineFeedTitle">Bill of Materials recipe pricing linked</div>
-                <div class="timelineFeedTime">Catalog +40% markup configured</div>
-            </div>
-            <div class="timelineFeedItem">
-                <div class="timelineFeedTitle">Quality inspection standards ready</div>
-                <div class="timelineFeedTime">Velmora woodcraft tolerances verified</div>
-            </div>
+            {% endfor %}
         </div>
     </div>
 </div>
