@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>Velmora Co. &middot; Production ERP</title>
     <link rel="icon" type="image/png" href="/production/static/images/velmora-logo.png">
-    <link rel="stylesheet" href="/production/static/css/style.css?v=20261027c">
+    <link rel="stylesheet" href="/production/static/css/style.css?v=20261029m">
 </head>
 <body>
     <div class="container">
@@ -73,35 +73,35 @@
                     <span>Production Reports</span>
                 </a>
                 {% endif %}
-            </div>
 
-            {% if session.get('user_id') %}
-            <div class="userProfileFooter">
-                <div class="userProfileCard">
-                    <div class="userAvatar">
-                        {{ (session.get('employee_name') or 'U')[:1]|upper }}
-                    </div>
-                    <div class="userMeta">
-                        <span class="userFullName" title="{{ session.get('employee_name') }}">
-                            {{ session.get('employee_name', 'Operator') }}
-                        </span>
-                        <div>
-                            <span class="userBadge {{ 'managerBadge' if isManager else 'staffBadge' }}">
-                                {{ 'Manager' if isManager else 'Production Staff' }}
+                {% if session.get('user_id') %}
+                <div class="userProfileFooter">
+                    <div class="userProfileCard">
+                        <div class="userAvatar">
+                            {{ (session.get('employee_name') or 'U')[:1]|upper }}
+                        </div>
+                        <div class="userMeta">
+                            <span class="userFullName" title="{{ session.get('employee_name') }}">
+                                {{ session.get('employee_name', 'Operator') }}
                             </span>
+                            <div>
+                                <span class="userBadge {{ 'managerBadge' if isManager else 'staffBadge' }}">
+                                    {{ 'Manager' if isManager else 'Production Staff' }}
+                                </span>
+                            </div>
                         </div>
                     </div>
+                    <a href="/production/logout" class="logoutFooterBtn" title="Sign Out">
+                        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path>
+                            <polyline points="16 17 21 12 16 7"></polyline>
+                            <line x1="21" y1="12" x2="9" y2="12"></line>
+                        </svg>
+                        <span>Sign Out</span>
+                    </a>
                 </div>
-                <a href="/production/logout" class="logoutFooterBtn" title="Sign Out">
-                    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                        <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path>
-                        <polyline points="16 17 21 12 16 7"></polyline>
-                        <line x1="21" y1="12" x2="9" y2="12"></line>
-                    </svg>
-                    <span>Sign Out</span>
-                </a>
+                {% endif %}
             </div>
-            {% endif %}
         </nav>
         <div class="appContentWrapper">
             <header class="topNavBar">
