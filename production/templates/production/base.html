@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>Velmora Co. &middot; Production ERP</title>
     <link rel="icon" type="image/png" href="/production/static/images/velmora-logo.png">
-    <link rel="stylesheet" href="/production/static/css/style.css?v=20261029m">
+    <link rel="stylesheet" href="/production/static/css/style.css?v=20261029q">
 </head>
 <body>
     <div class="container">
@@ -402,12 +402,27 @@
 
         const tabHtmlCache = new Map();
 
+        function normalizeUrlKey(url) {
+            try {
+                const u = new URL(url, window.location.origin);
+                const path = u.pathname.replace(/\/+$/, '') || '/production';
+                return path + u.search;
+            } catch (e) {
+                return String(url || '');
+            }
+        }
+
+        window.tabHtmlCache = tabHtmlCache;
+        window.normalizeUrlKey = normalizeUrlKey;
+
         function prefetchTab(targetUrl) {
-            if (!targetUrl || targetUrl.startsWith('#') || tabHtmlCache.has(targetUrl)) return;
+            if (!targetUrl || targetUrl.startsWith('#')) return;
+            const cacheKey = normalizeUrlKey(targetUrl);
+            if (tabHtmlCache.has(cacheKey)) return;
             fetch(targetUrl, { headers: { 'X-Requested-With': 'XMLHttpRequest' } })
                 .then(function(res) { return res.ok ? res.text() : null; })
                 .then(function(html) {
-                    if (html) tabHtmlCache.set(targetUrl, html);
+                    if (html) tabHtmlCache.set(cacheKey, html);
                 })
                 .catch(function() {});
         }
@@ -452,7 +467,63 @@
                 try {
                     targetPath = new URL(targetUrl || window.location.href, window.location.origin).pathname.replace(/\/+$/, '') || '/production';
                 } catch (e) {}
-                const showKpiRow = (targetPath === '/production' || targetPath === '/production/reports');
+
+                if (targetPath === '/production') {
+                    return `
+                        <div class="skeletonContainer">
+                            <div class="skeletonCard" style="padding: 26px 28px; margin-bottom: 22px; border-radius: 14px;">
+                                <div class="skeletonBlock skeletonTitle" style="width: 260px; height: 30px; margin-bottom: 10px;"></div>
+                                <div class="skeletonBlock skeletonSubtitle" style="width: 380px; height: 14px; margin-bottom: 24px;"></div>
+                                <div style="display: flex; gap: 16px; flex-wrap: wrap; margin-bottom: 22px;">
+                                    <div class="skeletonBlock" style="width: 105px; height: 48px; border-radius: 8px;"></div>
+                                    <div class="skeletonBlock" style="width: 105px; height: 48px; border-radius: 8px;"></div>
+                                    <div class="skeletonBlock" style="width: 105px; height: 48px; border-radius: 8px;"></div>
+                                    <div class="skeletonBlock" style="width: 105px; height: 48px; border-radius: 8px;"></div>
+                                </div>
+                                <div style="display: flex; gap: 10px; flex-wrap: wrap;">
+                                    <div class="skeletonBlock" style="width: 165px; height: 36px; border-radius: 8px;"></div>
+                                    <div class="skeletonBlock" style="width: 145px; height: 36px; border-radius: 8px;"></div>
+                                </div>
+                            </div>
+                            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 20px;">
+                                <div class="skeletonCard" style="padding: 22px;">
+                                    <div class="skeletonBlock" style="width: 170px; height: 20px; margin-bottom: 18px;"></div>
+                                    <div class="skeletonBlock" style="width: 100%; height: 160px; border-radius: 8px;"></div>
+                                </div>
+                                <div class="skeletonCard" style="padding: 22px;">
+                                    <div class="skeletonBlock" style="width: 170px; height: 20px; margin-bottom: 18px;"></div>
+                                    <div class="skeletonBlock" style="width: 100%; height: 160px; border-radius: 8px;"></div>
+                                </div>
+                            </div>
+                        </div>
+                    `;
+                }
+
+                if (targetPath.startsWith('/production/orders/') && targetPath !== '/production/orders') {
+                    return `
+                        <div class="skeletonContainer">
+                            <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 22px; flex-wrap: wrap; gap: 12px;">
+                                <div>
+                                    <div class="skeletonBlock" style="width: 140px; height: 13px; margin-bottom: 8px;"></div>
+                                    <div class="skeletonBlock skeletonTitle" style="width: 220px; height: 28px;"></div>
+                                </div>
+                                <div class="skeletonBlock" style="width: 110px; height: 32px; border-radius: 8px;"></div>
+                            </div>
+                            <div class="skeletonCard" style="padding: 24px; margin-bottom: 20px;">
+                                <div class="skeletonBlock" style="width: 180px; height: 20px; margin-bottom: 16px;"></div>
+                                <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 16px; margin-bottom: 20px;">
+                                    <div class="skeletonBlock" style="height: 48px; border-radius: 6px;"></div>
+                                    <div class="skeletonBlock" style="height: 48px; border-radius: 6px;"></div>
+                                    <div class="skeletonBlock" style="height: 48px; border-radius: 6px;"></div>
+                                    <div class="skeletonBlock" style="height: 48px; border-radius: 6px;"></div>
+                                </div>
+                                <div class="skeletonBlock" style="width: 100%; height: 140px; border-radius: 8px;"></div>
+                            </div>
+                        </div>
+                    `;
+                }
+
+                const showKpiRow = (targetPath === '/production/reports');
                 const kpiHtml = showKpiRow ? `
                         <div class="skeletonMetricGrid">
                             <div class="skeletonCard skeletonMetricCard">
@@ -480,12 +551,13 @@
                                 <div class="skeletonBlock skeletonTitle"></div>
                                 <div class="skeletonBlock skeletonSubtitle"></div>
                             </div>
+                            <div class="skeletonBlock skeletonButton" style="width: 120px; height: 36px;"></div>
                         </div>
                         ${kpiHtml}
                         <div class="skeletonCard" style="padding: 20px;">
-                            <div style="display: flex; justify-content: space-between; gap: 12px; margin-bottom: 18px;">
-                                <div class="skeletonBlock" style="width: 340px; height: 36px; border-radius: 10px;"></div>
-                                <div class="skeletonBlock" style="width: 150px; height: 36px; border-radius: 8px;"></div>
+                            <div style="display: flex; justify-content: space-between; gap: 12px; margin-bottom: 18px; flex-wrap: wrap;">
+                                <div class="skeletonBlock" style="width: 320px; height: 36px; border-radius: 10px;"></div>
+                                <div class="skeletonBlock" style="width: 140px; height: 36px; border-radius: 8px;"></div>
                             </div>
                             <div class="skeletonBlock" style="width: 100%; height: 34px; margin-bottom: 12px; border-radius: 6px;"></div>
                             <div class="skeletonBlock" style="width: 100%; height: 44px; margin-bottom: 10px; opacity: 0.85;"></div>
@@ -846,17 +918,37 @@
                 }
             }
 
+            let currentTabFetchController = null;
+
             async function loadTabContent(targetUrl, shouldPushState = true) {
                 closeMobileNav();
 
-                if (tabHtmlCache.has(targetUrl)) {
-                    applyTabHtml(tabHtmlCache.get(targetUrl), targetUrl, shouldPushState);
+                if (currentTabFetchController) {
+                    currentTabFetchController.abort();
+                    currentTabFetchController = null;
+                }
+
+                const cacheKey = normalizeUrlKey(targetUrl);
+
+                if (tabHtmlCache.has(cacheKey)) {
+                    const cachedHtml = tabHtmlCache.get(cacheKey);
+                    applyTabHtml(cachedHtml, targetUrl, shouldPushState);
+                    syncActiveNavLink(targetUrl);
+                    window.scrollTo({ top: 0, behavior: 'instant' });
+
                     fetch(targetUrl, { headers: { 'X-Requested-With': 'XMLHttpRequest' } })
                         .then(function(res) { return res.ok ? res.text() : null; })
                         .then(function(freshHtml) {
-                            if (freshHtml && freshHtml !== tabHtmlCache.get(targetUrl)) {
-                                tabHtmlCache.set(targetUrl, freshHtml);
-                                applyTabHtml(freshHtml, targetUrl, false);
+                            if (freshHtml && freshHtml !== cachedHtml) {
+                                tabHtmlCache.set(cacheKey, freshHtml);
+                                const currentKey = normalizeUrlKey(window.location.href);
+                                if (currentKey === cacheKey) {
+                                    const activeEl = document.activeElement;
+                                    const isUserTyping = activeEl && (activeEl.tagName === 'INPUT' || activeEl.tagName === 'TEXTAREA' || activeEl.tagName === 'SELECT');
+                                    if (!isUserTyping) {
+                                        applyTabHtml(freshHtml, targetUrl, false);
+                                    }
+                                }
                             }
                         })
                         .catch(function() {});
@@ -867,22 +959,33 @@
 
                 if (mainContainer) {
                     mainContainer.innerHTML = getSkeletonHtml(targetUrl);
+                    window.scrollTo({ top: 0, behavior: 'instant' });
                 }
 
-                console.log('[SPA Navigation] Requesting tab content for:', targetUrl);
+                const controller = new AbortController();
+                currentTabFetchController = controller;
+
                 try {
-                    const response = await fetch(targetUrl);
-                    console.log('[SPA Navigation Response]', response.status, response.statusText, 'for', targetUrl);
+                    const response = await fetch(targetUrl, {
+                        signal: controller.signal,
+                        headers: { 'X-Requested-With': 'XMLHttpRequest' }
+                    });
                     if (!response.ok) {
                         window.location.href = targetUrl;
                         return;
                     }
                     const pageHtml = await response.text();
-                    tabHtmlCache.set(targetUrl, pageHtml);
+                    tabHtmlCache.set(cacheKey, pageHtml);
                     applyTabHtml(pageHtml, targetUrl, shouldPushState);
                 } catch (loadError) {
-                    console.log(`error message: ${loadError.message}`);
+                    if (loadError.name === 'AbortError') {
+                        return;
+                    }
                     window.location.href = targetUrl;
+                } finally {
+                    if (currentTabFetchController === controller) {
+                        currentTabFetchController = null;
+                    }
                 }
             }
 
@@ -925,38 +1028,59 @@
 
             window.navigateActivityWeek = navigateActivityWeek;
 
-            navLinks.forEach(link => {
-                link.addEventListener('mouseenter', function() {
-                    prefetchTab(this.href);
-                });
-                link.addEventListener('touchstart', function() {
-                    prefetchTab(this.href);
-                }, { passive: true });
-                link.addEventListener('click', function(event) {
-                    const targetHref = this.getAttribute('href');
-                    if (targetHref && !targetHref.startsWith('#')) {
-                        event.preventDefault();
-                        loadTabContent(this.href);
-                    }
-                });
-            });
+            document.addEventListener('mouseover', function(event) {
+                const link = event.target.closest('a');
+                if (!link) return;
+                const href = link.getAttribute('href');
+                if (href && href.startsWith('/production') && !href.includes('/logout') && !href.includes('/export')) {
+                    prefetchTab(link.href);
+                }
+            }, { passive: true });
 
-            const brandLink = document.querySelector('.navBrandLink');
-            if (brandLink) {
-                brandLink.addEventListener('mouseenter', function() {
-                    prefetchTab(this.href);
-                });
-                brandLink.addEventListener('touchstart', function() {
-                    prefetchTab(this.href);
-                }, { passive: true });
-                brandLink.addEventListener('click', function(event) {
-                    const targetHref = this.getAttribute('href');
-                    if (targetHref && !targetHref.startsWith('#')) {
-                        event.preventDefault();
-                        loadTabContent(this.href);
-                    }
-                });
-            }
+            document.addEventListener('touchstart', function(event) {
+                const link = event.target.closest('a');
+                if (!link) return;
+                const href = link.getAttribute('href');
+                if (href && href.startsWith('/production') && !href.includes('/logout') && !href.includes('/export')) {
+                    prefetchTab(link.href);
+                }
+            }, { passive: true });
+
+            document.addEventListener('click', function(event) {
+                if (event.defaultPrevented) return;
+                const link = event.target.closest('a');
+                if (!link) return;
+
+                const href = link.getAttribute('href');
+                if (!href) return;
+
+                if (href.startsWith('#') || href.startsWith('javascript:') || link.target === '_blank' || link.hasAttribute('download')) {
+                    return;
+                }
+
+                let targetUrl;
+                try {
+                    targetUrl = new URL(link.href, window.location.origin);
+                } catch (e) {
+                    return;
+                }
+
+                if (targetUrl.origin !== window.location.origin) return;
+                if (!targetUrl.pathname.startsWith('/production')) return;
+
+                if (targetUrl.pathname.endsWith('/logout') || targetUrl.pathname.includes('/export') || targetUrl.pathname.includes('/download')) {
+                    return;
+                }
+
+                const currentUrl = new URL(window.location.href);
+                if (targetUrl.pathname === currentUrl.pathname && targetUrl.search === currentUrl.search) {
+                    event.preventDefault();
+                    return;
+                }
+
+                event.preventDefault();
+                loadTabContent(targetUrl.href);
+            });
 
             window.addEventListener('popstate', function(event) {
                 if (event.state && event.state.targetUrl) {
@@ -969,6 +1093,25 @@
             const initialSearchInput = document.getElementById('globalTabSearchInput');
             window.syncGlobalSearchContext(window.location.href, !(initialSearchInput && initialSearchInput.value));
             window.syncLiveNotifState();
+
+            const initialDocHtml = document.documentElement.outerHTML;
+            if (initialDocHtml) {
+                tabHtmlCache.set(normalizeUrlKey(window.location.href), initialDocHtml);
+            }
+
+            const warmupTabs = [
+                '/production/',
+                '/production/orders',
+                '/production/planning',
+                '/production/monitoring'
+            ];
+            const scheduleWarmup = window.requestIdleCallback || function(cb) { setTimeout(cb, 1200); };
+            scheduleWarmup(function() {
+                warmupTabs.forEach(function(tabPath) {
+                    const fullTabUrl = new URL(tabPath, window.location.origin).href;
+                    prefetchTab(fullTabUrl);
+                });
+            });
         });
     </script>
 </body>

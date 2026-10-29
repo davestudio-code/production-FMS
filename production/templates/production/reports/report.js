@@ -132,9 +132,15 @@ window.resetReportFilter = function() {
     window.filterReportOrders();
 };
 
-document.addEventListener('DOMContentLoaded', function () {
+function initReportWorkspace() {
     const urlParams = new URLSearchParams(window.location.search);
     if (urlParams.get('tab') === 'audit') {
         switchReportMainTab('audit');
     }
-});
+}
+
+if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', initReportWorkspace);
+} else {
+    initReportWorkspace();
+}
