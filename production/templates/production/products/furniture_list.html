@@ -3,13 +3,15 @@
 {% block content %}
 <div class="headerRow">
     <div>
-        <h2>Product Master Catalog</h2>
-        <span style="color: var(--mt); font-size: 13.5px;">Finished furniture designs, BOM manufacturing costs, and catalog selling prices</span>
+        <h2>Product Master</h2>
+        <span style="color: var(--mt); font-size: 13.5px;">Finished furniture designs, BOM manufacturing costs, and
+            selling prices</span>
     </div>
 </div>
 
 <div class="card">
-    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; flex-wrap: wrap; gap: 12px;">
+    <div
+        style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; flex-wrap: wrap; gap: 12px;">
         <form class="toolBar" style="margin-bottom: 0;" onsubmit="return false;">
             <select id="furnitureCategorySelect" onchange="filterFurnitureTable()">
                 <option value="">All Categories</option>
@@ -17,7 +19,9 @@
                 <option value="{{ cat }}">{{ cat }}</option>
                 {% endfor %}
             </select>
-            <button type="button" id="furnitureResetBtn" class="actionButton secondary" style="padding: 7px 14px; font-size: 13px; display: none;" onclick="resetFurnitureFilter()">Reset</button>
+            <button type="button" id="furnitureResetBtn" class="actionButton secondary"
+                style="padding: 7px 14px; font-size: 13px; display: none;"
+                onclick="resetFurnitureFilter()">Reset</button>
         </form>
         {% if isManager %}
         <button type="button" class="actionButton" onclick="openModal('addFurnitureModal')">+ Add New Product</button>
@@ -38,7 +42,8 @@
             </thead>
             <tbody>
                 {% for item in furnitureItems %}
-                <tr class="furnitureRow" data-category="{{ item.furnitureType }}" data-search="{{ item.furnitureID }} {{ item.furnitureName|lower }} {{ item.furnitureType|lower }}">
+                <tr class="furnitureRow" data-category="{{ item.furnitureType }}"
+                    data-search="{{ item.furnitureID }} {{ item.furnitureName|lower }} {{ item.furnitureType|lower }}">
                     <td><b>#{{ item.furnitureID }}</b></td>
                     <td><b>{{ item.furnitureName }}</b></td>
                     <td>
@@ -47,7 +52,8 @@
                     <td>
                         {% if item.hasBOM %}
                         <b style="color: var(--p);">₱{{ "{:,.2f}".format(item.bomCost) }}</b>
-                        <span style="display: block; font-size: 11px; color: var(--mt);">{{ item.componentCount }} component{{ '' if item.componentCount == 1 else 's' }}</span>
+                        <span style="display: block; font-size: 11px; color: var(--mt);">{{ item.componentCount }}
+                            component{{ '' if item.componentCount == 1 else 's' }}</span>
                         {% else %}
                         <span class="statusBadge draft" style="font-size: 11px;">No BOM Yet</span>
                         {% endif %}
@@ -56,13 +62,15 @@
                         {% if item.sellingPrice > 0 %}
                         <b>₱{{ "{:,.2f}".format(item.sellingPrice) }}</b>
                         {% if item.hasBOM and item.bomCost > 0 %}
-                            {% set margin = item.sellingPrice - item.bomCost %}
-                            {% set markup = ((item.sellingPrice - item.bomCost) / item.bomCost * 100) %}
-                            {% if margin >= 0 %}
-                            <span style="display: block; font-size: 11px; color: #2e6930; font-weight: 500;">+{{ "{:,.0f}".format(markup) }}% markup (₱{{ "{:,.2f}".format(margin) }})</span>
-                            {% else %}
-                            <span style="display: block; font-size: 11px; color: #9a4a3a; font-weight: 500;">Below Cost (-₱{{ "{:,.2f}".format(margin|abs) }})</span>
-                            {% endif %}
+                        {% set margin = item.sellingPrice - item.bomCost %}
+                        {% set markup = ((item.sellingPrice - item.bomCost) / item.bomCost * 100) %}
+                        {% if margin >= 0 %}
+                        <span style="display: block; font-size: 11px; color: #2e6930; font-weight: 500;">+{{
+                            "{:,.0f}".format(markup) }}% markup (₱{{ "{:,.2f}".format(margin) }})</span>
+                        {% else %}
+                        <span style="display: block; font-size: 11px; color: #9a4a3a; font-weight: 500;">Below Cost
+                            (-₱{{ "{:,.2f}".format(margin|abs) }})</span>
+                        {% endif %}
                         {% endif %}
                         {% else %}
                         <span class="statusBadge draft" style="font-size: 11px;">Not Set</span>
@@ -71,14 +79,21 @@
                     <td>
                         <div style="display: flex; gap: 8px; align-items: center;">
                             {% if item.hasBOM %}
-                            <a href="/production/bom?furniture_id={{ item.furnitureID }}" class="actionButton secondary" style="padding: 5px 11px; font-size: 12px; text-decoration: none;">View BOM</a>
+                            <a href="/production/bom?furniture_id={{ item.furnitureID }}" class="actionButton secondary"
+                                style="padding: 5px 11px; font-size: 12px; text-decoration: none;">View BOM</a>
                             {% else %}
-                            <a href="/production/bom?furniture_id={{ item.furnitureID }}" class="actionButton" style="padding: 5px 11px; font-size: 12px; text-decoration: none;">+ Create BOM</a>
+                            <a href="/production/bom?furniture_id={{ item.furnitureID }}" class="actionButton"
+                                style="padding: 5px 11px; font-size: 12px; text-decoration: none;">+ Create BOM</a>
                             {% endif %}
                             {% if isManager %}
-                            <button type="button" class="actionButton secondary" style="padding: 5px 11px; font-size: 12px;" onclick="openEditModal({{ item.furnitureID }}, '{{ item.furnitureName|replace('\'', '\\\'') }}', '{{ item.furnitureType|replace('\'', '\\\'') }}', '{{ item.sellingPrice }}', '{{ item.bomCost }}', {{ 'true' if item.hasBOM else 'false' }})">Edit</button>
-                            <form method="POST" action="/production/furniture/delete/{{ item.furnitureID }}" style="display: inline;" onsubmit="return confirm('Are you sure you want to delete \'{{ item.furnitureName|replace('\'', '\\\'') }}\'?');">
-                                <button type="submit" class="actionButton secondary" style="padding: 5px 11px; font-size: 12px; color: #9a4a3a; border-color: #e2bcb3;">Delete</button>
+                            <button type="button" class="actionButton secondary"
+                                style="padding: 5px 11px; font-size: 12px;"
+                                onclick="openEditModal({{ item.furnitureID }}, '{{ item.furnitureName|replace('\'', '\\\'') }}', '{{ item.furnitureType|replace('\'', '\\\'') }}', '{{ item.sellingPrice }}', '{{ item.bomCost }}', {{ 'true' if item.hasBOM else 'false' }})">Edit</button>
+                            <form method="POST" action="/production/furniture/delete/{{ item.furnitureID }}"
+                                style="display: inline;"
+                                onsubmit="return confirm('Are you sure you want to delete \'{{ item.furnitureName|replace('\'', '\\\'') }}\'?');">
+                                <button type="submit" class="actionButton secondary"
+                                    style="padding: 5px 11px; font-size: 12px; color: #9a4a3a; border-color: #e2bcb3;">Delete</button>
                             </form>
                             {% endif %}
                         </div>
@@ -86,21 +101,25 @@
                 </tr>
                 {% else %}
                 <tr>
-                    <td colspan="6" style="text-align: center; color: var(--mt); padding: 24px;">No products found. Click '+ Add New Product' to register one.</td>
+                    <td colspan="6" style="text-align: center; color: var(--mt); padding: 24px;">No products found.
+                        Click '+ Add New Product' to register one.</td>
                 </tr>
                 {% endfor %}
                 <tr id="furnitureEmptyRow" style="display: none;">
-                    <td colspan="6" style="text-align: center; color: var(--mt); padding: 24px;">No products match your filter criteria.</td>
+                    <td colspan="6" style="text-align: center; color: var(--mt); padding: 24px;">No products match your
+                        filter criteria.</td>
                 </tr>
             </tbody>
         </table>
     </div>
-    <div class="auditPagination" id="furniturePagination" style="margin-top: 14px; padding-top: 12px; border-top: 1px solid var(--bd);">
+    <div class="auditPagination" id="furniturePagination"
+        style="margin-top: 14px; padding-top: 12px; border-top: 1px solid var(--bd);">
         <div style="display: flex; align-items: center; gap: 12px; flex-wrap: wrap;">
             <span class="auditPaginationInfo" id="furniturePageInfo"></span>
             <div style="display: inline-flex; align-items: center; gap: 6px;">
                 <label style="font-size: 12px; color: var(--mt);">Per page:</label>
-                <select id="furniturePageSize" onchange="changeFurniturePageSize(this.value)" style="padding: 4px 8px; font-size: 12px; border-radius: 6px;">
+                <select id="furniturePageSize" onchange="changeFurniturePageSize(this.value)"
+                    style="padding: 4px 8px; font-size: 12px; border-radius: 6px;">
                     <option value="10" selected>10</option>
                     <option value="25">25</option>
                     <option value="50">50</option>
@@ -108,9 +127,11 @@
             </div>
         </div>
         <div class="auditPaginationControls">
-            <button type="button" class="actionButton secondary" id="furniturePrevBtn" onclick="changeFurniturePage(-1)" style="padding: 5px 12px; font-size: 12px;">&larr; Prev</button>
+            <button type="button" class="actionButton secondary" id="furniturePrevBtn" onclick="changeFurniturePage(-1)"
+                style="padding: 5px 12px; font-size: 12px;">&larr; Prev</button>
             <span id="furniturePageIndicator" style="font-size: 12.5px; font-weight: 600; color: var(--tx);"></span>
-            <button type="button" class="actionButton secondary" id="furnitureNextBtn" onclick="changeFurniturePage(1)" style="padding: 5px 12px; font-size: 12px;">Next &rarr;</button>
+            <button type="button" class="actionButton secondary" id="furnitureNextBtn" onclick="changeFurniturePage(1)"
+                style="padding: 5px 12px; font-size: 12px;">Next &rarr;</button>
         </div>
     </div>
 </div>
@@ -138,12 +159,16 @@
                 </select>
             </div>
             <div class="formGroup">
-                <label>Standard Selling Price (₱) <span style="font-weight: normal; color: var(--mt); font-size: 12px;">(Optional)</span></label>
-                <input type="number" name="sellingPrice" placeholder="0.00 (Optional - auto-calculates after BOM)" min="0" step="0.01">
-                <small style="color: var(--mt); font-size: 11.5px; display: block; margin-top: 4px;">Optional. Manufacturing cost and suggested price are configured after creating the BOM recipe.</small>
+                <label>Standard Selling Price (₱) <span
+                        style="font-weight: normal; color: var(--mt); font-size: 12px;">(Optional)</span></label>
+                <input type="number" name="sellingPrice" placeholder="0.00 (Optional - auto-calculates after BOM)"
+                    min="0" step="0.01">
+                <small style="color: var(--mt); font-size: 11.5px; display: block; margin-top: 4px;">Optional.
+                    Manufacturing cost and suggested price are configured after creating the BOM recipe.</small>
             </div>
             <div class="modalActions">
-                <button type="button" class="actionButton secondary" onclick="closeModal('addFurnitureModal')">Cancel</button>
+                <button type="button" class="actionButton secondary"
+                    onclick="closeModal('addFurnitureModal')">Cancel</button>
                 <button type="submit" class="actionButton">Save Product</button>
             </div>
         </form>
@@ -171,23 +196,28 @@
                     <option value="Living Room">Living Room</option>
                 </select>
             </div>
-            <div id="editBomCostBox" style="background: rgba(0,0,0,0.02); border: 1px solid var(--bd); border-radius: 8px; padding: 10px 14px; margin-bottom: 14px; display: none;">
+            <div id="editBomCostBox"
+                style="background: rgba(0,0,0,0.02); border: 1px solid var(--bd); border-radius: 8px; padding: 10px 14px; margin-bottom: 14px; display: none;">
                 <div style="display: flex; justify-content: space-between; align-items: center;">
                     <span style="font-size: 12px; color: var(--mt);">BOM Material Cost:</span>
                     <b id="editBomCostDisplay" style="color: var(--p); font-size: 13.5px;">₱0.00</b>
                 </div>
-                <div id="editMarkupSuggestion" style="margin-top: 6px; font-size: 11.5px; color: var(--mt); display: flex; justify-content: space-between; align-items: center;">
+                <div id="editMarkupSuggestion"
+                    style="margin-top: 6px; font-size: 11.5px; color: var(--mt); display: flex; justify-content: space-between; align-items: center;">
                     <span>Suggested Price (+40% Markup):</span>
-                    <button type="button" class="actionButton secondary" id="applyMarkupBtn" style="padding: 2px 8px; font-size: 11px;">Apply ₱0.00</button>
+                    <button type="button" class="actionButton secondary" id="applyMarkupBtn"
+                        style="padding: 2px 8px; font-size: 11px;">Apply ₱0.00</button>
                 </div>
             </div>
             <div class="formGroup">
                 <label>Standard Selling Price (₱)</label>
                 <input type="number" id="editSellingPrice" name="sellingPrice" min="0" step="0.01">
-                <small style="color: var(--mt); font-size: 11.5px; display: block; margin-top: 4px;">Leave as 0.00 or empty if selling price is determined by sales team.</small>
+                <small style="color: var(--mt); font-size: 11.5px; display: block; margin-top: 4px;">Leave as 0.00 or
+                    empty if selling price is determined by sales team.</small>
             </div>
             <div class="modalActions">
-                <button type="button" class="actionButton secondary" onclick="closeModal('editFurnitureModal')">Cancel</button>
+                <button type="button" class="actionButton secondary"
+                    onclick="closeModal('editFurnitureModal')">Cancel</button>
                 <button type="submit" class="actionButton">Update Product</button>
             </div>
         </form>

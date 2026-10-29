@@ -9,15 +9,17 @@
 
 <div class="headerRow">
     <div>
-        <h2>Quality Inspection &amp; Finished Goods</h2>
-        <span style="color: var(--mt); font-size: 13.5px;">Authoritative QA inspection gating and inventory stock handoff to Finished Goods</span>
+        <h2>Finished Goods</h2>
+        <span style="color: var(--mt); font-size: 13.5px;">Once an order passes quality inspection, it will marked as
+            finished goods and trasnferred to inventory stock</span>
     </div>
 </div>
 
 <div class="card">
     <div class="workspaceToolbar">
         <div class="workspaceFilterTabs" role="tablist">
-            <button type="button" class="workspaceTabBtn active" data-qatab="pending" onclick="setQAWorkspaceTab('pending')">
+            <button type="button" class="workspaceTabBtn active" data-qatab="pending"
+                onclick="setQAWorkspaceTab('pending')">
                 <span class="tabStatusDot inProgress"></span>
                 <span>Awaiting QA</span>
                 <span class="workspaceTabCount">{{ summary.pending }}</span>
@@ -27,17 +29,20 @@
                 <span>All History</span>
                 <span class="workspaceTabCount">{{ outputRecords|length }}</span>
             </button>
-            <button type="button" class="workspaceTabBtn" data-qatab="history:Passed" onclick="setQAWorkspaceTab('history:Passed')">
+            <button type="button" class="workspaceTabBtn" data-qatab="history:Passed"
+                onclick="setQAWorkspaceTab('history:Passed')">
                 <span class="tabStatusDot completed"></span>
                 <span>Passed</span>
                 <span class="workspaceTabCount">{{ passedRecordCount }}</span>
             </button>
-            <button type="button" class="workspaceTabBtn" data-qatab="history:Rework" onclick="setQAWorkspaceTab('history:Rework')">
+            <button type="button" class="workspaceTabBtn" data-qatab="history:Rework"
+                onclick="setQAWorkspaceTab('history:Rework')">
                 <span class="tabStatusDot draft"></span>
                 <span>Rework</span>
                 <span class="workspaceTabCount">{{ reworkRecordCount }}</span>
             </button>
-            <button type="button" class="workspaceTabBtn" data-qatab="history:Failed" onclick="setQAWorkspaceTab('history:Failed')">
+            <button type="button" class="workspaceTabBtn" data-qatab="history:Failed"
+                onclick="setQAWorkspaceTab('history:Failed')">
                 <span class="tabStatusDot overdue"></span>
                 <span>Failed</span>
                 <span class="workspaceTabCount">{{ failedRecordCount }}</span>
@@ -62,213 +67,235 @@
 
     <div id="qaPendingSection">
         {% if needsAttentionOrders %}
-        <div style="margin-bottom: 16px; padding: 12px 14px; background: #fbf7ef; border: 1px solid var(--bd); border-left: 4px solid #c97a3e; border-radius: 8px;">
-            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; gap: 10px; flex-wrap: wrap;">
+        <div
+            style="margin-bottom: 16px; padding: 12px 14px; background: #fbf7ef; border: 1px solid var(--bd); border-left: 4px solid #c97a3e; border-radius: 8px;">
+            <div
+                style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; gap: 10px; flex-wrap: wrap;">
                 <div>
                     <b style="color: #a25622; font-size: 13.5px;">Orders Needing Attention (0 Units Pending QA)</b>
-                    <div style="color: var(--mt); font-size: 12px;">Marked 'In Progress' at 90%+ with all planned units already inspected. Review to finalize status.</div>
+                    <div style="color: var(--mt); font-size: 12px;">Marked 'In Progress' at 90%+ with all planned units
+                        already inspected. Review to finalize status.</div>
                 </div>
                 <span class="statusBadge alert">{{ needsAttentionOrders | length }} Needs Review</span>
             </div>
             <div style="display: flex; flex-direction: column; gap: 6px;">
                 {% for ord in needsAttentionOrders %}
-                <div style="display: flex; justify-content: space-between; align-items: center; padding: 7px 10px; background: #ffffff; border: 1px solid var(--bd); border-radius: 6px;">
+                <div
+                    style="display: flex; justify-content: space-between; align-items: center; padding: 7px 10px; background: #ffffff; border: 1px solid var(--bd); border-radius: 6px;">
                     <div style="font-size: 13px;">
-                        <a href="/production/orders/{{ ord.orderID }}" style="color: var(--p); font-weight: 700; text-decoration: none;">Order #PO-{{ ord.orderID }}</a>
-                        &middot; <b>{{ ord.furnitureName }}</b> (Planned: {{ ord.plannedQuantity }}, Passed: {{ ord.alreadyPassed }}, Scrapped: {{ ord.alreadyFailed }})
+                        <a href="/production/orders/{{ ord.orderID }}"
+                            style="color: var(--p); font-weight: 700; text-decoration: none;">Order #PO-{{ ord.orderID
+                            }}</a>
+                        &middot; <b>{{ ord.furnitureName }}</b> (Planned: {{ ord.plannedQuantity }}, Passed: {{
+                        ord.alreadyPassed }}, Scrapped: {{ ord.alreadyFailed }})
                     </div>
-                    <a href="/production/orders/{{ ord.orderID }}" class="btn btnSecondary" style="font-size: 12px; padding: 4px 10px;">View Order</a>
+                    <a href="/production/orders/{{ ord.orderID }}" class="btn btnSecondary"
+                        style="font-size: 12px; padding: 4px 10px;">View Order</a>
                 </div>
                 {% endfor %}
             </div>
         </div>
         {% endif %}
 
-    <div class="tableContainer">
-        <table class="monitoringTable">
-            <thead>
-                <tr>
-                    <th>Order Reference</th>
-                    <th>Furniture Product</th>
-                    <th>Assembly Progress</th>
-                    <th>Target Due Date</th>
-                    <th>Pending QA</th>
-                    <th>Reworks</th>
-                    <th style="text-align: right;">Action</th>
-                </tr>
-            </thead>
-            <tbody>
-                {% for ord in pendingOrders %}
-                <tr class="qaPendingRow" data-search="po-{{ ord.orderID }} {{ ord.furnitureName|lower }} {{ (ord.assignedStaffName or '')|lower }}">
-                    <td data-label="Order">
-                        <div>
-                            <a href="/production/orders/{{ ord.orderID }}"
-                                style="color: var(--p); font-weight: 700; text-decoration: none; font-size: 13.5px;">Order
-                                #PO-{{ ord.orderID }}</a>
-                        </div>
-                    </td>
-                    <td data-label="Product">
-                        <div>
-                            <b>{{ ord.furnitureName }}</b> &middot; {{ ord.plannedQuantity }} unit{% if ord.plannedQuantity != 1 %}s{% endif %}
-                        </div>
-                        <div style="font-size: 11.5px; color: var(--mt); margin-top: 2px;">
-                            Staff: <b>{{ ord.assignedStaffName or 'Unassigned' }}</b>
-                        </div>
-                    </td>
-                    <td data-label="Progress">
-                        <div style="display: flex; align-items: center; gap: 8px;">
-                            <div class="progressTrack">
-                                <span class="progressFill" style="width: {{ ord.progress | round | int }}%;"></span>
+        <div class="tableContainer">
+            <table class="monitoringTable">
+                <thead>
+                    <tr>
+                        <th>Order Reference</th>
+                        <th>Furniture Product</th>
+                        <th>Assembly Progress</th>
+                        <th>Target Due Date</th>
+                        <th>Pending QA</th>
+                        <th>Reworks</th>
+                        <th style="text-align: right;">Action</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for ord in pendingOrders %}
+                    <tr class="qaPendingRow"
+                        data-search="po-{{ ord.orderID }} {{ ord.furnitureName|lower }} {{ (ord.assignedStaffName or '')|lower }}">
+                        <td data-label="Order">
+                            <div>
+                                <a href="/production/orders/{{ ord.orderID }}"
+                                    style="color: var(--p); font-weight: 700; text-decoration: none; font-size: 13.5px;">Order
+                                    #PO-{{ ord.orderID }}</a>
                             </div>
-                            <span style="font-size: 12px; font-weight: 700; color: #526638;">{{ ord.progress | round |
-                                int }}%</span>
-                        </div>
-                        {% if ord.latestProof and ord.latestProof.hasImage %}
-                        <div style="margin-top: 5px;">
-                            <button type="button" class="proofThumbBtn"
-                                data-proof-url="{{ ord.latestProof.fileUrl }}"
-                                data-proof-title="Order #PO-{{ ord.orderID }} · {{ ord.latestProof.stageLabel }}"
-                                data-proof-meta="Submitted by {{ ord.latestProof.submittedBy }} on {{ ord.latestProof.formattedCreatedAt }}"
-                                data-proof-note="{{ ord.latestProof.note }}"
-                                onclick="window.openProofLightbox(this.dataset.proofUrl, this.dataset.proofTitle, this.dataset.proofMeta, this.dataset.proofNote)">
-                                <img src="{{ ord.latestProof.fileUrl }}" alt="Stage 4 Proof" class="proofThumbImg" loading="lazy">
-                                <span>Stage 4 Proof</span>
+                        </td>
+                        <td data-label="Product">
+                            <div>
+                                <b>{{ ord.furnitureName }}</b> &middot; {{ ord.plannedQuantity }} unit{% if
+                                ord.plannedQuantity != 1 %}s{% endif %}
+                            </div>
+                            <div style="font-size: 11.5px; color: var(--mt); margin-top: 2px;">
+                                Staff: <b>{{ ord.assignedStaffName or 'Unassigned' }}</b>
+                            </div>
+                        </td>
+                        <td data-label="Progress">
+                            <div style="display: flex; align-items: center; gap: 8px;">
+                                <div class="progressTrack">
+                                    <span class="progressFill" style="width: {{ ord.progress | round | int }}%;"></span>
+                                </div>
+                                <span style="font-size: 12px; font-weight: 700; color: #526638;">{{ ord.progress | round
+                                    |
+                                    int }}%</span>
+                            </div>
+                            {% if ord.latestProof and ord.latestProof.hasImage %}
+                            <div style="margin-top: 5px;">
+                                <button type="button" class="proofThumbBtn"
+                                    data-proof-url="{{ ord.latestProof.fileUrl }}"
+                                    data-proof-title="Order #PO-{{ ord.orderID }} · {{ ord.latestProof.stageLabel }}"
+                                    data-proof-meta="Submitted by {{ ord.latestProof.submittedBy }} on {{ ord.latestProof.formattedCreatedAt }}"
+                                    data-proof-note="{{ ord.latestProof.note }}"
+                                    onclick="window.openProofLightbox(this.dataset.proofUrl, this.dataset.proofTitle, this.dataset.proofMeta, this.dataset.proofNote)">
+                                    <img src="{{ ord.latestProof.fileUrl }}" alt="Stage 4 Proof" class="proofThumbImg"
+                                        loading="lazy">
+                                    <span>Stage 4 Proof</span>
+                                </button>
+                            </div>
+                            {% endif %}
+                        </td>
+                        <td data-label="Due Date">
+                            {% if ord.formattedDueDate %}
+                            <span style="font-size: 13px; font-weight: 500;">{{ ord.formattedDueDate }}</span>
+                            {% else %}
+                            <span style="color: var(--mt); font-size: 12.5px;">No Date</span>
+                            {% endif %}
+                        </td>
+                        <td data-label="Pending">
+                            <b>{{ ord.pendingInspectionQty }}</b> unit{% if ord.pendingInspectionQty != 1 %}s{% endif %}
+                        </td>
+                        <td data-label="Reworks">
+                            <span style="font-size: 12.5px; font-weight: 600;">{{ ord.reworkCount or 0 }}/2</span>
+                        </td>
+                        <td data-label="Action" style="text-align: right;">
+                            {% if isManager %}
+                            <button type="button" class="btn btnPrimary qaInspectBtn" data-order-id="{{ ord.orderID }}"
+                                data-furniture-name="{{ ord.furnitureName }}"
+                                data-staff-name="{{ ord.assignedStaffName or '' }}"
+                                data-proof-url="{{ ord.latestProof.fileUrl if ord.latestProof and ord.latestProof.hasImage else '' }}"
+                                data-proof-by="{{ ord.latestProof.submittedBy if ord.latestProof else '' }}"
+                                data-proof-time="{{ ord.latestProof.formattedCreatedAt if ord.latestProof else '' }}"
+                                data-proof-note="{{ ord.latestProof.note if ord.latestProof else '' }}"
+                                data-proof-stage="{{ ord.latestProof.stageLabel if ord.latestProof else 'Stage 4: Ready for QA' }}"
+                                data-pending-qty="{{ ord.pendingInspectionQty }}"
+                                data-passed-qty="{{ ord.alreadyPassed }}" data-failed-qty="{{ ord.alreadyFailed }}"
+                                data-rework-count="{{ ord.reworkCount or 0 }}"
+                                data-inspect-url="{{ url_for('production.recordInspection', orderID=ord.orderID) }}">
+                                Inspect
                             </button>
-                        </div>
-                        {% endif %}
-                    </td>
-                    <td data-label="Due Date">
-                        {% if ord.formattedDueDate %}
-                        <span style="font-size: 13px; font-weight: 500;">{{ ord.formattedDueDate }}</span>
-                        {% else %}
-                        <span style="color: var(--mt); font-size: 12.5px;">No Date</span>
-                        {% endif %}
-                    </td>
-                    <td data-label="Pending">
-                        <b>{{ ord.pendingInspectionQty }}</b> unit{% if ord.pendingInspectionQty != 1 %}s{% endif %}
-                    </td>
-                    <td data-label="Reworks">
-                        <span style="font-size: 12.5px; font-weight: 600;">{{ ord.reworkCount or 0 }}/2</span>
-                    </td>
-                    <td data-label="Action" style="text-align: right;">
-                        {% if isManager %}
-                        <button type="button" class="btn btnPrimary qaInspectBtn"
-                            data-order-id="{{ ord.orderID }}"
-                            data-furniture-name="{{ ord.furnitureName }}"
-                            data-staff-name="{{ ord.assignedStaffName or '' }}"
-                            data-proof-url="{{ ord.latestProof.fileUrl if ord.latestProof and ord.latestProof.hasImage else '' }}"
-                            data-proof-by="{{ ord.latestProof.submittedBy if ord.latestProof else '' }}"
-                            data-proof-time="{{ ord.latestProof.formattedCreatedAt if ord.latestProof else '' }}"
-                            data-proof-note="{{ ord.latestProof.note if ord.latestProof else '' }}"
-                            data-proof-stage="{{ ord.latestProof.stageLabel if ord.latestProof else 'Stage 4: Ready for QA' }}"
-                            data-pending-qty="{{ ord.pendingInspectionQty }}"
-                            data-passed-qty="{{ ord.alreadyPassed }}"
-                            data-failed-qty="{{ ord.alreadyFailed }}"
-                            data-rework-count="{{ ord.reworkCount or 0 }}"
-                            data-inspect-url="{{ url_for('production.recordInspection', orderID=ord.orderID) }}">
-                            Inspect
-                        </button>
-                        {% else %}
-                        <span style="font-size: 12.5px; color: var(--mt); font-style: italic;">Awaiting Manager Sign-Off</span>
-                        {% endif %}
-                    </td>
-                </tr>
-                {% else %}
-                <tr>
-                    <td colspan="7" style="text-align: center; color: var(--mt); padding: 28px;">
-                        No orders currently awaiting quality inspection. Orders reach QA here once updated to 90% in
-                        Production Monitoring.
-                    </td>
-                </tr>
-                {% endfor %}
-                <tr id="qaPendingEmptyRow" style="display: none;">
-                    <td colspan="7" style="text-align: center; color: var(--mt); padding: 28px;">
-                        No awaiting QA orders match your search criteria.
-                    </td>
-                </tr>
-            </tbody>
-        </table>
-    </div>
+                            {% else %}
+                            <span style="font-size: 12.5px; color: var(--mt); font-style: italic;">Awaiting Manager
+                                Sign-Off</span>
+                            {% endif %}
+                        </td>
+                    </tr>
+                    {% else %}
+                    <tr>
+                        <td colspan="7" style="text-align: center; color: var(--mt); padding: 28px;">
+                            No orders currently awaiting quality inspection. Orders reach QA here once updated to 90% in
+                            Production Monitoring.
+                        </td>
+                    </tr>
+                    {% endfor %}
+                    <tr id="qaPendingEmptyRow" style="display: none;">
+                        <td colspan="7" style="text-align: center; color: var(--mt); padding: 28px;">
+                            No awaiting QA orders match your search criteria.
+                        </td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
     </div>
 
     <div id="qaHistorySection" style="display: none;">
-    <div class="tableContainer">
-        <table class="monitoringTable">
-            <thead>
-                <tr>
-                    <th>Date</th>
-                    <th>Order</th>
-                    <th>Product</th>
-                    <th>Status</th>
-                    <th>Quantity</th>
-                    <th>Reason</th>
-                    <th>Inspector</th>
-                </tr>
-            </thead>
-            <tbody>
-                {% for out in outputRecords %}
-                <tr class="qaHistoryRow" data-status="{{ out.qualityStatus }}" data-search="po-{{ out.orderID }} {{ out.furnitureName|lower }} {{ out.recordedBy|lower }} {{ (out.reason or '')|lower }}">
-                    <td data-label="Date">{{ out.formattedInspectionDate }}</td>
-                    <td data-label="Order">
-                        <a href="/production/orders/{{ out.orderID }}" style="color: var(--p); font-weight: 700; text-decoration: none;">Order #PO-{{ out.orderID }}</a>
-                    </td>
-                    <td data-label="Product">{{ out.furnitureName }}</td>
-                    <td data-label="Status">
-                        {% if out.qualityStatus == 'Passed' %}
-                        <span class="statusBadge completed">Passed</span>
-                        {% elif out.qualityStatus == 'Rework' %}
-                        <span class="statusBadge inProgress">Rework</span>
-                        {% elif out.qualityStatus == 'Failed' %}
-                        <span class="statusBadge cancelled">Failed</span>
-                        {% else %}
-                        <span class="statusBadge draft">{{ out.qualityStatus }}</span>
-                        {% endif %}
-                    </td>
-                    <td data-label="Quantity"><b>{{ out.quantity }}</b> unit{% if out.quantity != 1 %}s{% endif %}</td>
-                    <td data-label="Reason">
-                        {% if out.reason %}
-                        <span style="font-size: 12.5px;">{{ out.reason }}</span>
-                        {% else %}
-                        <span style="color: var(--mt); font-size: 12px;">-</span>
-                        {% endif %}
-                    </td>
-                    <td data-label="Inspector">
-                        <span style="font-size: 12.5px; font-weight: 500;">{{ out.recordedBy }}</span>
-                    </td>
-                </tr>
-                {% else %}
-                <tr>
-                    <td colspan="7" style="text-align: center; color: var(--mt); padding: 24px;">No quality inspection records logged yet.</td>
-                </tr>
-                {% endfor %}
-                <tr id="qaHistoryEmptyRow" style="display: none;">
-                    <td colspan="7" style="text-align: center; color: var(--mt); padding: 24px;">No quality inspection records match your filter criteria.</td>
-                </tr>
-            </tbody>
-        </table>
-    </div>
-    <div class="auditPagination" id="qaHistoryPagination" style="margin-top: 14px; padding-top: 12px; border-top: 1px solid var(--bd);">
-        <div style="display: flex; align-items: center; gap: 12px; flex-wrap: wrap;">
-            <span class="auditPaginationInfo" id="qaHistoryPageInfo"></span>
-            <div style="display: inline-flex; align-items: center; gap: 6px;">
-                <label style="font-size: 12px; color: var(--mt);">Per page:</label>
-                <select id="qaHistoryPageSize" onchange="changeQAHistoryPageSize(this.value)" style="padding: 4px 8px; font-size: 12px; border-radius: 6px;">
-                    <option value="10" selected>10</option>
-                    <option value="25">25</option>
-                    <option value="50">50</option>
-                </select>
+        <div class="tableContainer">
+            <table class="monitoringTable">
+                <thead>
+                    <tr>
+                        <th>Date</th>
+                        <th>Order</th>
+                        <th>Product</th>
+                        <th>Status</th>
+                        <th>Quantity</th>
+                        <th>Reason</th>
+                        <th>Inspector</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for out in outputRecords %}
+                    <tr class="qaHistoryRow" data-status="{{ out.qualityStatus }}"
+                        data-search="po-{{ out.orderID }} {{ out.furnitureName|lower }} {{ out.recordedBy|lower }} {{ (out.reason or '')|lower }}">
+                        <td data-label="Date">{{ out.formattedInspectionDate }}</td>
+                        <td data-label="Order">
+                            <a href="/production/orders/{{ out.orderID }}"
+                                style="color: var(--p); font-weight: 700; text-decoration: none;">Order #PO-{{
+                                out.orderID }}</a>
+                        </td>
+                        <td data-label="Product">{{ out.furnitureName }}</td>
+                        <td data-label="Status">
+                            {% if out.qualityStatus == 'Passed' %}
+                            <span class="statusBadge completed">Passed</span>
+                            {% elif out.qualityStatus == 'Rework' %}
+                            <span class="statusBadge inProgress">Rework</span>
+                            {% elif out.qualityStatus == 'Failed' %}
+                            <span class="statusBadge cancelled">Failed</span>
+                            {% else %}
+                            <span class="statusBadge draft">{{ out.qualityStatus }}</span>
+                            {% endif %}
+                        </td>
+                        <td data-label="Quantity"><b>{{ out.quantity }}</b> unit{% if out.quantity != 1 %}s{% endif %}
+                        </td>
+                        <td data-label="Reason">
+                            {% if out.reason %}
+                            <span style="font-size: 12.5px;">{{ out.reason }}</span>
+                            {% else %}
+                            <span style="color: var(--mt); font-size: 12px;">-</span>
+                            {% endif %}
+                        </td>
+                        <td data-label="Inspector">
+                            <span style="font-size: 12.5px; font-weight: 500;">{{ out.recordedBy }}</span>
+                        </td>
+                    </tr>
+                    {% else %}
+                    <tr>
+                        <td colspan="7" style="text-align: center; color: var(--mt); padding: 24px;">No quality
+                            inspection records logged yet.</td>
+                    </tr>
+                    {% endfor %}
+                    <tr id="qaHistoryEmptyRow" style="display: none;">
+                        <td colspan="7" style="text-align: center; color: var(--mt); padding: 24px;">No quality
+                            inspection records match your filter criteria.</td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+        <div class="auditPagination" id="qaHistoryPagination"
+            style="margin-top: 14px; padding-top: 12px; border-top: 1px solid var(--bd);">
+            <div style="display: flex; align-items: center; gap: 12px; flex-wrap: wrap;">
+                <span class="auditPaginationInfo" id="qaHistoryPageInfo"></span>
+                <div style="display: inline-flex; align-items: center; gap: 6px;">
+                    <label style="font-size: 12px; color: var(--mt);">Per page:</label>
+                    <select id="qaHistoryPageSize" onchange="changeQAHistoryPageSize(this.value)"
+                        style="padding: 4px 8px; font-size: 12px; border-radius: 6px;">
+                        <option value="10" selected>10</option>
+                        <option value="25">25</option>
+                        <option value="50">50</option>
+                    </select>
+                </div>
+            </div>
+            <div class="auditPaginationControls">
+                <button type="button" class="actionButton secondary" id="qaHistoryPrevBtn"
+                    onclick="changeQAHistoryPage(-1)" style="padding: 5px 12px; font-size: 12px;">&larr; Prev</button>
+                <span id="qaHistoryPageIndicator" style="font-size: 12.5px; font-weight: 600; color: var(--tx);"></span>
+                <button type="button" class="actionButton secondary" id="qaHistoryNextBtn"
+                    onclick="changeQAHistoryPage(1)" style="padding: 5px 12px; font-size: 12px;">Next &rarr;</button>
             </div>
         </div>
-        <div class="auditPaginationControls">
-            <button type="button" class="actionButton secondary" id="qaHistoryPrevBtn" onclick="changeQAHistoryPage(-1)" style="padding: 5px 12px; font-size: 12px;">&larr; Prev</button>
-            <span id="qaHistoryPageIndicator" style="font-size: 12.5px; font-weight: 600; color: var(--tx);"></span>
-            <button type="button" class="actionButton secondary" id="qaHistoryNextBtn" onclick="changeQAHistoryPage(1)" style="padding: 5px 12px; font-size: 12px;">Next &rarr;</button>
-        </div>
-    </div>
     </div>
 </div>
 
-<div id="qaModalOverlay" class="qaModalOverlay" style="display: none;" role="dialog" aria-modal="true" aria-labelledby="qaModalTitle">
+<div id="qaModalOverlay" class="qaModalOverlay" style="display: none;" role="dialog" aria-modal="true"
+    aria-labelledby="qaModalTitle">
     <div class="qaModalCard">
         <div class="qaModalHeader">
             <div>
@@ -280,10 +307,13 @@
 
         <div id="qaSummaryLine" class="qaSummaryLine"></div>
 
-        <div id="qaProofPreviewBox" style="display: none; padding: 10px 12px; background: #faf8f2; border: 1px solid var(--bd); border-radius: 8px; align-items: center; justify-content: space-between; gap: 10px;">
+        <div id="qaProofPreviewBox"
+            style="display: none; padding: 10px 12px; background: #faf8f2; border: 1px solid var(--bd); border-radius: 8px; align-items: center; justify-content: space-between; gap: 10px;">
             <div style="min-width: 0; flex: 1;">
                 <div id="qaProofStaffLine" style="font-size: 12px; font-weight: 700; color: var(--tx);"></div>
-                <div id="qaProofNoteLine" style="font-size: 11.5px; color: var(--mt); margin-top: 2px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;"></div>
+                <div id="qaProofNoteLine"
+                    style="font-size: 11.5px; color: var(--mt); margin-top: 2px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">
+                </div>
             </div>
             <button type="button" id="qaProofViewBtn" class="proofThumbBtn" style="flex-shrink: 0;">
                 <img id="qaProofThumbImg" src="" alt="Stage 4 Proof" class="proofThumbImg">
@@ -299,25 +329,32 @@
                             <label for="qaPassedInput">Passed</label>
                             <button type="button" id="qaPassAllBtn" class="qaPassAllLink">Pass all</button>
                         </div>
-                        <input type="number" id="qaPassedInput" name="passedQuantity" min="0" step="1" inputmode="numeric" placeholder="0" class="qaNumberInput">
+                        <input type="number" id="qaPassedInput" name="passedQuantity" min="0" step="1"
+                            inputmode="numeric" placeholder="0" class="qaNumberInput">
                     </div>
                     <div class="qaFieldGroup">
                         <label for="qaReworkInput">Rework</label>
-                        <input type="number" id="qaReworkInput" name="reworkQuantity" min="0" step="1" inputmode="numeric" placeholder="0" class="qaNumberInput">
-                        <small id="qaReworkLimitNote" style="display: none; color: #9a4a3a; font-size: 10.5px; font-weight: 600;">Max reworks reached (2/2)</small>
+                        <input type="number" id="qaReworkInput" name="reworkQuantity" min="0" step="1"
+                            inputmode="numeric" placeholder="0" class="qaNumberInput">
+                        <small id="qaReworkLimitNote"
+                            style="display: none; color: #9a4a3a; font-size: 10.5px; font-weight: 600;">Max reworks
+                            reached (2/2)</small>
                     </div>
                     <div class="qaFieldGroup">
                         <label for="qaFailedInput">Failed</label>
-                        <input type="number" id="qaFailedInput" name="failedQuantity" min="0" step="1" inputmode="numeric" placeholder="0" class="qaNumberInput">
+                        <input type="number" id="qaFailedInput" name="failedQuantity" min="0" step="1"
+                            inputmode="numeric" placeholder="0" class="qaNumberInput">
                     </div>
                 </div>
             </div>
 
-            <div id="qaTotalDisplay" class="qaTotalDisplay invalid" style="margin-bottom: 10px;">Total entered: 0 / 0</div>
+            <div id="qaTotalDisplay" class="qaTotalDisplay invalid" style="margin-bottom: 10px;">Total entered: 0 / 0
+            </div>
 
             <div id="qaReasonGroup" class="qaFieldGroup" style="display: none; margin-bottom: 12px;">
                 <label for="qaReasonInput">Reason (Mandatory for Rework / Scrap)</label>
-                <input type="text" id="qaReasonInput" name="reason" maxlength="255" placeholder="Reason for rework or scrap" class="qaReasonInput">
+                <input type="text" id="qaReasonInput" name="reason" maxlength="255"
+                    placeholder="Reason for rework or scrap" class="qaReasonInput">
             </div>
 
             <div id="qaScrapConfirmBox" class="qaScrapConfirmBox" style="display: none; margin-bottom: 14px;">
@@ -334,388 +371,388 @@
 </div>
 
 <script>
-var qaModalOverlay = document.getElementById('qaModalOverlay');
-var qaModalForm = document.getElementById('qaModalForm');
-var qaModalTitle = document.getElementById('qaModalTitle');
-var qaModalSubtitle = document.getElementById('qaModalSubtitle');
-var qaSummaryLine = document.getElementById('qaSummaryLine');
-var qaPassedInput = document.getElementById('qaPassedInput');
-var qaReworkInput = document.getElementById('qaReworkInput');
-var qaFailedInput = document.getElementById('qaFailedInput');
-var qaPassAllBtn = document.getElementById('qaPassAllBtn');
-var qaReworkLimitNote = document.getElementById('qaReworkLimitNote');
-var qaTotalDisplay = document.getElementById('qaTotalDisplay');
-var qaReasonGroup = document.getElementById('qaReasonGroup');
-var qaReasonInput = document.getElementById('qaReasonInput');
-var qaScrapConfirmBox = document.getElementById('qaScrapConfirmBox');
-var qaScrapConfirmCheckbox = document.getElementById('qaScrapConfirmCheckbox');
-var qaModalSubmitBtn = document.getElementById('qaModalSubmitBtn');
-var qaModalCloseBtn = document.getElementById('qaModalCloseBtn');
-var qaModalCancelBtn = document.getElementById('qaModalCancelBtn');
+    var qaModalOverlay = document.getElementById('qaModalOverlay');
+    var qaModalForm = document.getElementById('qaModalForm');
+    var qaModalTitle = document.getElementById('qaModalTitle');
+    var qaModalSubtitle = document.getElementById('qaModalSubtitle');
+    var qaSummaryLine = document.getElementById('qaSummaryLine');
+    var qaPassedInput = document.getElementById('qaPassedInput');
+    var qaReworkInput = document.getElementById('qaReworkInput');
+    var qaFailedInput = document.getElementById('qaFailedInput');
+    var qaPassAllBtn = document.getElementById('qaPassAllBtn');
+    var qaReworkLimitNote = document.getElementById('qaReworkLimitNote');
+    var qaTotalDisplay = document.getElementById('qaTotalDisplay');
+    var qaReasonGroup = document.getElementById('qaReasonGroup');
+    var qaReasonInput = document.getElementById('qaReasonInput');
+    var qaScrapConfirmBox = document.getElementById('qaScrapConfirmBox');
+    var qaScrapConfirmCheckbox = document.getElementById('qaScrapConfirmCheckbox');
+    var qaModalSubmitBtn = document.getElementById('qaModalSubmitBtn');
+    var qaModalCloseBtn = document.getElementById('qaModalCloseBtn');
+    var qaModalCancelBtn = document.getElementById('qaModalCancelBtn');
 
-var currentPendingQty = 0;
-var currentReworkCount = 0;
-var lastFocusedBtn = null;
+    var currentPendingQty = 0;
+    var currentReworkCount = 0;
+    var lastFocusedBtn = null;
 
-function updateModalState() {
-    if (!currentPendingQty || currentPendingQty <= 0) {
-        if (qaModalSubmitBtn) {
-            qaModalSubmitBtn.disabled = true;
+    function updateModalState() {
+        if (!currentPendingQty || currentPendingQty <= 0) {
+            if (qaModalSubmitBtn) {
+                qaModalSubmitBtn.disabled = true;
+            }
+            return;
         }
-        return;
-    }
 
-    var passedVal = parseInt(qaPassedInput.value || 0, 10);
-    var reworkVal = parseInt(qaReworkInput.value || 0, 10);
-    var failedVal = parseInt(qaFailedInput.value || 0, 10);
+        var passedVal = parseInt(qaPassedInput.value || 0, 10);
+        var reworkVal = parseInt(qaReworkInput.value || 0, 10);
+        var failedVal = parseInt(qaFailedInput.value || 0, 10);
 
-    if (isNaN(passedVal) || passedVal < 0) passedVal = 0;
-    if (isNaN(reworkVal) || reworkVal < 0) reworkVal = 0;
-    if (isNaN(failedVal) || failedVal < 0) failedVal = 0;
+        if (isNaN(passedVal) || passedVal < 0) passedVal = 0;
+        if (isNaN(reworkVal) || reworkVal < 0) reworkVal = 0;
+        if (isNaN(failedVal) || failedVal < 0) failedVal = 0;
 
-    var totalEntered = passedVal + reworkVal + failedVal;
-    qaTotalDisplay.textContent = 'Total entered: ' + totalEntered + ' / ' + currentPendingQty;
+        var totalEntered = passedVal + reworkVal + failedVal;
+        qaTotalDisplay.textContent = 'Total entered: ' + totalEntered + ' / ' + currentPendingQty;
 
-    if (totalEntered === currentPendingQty) {
-        qaTotalDisplay.className = 'qaTotalDisplay valid';
-    } else {
-        qaTotalDisplay.className = 'qaTotalDisplay invalid';
-    }
-
-    var needsReason = (reworkVal > 0 || failedVal > 0);
-    qaReasonGroup.style.display = needsReason ? 'flex' : 'none';
-
-    var hasFailed = (failedVal > 0);
-    qaScrapConfirmBox.style.display = hasFailed ? 'flex' : 'none';
-
-    var isValidTotal = (totalEntered === currentPendingQty);
-    var isReasonValid = !needsReason || (qaReasonInput.value.trim().length > 0);
-    var isScrapConfirmed = !hasFailed || qaScrapConfirmCheckbox.checked;
-
-    qaModalSubmitBtn.disabled = !(isValidTotal && isReasonValid && isScrapConfirmed);
-}
-
-function openQAModal(btn) {
-    lastFocusedBtn = btn;
-    var orderID = btn.dataset.orderId;
-    var furnitureName = btn.dataset.furnitureName;
-    var staffName = btn.dataset.staffName || '';
-    var proofUrl = btn.dataset.proofUrl || '';
-    var proofBy = btn.dataset.proofBy || staffName || 'Workshop Staff';
-    var proofTime = btn.dataset.proofTime || '';
-    var proofNote = btn.dataset.proofNote || '';
-    var proofStage = btn.dataset.proofStage || 'Stage 4: Ready for QA';
-    currentPendingQty = parseInt(btn.dataset.pendingQty || 0, 10);
-    var alreadyPassed = parseInt(btn.dataset.passedQty || 0, 10);
-    var alreadyFailed = parseInt(btn.dataset.failedQty || 0, 10);
-    currentReworkCount = parseInt(btn.dataset.reworkCount || 0, 10);
-
-    qaModalForm.action = btn.dataset.inspectUrl;
-    qaModalForm.dataset.submitting = 'false';
-    qaModalTitle.textContent = 'Quality Inspection - Order #PO-' + orderID;
-    qaModalSubtitle.textContent = staffName ? (furnitureName + ' · Assigned: ' + staffName) : furnitureName;
-    qaSummaryLine.textContent = currentPendingQty + ' pending, ' + alreadyPassed + ' passed, ' + alreadyFailed + ' scrapped so far';
-
-    var proofBox = document.getElementById('qaProofPreviewBox');
-    var proofStaffEl = document.getElementById('qaProofStaffLine');
-    var proofNoteEl = document.getElementById('qaProofNoteLine');
-    var proofThumbEl = document.getElementById('qaProofThumbImg');
-    var proofBtn = document.getElementById('qaProofViewBtn');
-    if (proofBox) {
-        if (proofUrl) {
-            if (proofStaffEl) {
-                proofStaffEl.textContent = proofStage + ' · Submitted by ' + proofBy;
-            }
-            if (proofNoteEl) {
-                proofNoteEl.textContent = proofNote ? ('Note: ' + proofNote) : (proofTime || 'Click View Photo to inspect workshop submission');
-            }
-            if (proofThumbEl) {
-                proofThumbEl.src = proofUrl;
-            }
-            if (proofBtn) {
-                proofBtn.onclick = function() {
-                    if (typeof window.openProofLightbox === 'function') {
-                        window.openProofLightbox(
-                            proofUrl,
-                            'Order #PO-' + orderID + ' · ' + proofStage,
-                            'Submitted by ' + proofBy + (proofTime ? (' on ' + proofTime) : ''),
-                            proofNote
-                        );
-                    }
-                };
-            }
-            proofBox.style.display = 'flex';
+        if (totalEntered === currentPendingQty) {
+            qaTotalDisplay.className = 'qaTotalDisplay valid';
         } else {
-            proofBox.style.display = 'none';
+            qaTotalDisplay.className = 'qaTotalDisplay invalid';
         }
+
+        var needsReason = (reworkVal > 0 || failedVal > 0);
+        qaReasonGroup.style.display = needsReason ? 'flex' : 'none';
+
+        var hasFailed = (failedVal > 0);
+        qaScrapConfirmBox.style.display = hasFailed ? 'flex' : 'none';
+
+        var isValidTotal = (totalEntered === currentPendingQty);
+        var isReasonValid = !needsReason || (qaReasonInput.value.trim().length > 0);
+        var isScrapConfirmed = !hasFailed || qaScrapConfirmCheckbox.checked;
+
+        qaModalSubmitBtn.disabled = !(isValidTotal && isReasonValid && isScrapConfirmed);
     }
 
-    qaPassedInput.value = '';
-    qaPassedInput.max = currentPendingQty;
-    qaReworkInput.value = '';
-    qaReworkInput.max = currentPendingQty;
-    qaFailedInput.value = '';
-    qaFailedInput.max = currentPendingQty;
-    qaReasonInput.value = '';
-    qaScrapConfirmCheckbox.checked = false;
+    function openQAModal(btn) {
+        lastFocusedBtn = btn;
+        var orderID = btn.dataset.orderId;
+        var furnitureName = btn.dataset.furnitureName;
+        var staffName = btn.dataset.staffName || '';
+        var proofUrl = btn.dataset.proofUrl || '';
+        var proofBy = btn.dataset.proofBy || staffName || 'Workshop Staff';
+        var proofTime = btn.dataset.proofTime || '';
+        var proofNote = btn.dataset.proofNote || '';
+        var proofStage = btn.dataset.proofStage || 'Stage 4: Ready for QA';
+        currentPendingQty = parseInt(btn.dataset.pendingQty || 0, 10);
+        var alreadyPassed = parseInt(btn.dataset.passedQty || 0, 10);
+        var alreadyFailed = parseInt(btn.dataset.failedQty || 0, 10);
+        currentReworkCount = parseInt(btn.dataset.reworkCount || 0, 10);
 
-    if (currentReworkCount >= 2) {
-        qaReworkInput.disabled = true;
-        qaReworkInput.value = '0';
-        qaReworkLimitNote.style.display = 'block';
-    } else {
-        qaReworkInput.disabled = false;
-        qaReworkLimitNote.style.display = 'none';
-    }
+        qaModalForm.action = btn.dataset.inspectUrl;
+        qaModalForm.dataset.submitting = 'false';
+        qaModalTitle.textContent = 'Quality Inspection - Order #PO-' + orderID;
+        qaModalSubtitle.textContent = staffName ? (furnitureName + ' · Assigned: ' + staffName) : furnitureName;
+        qaSummaryLine.textContent = currentPendingQty + ' pending, ' + alreadyPassed + ' passed, ' + alreadyFailed + ' scrapped so far';
 
-    document.body.style.overflow = 'hidden';
-    qaModalOverlay.style.display = 'flex';
-    updateModalState();
-    qaPassedInput.focus();
-}
+        var proofBox = document.getElementById('qaProofPreviewBox');
+        var proofStaffEl = document.getElementById('qaProofStaffLine');
+        var proofNoteEl = document.getElementById('qaProofNoteLine');
+        var proofThumbEl = document.getElementById('qaProofThumbImg');
+        var proofBtn = document.getElementById('qaProofViewBtn');
+        if (proofBox) {
+            if (proofUrl) {
+                if (proofStaffEl) {
+                    proofStaffEl.textContent = proofStage + ' · Submitted by ' + proofBy;
+                }
+                if (proofNoteEl) {
+                    proofNoteEl.textContent = proofNote ? ('Note: ' + proofNote) : (proofTime || 'Click View Photo to inspect workshop submission');
+                }
+                if (proofThumbEl) {
+                    proofThumbEl.src = proofUrl;
+                }
+                if (proofBtn) {
+                    proofBtn.onclick = function () {
+                        if (typeof window.openProofLightbox === 'function') {
+                            window.openProofLightbox(
+                                proofUrl,
+                                'Order #PO-' + orderID + ' · ' + proofStage,
+                                'Submitted by ' + proofBy + (proofTime ? (' on ' + proofTime) : ''),
+                                proofNote
+                            );
+                        }
+                    };
+                }
+                proofBox.style.display = 'flex';
+            } else {
+                proofBox.style.display = 'none';
+            }
+        }
 
-function closeQAModal() {
-    qaModalOverlay.style.display = 'none';
-    document.body.style.overflow = '';
-    if (lastFocusedBtn) {
-        lastFocusedBtn.focus();
-    }
-}
+        qaPassedInput.value = '';
+        qaPassedInput.max = currentPendingQty;
+        qaReworkInput.value = '';
+        qaReworkInput.max = currentPendingQty;
+        qaFailedInput.value = '';
+        qaFailedInput.max = currentPendingQty;
+        qaReasonInput.value = '';
+        qaScrapConfirmCheckbox.checked = false;
 
-document.querySelectorAll('.qaInspectBtn').forEach(function(btn) {
-    btn.addEventListener('click', function() {
-        openQAModal(this);
-    });
-});
+        if (currentReworkCount >= 2) {
+            qaReworkInput.disabled = true;
+            qaReworkInput.value = '0';
+            qaReworkLimitNote.style.display = 'block';
+        } else {
+            qaReworkInput.disabled = false;
+            qaReworkLimitNote.style.display = 'none';
+        }
 
-if (qaPassAllBtn) {
-    qaPassAllBtn.addEventListener('click', function() {
-        qaPassedInput.value = currentPendingQty;
-        qaReworkInput.value = '0';
-        qaFailedInput.value = '0';
+        document.body.style.overflow = 'hidden';
+        qaModalOverlay.style.display = 'flex';
         updateModalState();
-    });
-}
-
-[qaPassedInput, qaReworkInput, qaFailedInput, qaReasonInput].forEach(function(input) {
-    if (input) {
-        input.addEventListener('input', updateModalState);
+        qaPassedInput.focus();
     }
-});
 
-if (qaScrapConfirmCheckbox) {
-    qaScrapConfirmCheckbox.addEventListener('change', updateModalState);
-}
-
-if (qaModalCloseBtn) {
-    qaModalCloseBtn.addEventListener('click', closeQAModal);
-}
-
-if (qaModalCancelBtn) {
-    qaModalCancelBtn.addEventListener('click', closeQAModal);
-}
-
-qaModalOverlay.addEventListener('click', function(e) {
-    if (e.target === qaModalOverlay) {
-        closeQAModal();
-    }
-});
-
-document.addEventListener('keydown', function(e) {
-    if (e.key === 'Escape' && qaModalOverlay.style.display === 'flex') {
-        closeQAModal();
-    }
-    if (e.key === 'Tab' && qaModalOverlay.style.display === 'flex') {
-        var focusables = qaModalOverlay.querySelectorAll('button:not([disabled]), input:not([disabled]), [tabindex]:not([tabindex="-1"])');
-        if (focusables.length === 0) return;
-        var first = focusables[0];
-        var last = focusables[focusables.length - 1];
-        if (e.shiftKey && document.activeElement === first) {
-            e.preventDefault();
-            last.focus();
-        } else if (!e.shiftKey && document.activeElement === last) {
-            e.preventDefault();
-            first.focus();
+    function closeQAModal() {
+        qaModalOverlay.style.display = 'none';
+        document.body.style.overflow = '';
+        if (lastFocusedBtn) {
+            lastFocusedBtn.focus();
         }
     }
-});
 
-if (qaModalForm) {
-    qaModalForm.addEventListener('submit', function() {
+    document.querySelectorAll('.qaInspectBtn').forEach(function (btn) {
+        btn.addEventListener('click', function () {
+            openQAModal(this);
+        });
+    });
+
+    if (qaPassAllBtn) {
+        qaPassAllBtn.addEventListener('click', function () {
+            qaPassedInput.value = currentPendingQty;
+            qaReworkInput.value = '0';
+            qaFailedInput.value = '0';
+            updateModalState();
+        });
+    }
+
+    [qaPassedInput, qaReworkInput, qaFailedInput, qaReasonInput].forEach(function (input) {
+        if (input) {
+            input.addEventListener('input', updateModalState);
+        }
+    });
+
+    if (qaScrapConfirmCheckbox) {
+        qaScrapConfirmCheckbox.addEventListener('change', updateModalState);
+    }
+
+    if (qaModalCloseBtn) {
+        qaModalCloseBtn.addEventListener('click', closeQAModal);
+    }
+
+    if (qaModalCancelBtn) {
+        qaModalCancelBtn.addEventListener('click', closeQAModal);
+    }
+
+    qaModalOverlay.addEventListener('click', function (e) {
+        if (e.target === qaModalOverlay) {
+            closeQAModal();
+        }
+    });
+
+    document.addEventListener('keydown', function (e) {
+        if (e.key === 'Escape' && qaModalOverlay.style.display === 'flex') {
+            closeQAModal();
+        }
+        if (e.key === 'Tab' && qaModalOverlay.style.display === 'flex') {
+            var focusables = qaModalOverlay.querySelectorAll('button:not([disabled]), input:not([disabled]), [tabindex]:not([tabindex="-1"])');
+            if (focusables.length === 0) return;
+            var first = focusables[0];
+            var last = focusables[focusables.length - 1];
+            if (e.shiftKey && document.activeElement === first) {
+                e.preventDefault();
+                last.focus();
+            } else if (!e.shiftKey && document.activeElement === last) {
+                e.preventDefault();
+                first.focus();
+            }
+        }
+    });
+
+    if (qaModalForm) {
+        qaModalForm.addEventListener('submit', function () {
+            if (qaModalSubmitBtn) {
+                qaModalSubmitBtn.disabled = true;
+                qaModalSubmitBtn.textContent = 'Submitting...';
+            }
+        });
+    }
+
+    window.addEventListener('pageshow', function () {
         if (qaModalSubmitBtn) {
-            qaModalSubmitBtn.disabled = true;
-            qaModalSubmitBtn.textContent = 'Submitting...';
+            qaModalSubmitBtn.textContent = 'Submit QA';
+            updateModalState();
         }
     });
-}
 
-window.addEventListener('pageshow', function() {
-    if (qaModalSubmitBtn) {
-        qaModalSubmitBtn.textContent = 'Submit QA';
-        updateModalState();
-    }
-});
+    var currentQAHistoryPage = 1;
+    var qaHistoryPageSize = 10;
 
-var currentQAHistoryPage = 1;
-var qaHistoryPageSize = 10;
+    window.setQAWorkspaceTab = function (tabKey) {
+        const key = tabKey || 'pending';
+        const pendingSection = document.getElementById('qaPendingSection');
+        const historySection = document.getElementById('qaHistorySection');
+        const activeInput = document.getElementById('qaActiveSectionInput');
+        const statusInput = document.getElementById('qaHistoryStatusSelect');
+        const qInput = document.getElementById('globalTabSearchInput');
 
-window.setQAWorkspaceTab = function(tabKey) {
-    const key = tabKey || 'pending';
-    const pendingSection = document.getElementById('qaPendingSection');
-    const historySection = document.getElementById('qaHistorySection');
-    const activeInput = document.getElementById('qaActiveSectionInput');
-    const statusInput = document.getElementById('qaHistoryStatusSelect');
-    const qInput = document.getElementById('globalTabSearchInput');
+        const tabs = document.querySelectorAll('.workspaceFilterTabs .workspaceTabBtn[data-qatab]');
+        tabs.forEach(function (tab) {
+            if ((tab.getAttribute('data-qatab') || '') === key) {
+                tab.classList.add('active');
+            } else {
+                tab.classList.remove('active');
+            }
+        });
 
-    const tabs = document.querySelectorAll('.workspaceFilterTabs .workspaceTabBtn[data-qatab]');
-    tabs.forEach(function(tab) {
-        if ((tab.getAttribute('data-qatab') || '') === key) {
-            tab.classList.add('active');
+        if (key === 'pending') {
+            if (activeInput) activeInput.value = 'pending';
+            if (pendingSection) pendingSection.style.display = 'block';
+            if (historySection) historySection.style.display = 'none';
+            if (qInput) qInput.placeholder = 'Search orders awaiting QA (#PO or product)...';
         } else {
-            tab.classList.remove('active');
+            const outcome = key.startsWith('history:') ? key.slice(8) : '';
+            if (activeInput) activeInput.value = 'history';
+            if (statusInput) statusInput.value = outcome;
+            if (pendingSection) pendingSection.style.display = 'none';
+            if (historySection) historySection.style.display = 'block';
+            if (qInput) qInput.placeholder = 'Search inspection history (#PO, product, reason, inspector)...';
         }
-    });
 
-    if (key === 'pending') {
-        if (activeInput) activeInput.value = 'pending';
-        if (pendingSection) pendingSection.style.display = 'block';
-        if (historySection) historySection.style.display = 'none';
-        if (qInput) qInput.placeholder = 'Search orders awaiting QA (#PO or product)...';
-    } else {
-        const outcome = key.startsWith('history:') ? key.slice(8) : '';
-        if (activeInput) activeInput.value = 'history';
-        if (statusInput) statusInput.value = outcome;
-        if (pendingSection) pendingSection.style.display = 'none';
-        if (historySection) historySection.style.display = 'block';
-        if (qInput) qInput.placeholder = 'Search inspection history (#PO, product, reason, inspector)...';
-    }
-
-    window.filterQAWorkspace(true);
-};
-
-window.filterQAWorkspace = function(resetPage = true) {
-    const q = (document.getElementById('globalTabSearchInput')?.value || '').toLowerCase().trim();
-    const pendingRows = document.querySelectorAll('tr.qaPendingRow');
-    let pendingVisible = 0;
-    pendingRows.forEach(function(row) {
-        const rowSearch = row.dataset.search || '';
-        if (!q || rowSearch.includes(q)) {
-            row.style.display = '';
-            pendingVisible++;
-        } else {
-            row.style.display = 'none';
-        }
-    });
-    const pendingEmpty = document.getElementById('qaPendingEmptyRow');
-    if (pendingEmpty) {
-        pendingEmpty.style.display = (pendingVisible === 0 && pendingRows.length > 0) ? '' : 'none';
-    }
-    window.filterQAHistoryTable(resetPage);
-};
-
-window.filterQAHistoryTable = function(resetPage = true) {
-    if (resetPage) {
-        currentQAHistoryPage = 1;
-    }
-    const q = (document.getElementById('globalTabSearchInput')?.value || '').toLowerCase().trim();
-    const status = (document.getElementById('qaHistoryStatusSelect')?.value || '').trim();
-    const allRows = Array.from(document.querySelectorAll('tr.qaHistoryRow'));
-    const matchingRows = allRows.filter(function(row) {
-        const rowStatus = row.dataset.status || '';
-        const rowSearch = row.dataset.search || '';
-        const matchStatus = !status || rowStatus === status;
-        const matchSearch = !q || rowSearch.includes(q);
-        return matchStatus && matchSearch;
-    });
-
-    const totalCount = matchingRows.length;
-    const totalPages = Math.ceil(totalCount / qaHistoryPageSize) || 1;
-    if (currentQAHistoryPage > totalPages) currentQAHistoryPage = totalPages;
-    if (currentQAHistoryPage < 1) currentQAHistoryPage = 1;
-
-    const startIndex = (currentQAHistoryPage - 1) * qaHistoryPageSize;
-    const endIndex = Math.min(startIndex + qaHistoryPageSize, totalCount);
-
-    allRows.forEach(function(row) {
-        row.style.display = 'none';
-    });
-
-    for (let i = startIndex; i < endIndex; i++) {
-        matchingRows[i].style.display = '';
-    }
-
-    const emptyRow = document.getElementById('qaHistoryEmptyRow');
-    if (emptyRow) {
-        emptyRow.style.display = (totalCount === 0 && allRows.length > 0) ? '' : 'none';
-    }
-
-    const pageInfo = document.getElementById('qaHistoryPageInfo');
-    if (pageInfo) {
-        if (totalCount === 0) {
-            pageInfo.textContent = 'Showing 0 records';
-        } else {
-            pageInfo.textContent = `Showing ${startIndex + 1}–${endIndex} of ${totalCount} record${totalCount === 1 ? '' : 's'}`;
-        }
-    }
-
-    const pageIndicator = document.getElementById('qaHistoryPageIndicator');
-    if (pageIndicator) {
-        pageIndicator.textContent = `Page ${currentQAHistoryPage} of ${totalPages}`;
-    }
-
-    const prevBtn = document.getElementById('qaHistoryPrevBtn');
-    if (prevBtn) {
-        prevBtn.disabled = currentQAHistoryPage <= 1;
-        prevBtn.style.opacity = currentQAHistoryPage <= 1 ? '0.5' : '1';
-        prevBtn.style.cursor = currentQAHistoryPage <= 1 ? 'default' : 'pointer';
-    }
-
-    const nextBtn = document.getElementById('qaHistoryNextBtn');
-    if (nextBtn) {
-        nextBtn.disabled = currentQAHistoryPage >= totalPages;
-        nextBtn.style.opacity = currentQAHistoryPage >= totalPages ? '0.5' : '1';
-        nextBtn.style.cursor = currentQAHistoryPage >= totalPages ? 'default' : 'pointer';
-    }
-
-    const paginationContainer = document.getElementById('qaHistoryPagination');
-    if (paginationContainer) {
-        paginationContainer.style.display = allRows.length === 0 ? 'none' : 'flex';
-    }
-};
-
-window.changeQAHistoryPage = function(delta) {
-    currentQAHistoryPage += delta;
-    window.filterQAHistoryTable(false);
-};
-
-window.changeQAHistoryPageSize = function(newSize) {
-    const parsed = parseInt(newSize, 10);
-    if (!isNaN(parsed) && parsed > 0) {
-        qaHistoryPageSize = parsed;
-        currentQAHistoryPage = 1;
-        window.filterQAHistoryTable(false);
-    }
-};
-
-window.resetQAHistoryFilter = function() {
-    const qInput = document.getElementById('globalTabSearchInput');
-    if (qInput) qInput.value = '';
-    if (typeof window.updateGlobalSearchClearBtn === 'function') {
-        window.updateGlobalSearchClearBtn();
-    }
-    window.setQAWorkspaceTab('history:');
-};
-
-if (document.readyState === 'loading') {
-    document.addEventListener('DOMContentLoaded', function() {
         window.filterQAWorkspace(true);
+    };
+
+    window.filterQAWorkspace = function (resetPage = true) {
+        const q = (document.getElementById('globalTabSearchInput')?.value || '').toLowerCase().trim();
+        const pendingRows = document.querySelectorAll('tr.qaPendingRow');
+        let pendingVisible = 0;
+        pendingRows.forEach(function (row) {
+            const rowSearch = row.dataset.search || '';
+            if (!q || rowSearch.includes(q)) {
+                row.style.display = '';
+                pendingVisible++;
+            } else {
+                row.style.display = 'none';
+            }
+        });
+        const pendingEmpty = document.getElementById('qaPendingEmptyRow');
+        if (pendingEmpty) {
+            pendingEmpty.style.display = (pendingVisible === 0 && pendingRows.length > 0) ? '' : 'none';
+        }
+        window.filterQAHistoryTable(resetPage);
+    };
+
+    window.filterQAHistoryTable = function (resetPage = true) {
+        if (resetPage) {
+            currentQAHistoryPage = 1;
+        }
+        const q = (document.getElementById('globalTabSearchInput')?.value || '').toLowerCase().trim();
+        const status = (document.getElementById('qaHistoryStatusSelect')?.value || '').trim();
+        const allRows = Array.from(document.querySelectorAll('tr.qaHistoryRow'));
+        const matchingRows = allRows.filter(function (row) {
+            const rowStatus = row.dataset.status || '';
+            const rowSearch = row.dataset.search || '';
+            const matchStatus = !status || rowStatus === status;
+            const matchSearch = !q || rowSearch.includes(q);
+            return matchStatus && matchSearch;
+        });
+
+        const totalCount = matchingRows.length;
+        const totalPages = Math.ceil(totalCount / qaHistoryPageSize) || 1;
+        if (currentQAHistoryPage > totalPages) currentQAHistoryPage = totalPages;
+        if (currentQAHistoryPage < 1) currentQAHistoryPage = 1;
+
+        const startIndex = (currentQAHistoryPage - 1) * qaHistoryPageSize;
+        const endIndex = Math.min(startIndex + qaHistoryPageSize, totalCount);
+
+        allRows.forEach(function (row) {
+            row.style.display = 'none';
+        });
+
+        for (let i = startIndex; i < endIndex; i++) {
+            matchingRows[i].style.display = '';
+        }
+
+        const emptyRow = document.getElementById('qaHistoryEmptyRow');
+        if (emptyRow) {
+            emptyRow.style.display = (totalCount === 0 && allRows.length > 0) ? '' : 'none';
+        }
+
+        const pageInfo = document.getElementById('qaHistoryPageInfo');
+        if (pageInfo) {
+            if (totalCount === 0) {
+                pageInfo.textContent = 'Showing 0 records';
+            } else {
+                pageInfo.textContent = `Showing ${startIndex + 1}–${endIndex} of ${totalCount} record${totalCount === 1 ? '' : 's'}`;
+            }
+        }
+
+        const pageIndicator = document.getElementById('qaHistoryPageIndicator');
+        if (pageIndicator) {
+            pageIndicator.textContent = `Page ${currentQAHistoryPage} of ${totalPages}`;
+        }
+
+        const prevBtn = document.getElementById('qaHistoryPrevBtn');
+        if (prevBtn) {
+            prevBtn.disabled = currentQAHistoryPage <= 1;
+            prevBtn.style.opacity = currentQAHistoryPage <= 1 ? '0.5' : '1';
+            prevBtn.style.cursor = currentQAHistoryPage <= 1 ? 'default' : 'pointer';
+        }
+
+        const nextBtn = document.getElementById('qaHistoryNextBtn');
+        if (nextBtn) {
+            nextBtn.disabled = currentQAHistoryPage >= totalPages;
+            nextBtn.style.opacity = currentQAHistoryPage >= totalPages ? '0.5' : '1';
+            nextBtn.style.cursor = currentQAHistoryPage >= totalPages ? 'default' : 'pointer';
+        }
+
+        const paginationContainer = document.getElementById('qaHistoryPagination');
+        if (paginationContainer) {
+            paginationContainer.style.display = allRows.length === 0 ? 'none' : 'flex';
+        }
+    };
+
+    window.changeQAHistoryPage = function (delta) {
+        currentQAHistoryPage += delta;
+        window.filterQAHistoryTable(false);
+    };
+
+    window.changeQAHistoryPageSize = function (newSize) {
+        const parsed = parseInt(newSize, 10);
+        if (!isNaN(parsed) && parsed > 0) {
+            qaHistoryPageSize = parsed;
+            currentQAHistoryPage = 1;
+            window.filterQAHistoryTable(false);
+        }
+    };
+
+    window.resetQAHistoryFilter = function () {
+        const qInput = document.getElementById('globalTabSearchInput');
+        if (qInput) qInput.value = '';
+        if (typeof window.updateGlobalSearchClearBtn === 'function') {
+            window.updateGlobalSearchClearBtn();
+        }
+        window.setQAWorkspaceTab('history:');
+    };
+
+    if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', function () {
+            window.filterQAWorkspace(true);
+        });
+    } else {
+        window.filterQAWorkspace(true);
+    }
+    window.addEventListener('pageshow', function () {
+        window.filterQAWorkspace(false);
     });
-} else {
-    window.filterQAWorkspace(true);
-}
-window.addEventListener('pageshow', function() {
-    window.filterQAWorkspace(false);
-});
 </script>
 
 {% endblock %}
