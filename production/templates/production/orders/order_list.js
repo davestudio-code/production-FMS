@@ -45,8 +45,8 @@ window.updateLiveMrpCheck = function() {
     if (items.length === 0) {
         previewBox.style.display = 'block';
         badge.className = 'statusBadge alert';
-        badge.textContent = 'No Recipe Defined';
-        list.innerHTML = '<span style="color: #9a4a3a; font-weight: 600;">Product has no configured BOM. Please configure recipe before ordering.</span>';
+        badge.textContent = 'BOM Not Configured';
+        list.innerHTML = '<span style="color: #9a4a3a; font-weight: 600;">Product has no configured BOM. Please configure BOM before ordering.</span>';
         if (submitBtn) {
             submitBtn.disabled = true;
             submitBtn.style.opacity = '0.5';

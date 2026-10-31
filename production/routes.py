@@ -655,7 +655,7 @@ def bomList():
             batchTotalCost = sum((req["batchCost"] for req in requirements), Decimal("0.00"))
             suggestedMarkupPrice = (unitTotalCost * Decimal("1.40")).quantize(Decimal("0.01"))
         except Exception as err:
-            flash(f"Failed to load BOM recipe: {str(err)}", "error")
+            flash(f"Failed to load BOM: {str(err)}", "error")
             suggestedMarkupPrice = Decimal("0.00")
     else:
         suggestedMarkupPrice = Decimal("0.00")
@@ -753,7 +753,7 @@ def removeBomItem(bomItemID):
             return redirect(url_for("production.bomList", furniture_id=furnitureID))
 
         bom.removeMaterial(bomItemID)
-        flash("Component removed from BOM recipe.", "success")
+        flash("Component removed from BOM.", "success")
     except Exception as err:
         flash(f"Database error while removing component: {str(err)}", "error")
 
@@ -982,7 +982,7 @@ def createOrder():
 
     bom = BillOfMaterials.getByFurnitureID(furnitureID, autoCreate=False)
     if not bom or len(bom.getItems()) == 0:
-        flash("Cannot create production order: Selected product does not have a configured Bill of Materials recipe. Please configure its BOM first.", "error")
+        flash("Cannot create production order: Selected product does not have a configured Bill of Materials. Please configure its BOM first.", "error")
         return redirect(url_for("production.orderList"))
 
     try:
@@ -1242,7 +1242,7 @@ def releaseOrder(orderID):
         reqs = bom.calculateRequirements(batchQty)
 
         if not reqs:
-            flash(f"Cannot release order: No BOM recipe components defined for '{order.furnitureName}'.", "warning")
+            flash(f"Cannot release order: No BOM components defined for '{order.furnitureName}'.", "warning")
             return redirect(url_for("production.requirementList", order_id=orderID))
 
         matsMap = {m.materialID: m for m in Material.getAll()}

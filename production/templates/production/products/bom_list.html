@@ -4,15 +4,15 @@
 <div class="headerRow">
     <div>
         <h2>Bill of Materials (BOM)</h2>
-        <span style="color: var(--mt); font-size: 13.5px;">Standard material recipes per furniture unit and batch requirement calculator</span>
+        <span style="color: var(--mt); font-size: 13.5px;">Standard material specifications per furniture unit and batch requirement calculator</span>
     </div>
 </div>
 
 <div class="card" style="margin-bottom: 20px;">
     <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 14px;{% if selectedFurniture %} padding-bottom: 16px; border-bottom: 1px solid var(--bd); margin-bottom: 16px;{% endif %}">
         <div style="display: flex; gap: 12px; align-items: center; flex-wrap: wrap;">
-            <label style="font-weight: 600; font-size: 13.5px;">Product Recipe:</label>
-            <select id="recipeSelect" onchange="window.location.href='/production/bom?furniture_id=' + this.value" style="min-width: 280px;">
+            <label style="font-weight: 600; font-size: 13.5px;">Product BOM:</label>
+            <select id="bomSelect" onchange="window.location.href='/production/bom?furniture_id=' + this.value" style="min-width: 280px;">
                 {% for f in furnitureItems %}
                     <option value="{{ f.furnitureID }}" {{ 'selected' if selectedFurniture and selectedFurniture.furnitureID == f.furnitureID else '' }}>
                         {{ f.furnitureName }} ({{ f.furnitureType }})
@@ -36,8 +36,8 @@
     {% if selectedFurniture %}
     <div class="headerRow" style="margin-bottom: 14px; align-items: center;">
         <div>
-            <h3 style="font-size: 16px; margin: 0 0 4px;">Recipe &bull; {{ selectedFurniture.furnitureName }}</h3>
-            <span style="color: var(--mt); font-size: 12.5px;">Standard manufacturing recipe &bull; Basis: 1 Finished Unit</span>
+            <h3 style="font-size: 16px; margin: 0 0 4px;">BOM &bull; {{ selectedFurniture.furnitureName }}</h3>
+            <span style="color: var(--mt); font-size: 12.5px;">Standard Bill of Materials &bull; Basis: 1 Finished Unit</span>
         </div>
 
         {% if isManager %}
@@ -50,7 +50,7 @@
 
     <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); gap: 14px; padding: 14px 0; border-top: 1px solid var(--bd); border-bottom: 1px solid var(--bd); margin-bottom: 16px;">
         <div>
-            <span style="font-size: 11.5px; color: var(--mt); display: block; text-transform: uppercase;">Recipe Components</span>
+            <span style="font-size: 11.5px; color: var(--mt); display: block; text-transform: uppercase;">BOM Components</span>
             <b style="font-size: 15px;">{{ bomItems|length }} {{ 'item' if bomItems|length == 1 else 'items' }}</b>
         </div>
         <div>
@@ -70,7 +70,7 @@
             <b style="font-size: 15px;">{{ selectedFurniture.furnitureType }}</b>
         </div>
         <div>
-            <span style="font-size: 11.5px; color: var(--mt); display: block; text-transform: uppercase;">Recipe Basis</span>
+            <span style="font-size: 11.5px; color: var(--mt); display: block; text-transform: uppercase;">BOM Basis</span>
             <b style="font-size: 15px;">1 finished unit</b>
         </div>
     </div>
@@ -79,7 +79,7 @@
     <div style="margin-top: 10px;">
         <div class="headerRow" style="margin-bottom: 12px;">
             <div>
-                <h3 style="font-size: 15px; margin: 0;">Standard Recipe Components</h3>
+                <h3 style="font-size: 15px; margin: 0;">Standard BOM Components</h3>
                 <span style="color: var(--mt); font-size: 12.5px;">Required materials and standard cost per 1 finished unit</span>
             </div>
         </div>
@@ -117,14 +117,14 @@
                     </tr>
                     {% else %}
                     <tr>
-                        <td colspan="{{ '6' if isManager else '3' }}" style="text-align: center; color: var(--mt); padding: 24px;">No material components in this recipe yet.</td>
+                        <td colspan="{{ '6' if isManager else '3' }}" style="text-align: center; color: var(--mt); padding: 24px;">No material components in this BOM yet.</td>
                     </tr>
                     {% endfor %}
                 </tbody>
                 {% if bomItems and isManager %}
                 <tfoot>
                     <tr style="background: rgba(0,0,0,0.02); font-weight: 700;">
-                        <td colspan="4" style="text-align: right; padding: 12px 14px; font-size: 13px; text-transform: uppercase; color: var(--mt);">Standard Recipe Total:</td>
+                        <td colspan="4" style="text-align: right; padding: 12px 14px; font-size: 13px; text-transform: uppercase; color: var(--mt);">BOM Total:</td>
                         <td style="text-align: right; padding: 12px 14px; font-size: 14px; color: var(--p);">₱{{ "{:,.2f}".format(unitTotalCost) }}</td>
                         <td></td>
                     </tr>
@@ -138,7 +138,7 @@
             <div>
                 <b style="font-size: 13.5px; color: var(--p);">Catalog Pricing Recommendation</b>
                 <span style="display: block; font-size: 12px; color: var(--mt); margin-top: 2px;">
-                    Material recipe cost: <b>₱{{ "{:,.2f}".format(unitTotalCost) }}</b> &bull; Suggested price (+40% standard markup): <b>₱{{ "{:,.2f}".format(suggestedMarkupPrice) }}</b>
+                    BOM material cost: <b>₱{{ "{:,.2f}".format(unitTotalCost) }}</b> &bull; Suggested price (+40% standard markup): <b>₱{{ "{:,.2f}".format(suggestedMarkupPrice) }}</b>
                 </span>
             </div>
             <form method="POST" action="/production/bom/update-price" style="display: flex; gap: 8px; align-items: center; margin: 0;">
@@ -167,7 +167,7 @@
                         <label style="font-size: 12px; font-weight: 600;">Qty / Unit</label>
                         <input type="number" name="quantityRequired" placeholder="e.g. 2.5" min="0.001" step="0.001" required style="font-size: 13.5px;">
                     </div>
-                    <button type="submit" class="actionButton" style="height: 38px; padding: 0 18px; font-size: 13px;">Add to Recipe</button>
+                    <button type="submit" class="actionButton" style="height: 38px; padding: 0 18px; font-size: 13px;">Add to BOM</button>
                 </div>
             </form>
         </div>

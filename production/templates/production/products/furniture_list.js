@@ -24,7 +24,7 @@ function openEditModal(id, name, type, price, bomCost, hasBOM) {
             }
             if (markupSuggestion) markupSuggestion.style.display = 'flex';
         } else {
-            bomDisplay.innerHTML = '<span class="statusBadge draft" style="font-size: 11px;">No BOM Recipe Yet</span>';
+            bomDisplay.innerHTML = '<span class="statusBadge draft" style="font-size: 11px;">BOM Not Configured</span>';
             if (markupSuggestion) markupSuggestion.style.display = 'none';
         }
     }

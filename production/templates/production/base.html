@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>Velmora Co. &middot; Production ERP</title>
     <link rel="icon" type="image/png" href="/production/static/images/velmora-logo.png">
-    <link rel="stylesheet" href="/production/static/css/style.css?v=20261029q">
+    <link rel="stylesheet" href="/production/static/css/style.css?v=20261031a">
 </head>
 <body>
     <div class="container">
@@ -110,7 +110,7 @@
                         <circle cx="11" cy="11" r="8"></circle>
                         <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
                     </svg>
-                    <input type="text" id="globalTabSearchInput" class="topSearchInput" value="{{ searchQuery or '' }}" placeholder="Search orders, products, recipes..." autocomplete="off" oninput="window.handleGlobalTabSearch(this.value)" onkeydown="window.handleGlobalTabSearchKeydown(event)">
+                    <input type="text" id="globalTabSearchInput" class="topSearchInput" value="{{ searchQuery or '' }}" placeholder="Search orders, products, BOM components..." autocomplete="off" oninput="window.handleGlobalTabSearch(this.value)" onkeydown="window.handleGlobalTabSearchKeydown(event)">
                     <button type="button" id="globalSearchClearBtn" class="topSearchClearBtn" onclick="window.clearGlobalTabSearch()" title="Clear search">
                         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
                             <line x1="18" y1="6" x2="6" y2="18"></line>
@@ -580,7 +580,7 @@
                     return 'Search production orders, #PO, or products...';
                 }
                 if (p === '/production/furniture') return 'Search catalog products or categories...';
-                if (p === '/production/bom') return 'Search BOM recipe components...';
+                if (p === '/production/bom') return 'Search BOM components...';
                 if (p === '/production/planning') return 'Search scheduled orders, #PO, or products...';
                 if (p === '/production/requirement') return 'Search required raw materials...';
                 if (p === '/production/issuance') return 'Search orders awaiting material dispatch...';

@@ -224,7 +224,7 @@ class ProductionOrder:
 
         bom = BillOfMaterials.getByFurnitureID(furnitureID, autoCreate=False, conn=conn)
         if not bom or len(bom.getItems(conn=conn)) == 0:
-            raise ValueError("Cannot create production order: Product has no Bill of Materials (recipe). Please configure its BOM first.")
+            raise ValueError("Cannot create production order: Product has no configured Bill of Materials. Please configure its BOM first.")
 
         orderPurpose = purpose if purpose in ("Warehouse Restock", "Scheduled Batch") else "Warehouse Restock"
 

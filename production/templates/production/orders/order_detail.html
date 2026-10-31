@@ -166,7 +166,7 @@
             {% if order.status in ('Draft', 'Released') %}
             <span style="font-size: 11.5px; color: var(--mt); display: block; text-transform: uppercase; font-weight: 600;">Material Readiness</span>
             {% if not requirements %}
-            <b style="font-size: 15px; color: #8e622a; display: block; margin-top: 2px;">No BOM Recipe</b>
+            <b style="font-size: 15px; color: #8e622a; display: block; margin-top: 2px;">BOM Not Configured</b>
             <span style="font-size: 11.5px; color: var(--mt);">Configure components in BOM</span>
             {% elif shortageCount > 0 %}
             <b style="font-size: 15px; color: var(--rd); display: block; margin-top: 2px;">{{ shortageCount }} Component Shortage{{ 's' if shortageCount != 1 else '' }}</b>
@@ -281,7 +281,7 @@
                     </tr>
                     {% else %}
                     <tr>
-                        <td colspan="{{ '7' if isManager else '5' }}" style="text-align: center; color: var(--mt); padding: 24px;">No bill of materials recipe found for this product.</td>
+                        <td colspan="{{ '7' if isManager else '5' }}" style="text-align: center; color: var(--mt); padding: 24px;">No Bill of Materials configured for this product.</td>
                     </tr>
                     {% endfor %}
                 </tbody>

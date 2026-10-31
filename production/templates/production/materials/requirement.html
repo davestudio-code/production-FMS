@@ -4,7 +4,7 @@
 <div class="headerRow">
     <div>
         <h2>Material Requirement</h2>
-        <span style="color: var(--mt); font-size: 13.5px;">Calculate raw material demand from Bill of Materials recipes against live inventory stock</span>
+        <span style="color: var(--mt); font-size: 13.5px;">Calculate raw material demand from Bill of Materials specifications against live inventory stock</span>
     </div>
 </div>
 
@@ -64,7 +64,7 @@
         <div>
             {% if selectedOrder.status == 'Draft' %}
                 {% if not hasBOM %}
-                <span class="statusBadge alert">No Recipe Defined</span>
+                <span class="statusBadge alert">BOM Not Configured</span>
                 {% elif not selectedOrder.isFullyPlanned %}
                 <a href="/production/planning" class="actionButton secondary" style="padding: 7px 14px; font-size: 13px; text-decoration: none;">Plan &amp; Assign in Planning &rarr;</a>
                 {% elif hasShortage %}
@@ -114,7 +114,7 @@
         <div>
             <span style="font-size: 11.5px; color: var(--mt); display: block; text-transform: uppercase;">Material Stock Readiness</span>
             {% if not hasBOM %}
-            <span style="font-size: 14px; color: #8e622a; font-weight: 600;">No Recipe</span>
+            <span style="font-size: 14px; color: #8e622a; font-weight: 600;">BOM Not Configured</span>
             {% elif selectedOrder.status in ('In Progress', 'Completed') %}
             <b style="font-size: 15px;">Allocated &amp; Issued</b>
             {% elif hasShortage %}
@@ -128,7 +128,7 @@
     {% if selectedOrder.status == 'Draft' %}
         {% if not hasBOM %}
         <div style="color: #8e622a; font-size: 13px; background: rgba(142, 98, 42, 0.08); padding: 10px 14px; border-radius: 8px; border: 1px solid rgba(142, 98, 42, 0.25); margin-bottom: 16px;">
-            No BOM recipe defined for {{ selectedOrder.furnitureName }}. <a href="/production/bom?furniture_id={{ selectedOrder.furnitureID }}" style="color: var(--p); font-weight: 700;">Add materials in Bill of Materials &rarr;</a>
+            No BOM configured for {{ selectedOrder.furnitureName }}. <a href="/production/bom?furniture_id={{ selectedOrder.furnitureID }}" style="color: var(--p); font-weight: 700;">Add materials in Bill of Materials &rarr;</a>
         </div>
         {% elif not selectedOrder.isFullyPlanned %}
         <div style="color: #8e622a; font-size: 13px; background: rgba(181, 143, 85, 0.10); padding: 10px 14px; border-radius: 8px; border: 1px solid rgba(181, 143, 85, 0.30); margin-bottom: 16px;">
@@ -201,7 +201,7 @@
                     {% else %}
                     <tr>
                         <td colspan="8" style="text-align: center; color: var(--mt); padding: 24px;">
-                            No BOM recipe components found for this product. Use the <a href="/production/bom?furniture_id={{ selectedOrder.furnitureID }}" style="color: var(--p); font-weight: 700;">Bill of Materials</a> tab to add components.
+                            No BOM components found for this product. Use the <a href="/production/bom?furniture_id={{ selectedOrder.furnitureID }}" style="color: var(--p); font-weight: 700;">Bill of Materials</a> tab to add components.
                         </td>
                     </tr>
                     {% endfor %}
