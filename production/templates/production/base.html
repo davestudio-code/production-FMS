@@ -424,7 +424,9 @@
                 .then(function(html) {
                     if (html) tabHtmlCache.set(cacheKey, html);
                 })
-                .catch(function() {});
+                .catch(function(err) {
+                    console.log(`error message: ${err.message}`);
+                });
         }
 
         async function triggerGlobalRefresh(btn) {
@@ -951,7 +953,9 @@
                                 }
                             }
                         })
-                        .catch(function() {});
+                        .catch(function(err) {
+                    console.log(`error message: ${err.message}`);
+                });
                     return;
                 }
 
@@ -981,6 +985,7 @@
                     if (loadError.name === 'AbortError') {
                         return;
                     }
+                    console.log(`error message: ${loadError.message}`);
                     window.location.href = targetUrl;
                 } finally {
                     if (currentTabFetchController === controller) {
@@ -1020,6 +1025,7 @@
                         }
                     }
                 } catch (err) {
+                    console.log(`error message: ${err.message}`);
                     console.error('[Weekly Activity Navigation Error]', err);
                 } finally {
                     card.classList.remove('isCardLoading');

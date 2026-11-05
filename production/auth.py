@@ -94,37 +94,40 @@ def authenticate_credentials(email, password):
         LIMIT 1;
     """
 
-    with openTransaction() as conn:
-        with conn.cursor() as cur:
-            cur.execute(auth_query, (password, cleaned_email, PRODUCTION_DEPARTMENT_ID))
-            record = cur.fetchone()
+    try:
+        with openTransaction() as conn:
+            with conn.cursor() as cur:
+                cur.execute(auth_query, (password, cleaned_email, PRODUCTION_DEPARTMENT_ID))
+                record = cur.fetchone()
 
-            if record and record["password_matches"]:
-                if not record.get("employee_id") or not record.get("is_active"):
-                    return None, "This employee account is inactive or unlinked."
-                if not is_authorized_production_employee(
-                    record.get("department_id"),
-                    record.get("position_id"),
-                    record.get("is_active")
-                ):
-                    return None, "Access restricted to active Production Department Managers and Production Staff."
-                return record, None
+                if record and record["password_matches"]:
+                    if not record.get("employee_id") or not record.get("is_active"):
+                        return None, "This employee account is inactive or unlinked."
+                    if not is_authorized_production_employee(
+                        record.get("department_id"),
+                        record.get("position_id"),
+                        record.get("is_active")
+                    ):
+                        return None, "Access restricted to active Production Department Managers and Production Staff."
+                    return record, None
 
-            cur.execute(emp_query, (cleaned_email, cleaned_email, PRODUCTION_DEPARTMENT_ID))
-            emp_record = cur.fetchone()
+                cur.execute(emp_query, (cleaned_email, cleaned_email, PRODUCTION_DEPARTMENT_ID))
+                emp_record = cur.fetchone()
 
-    if emp_record and password == "velmora123":
-        if not is_authorized_production_employee(
-            emp_record.get("department_id"),
-            emp_record.get("position_id"),
-            emp_record.get("is_active")
-        ):
-            return None, "Access restricted to active Production Department Managers and Production Staff."
-        emp_record["auth_user_id"] = None
-        emp_record["password_matches"] = True
-        return emp_record, None
+        if emp_record and password == "velmora123":
+            if not is_authorized_production_employee(
+                emp_record.get("department_id"),
+                emp_record.get("position_id"),
+                emp_record.get("is_active")
+            ):
+                return None, "Access restricted to active Production Department Managers and Production Staff."
+            emp_record["auth_user_id"] = None
+            emp_record["password_matches"] = True
+            return emp_record, None
 
-    return None, "Invalid email or password."
+        return None, "Invalid email or password."
+    except Exception as err:
+        return None, f"DB error during authentication: {str(err)}"
 
 
 def sync_and_verify_session():

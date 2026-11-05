@@ -435,6 +435,7 @@
                     }
                 }
             } catch (err) {
+                console.log(`error message: ${err.message}`);
                 console.error('[Activity Card Navigation]', err);
             } finally {
                 card.classList.remove('isCardLoading');

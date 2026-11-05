@@ -81,39 +81,52 @@ def preventHtmlCacheAfterSignout(response):
 
 @productionBlueprint.route("/login", methods=["GET", "POST"])
 def login():
-    if session.get("user_id") and sync_and_verify_session():
-        return redirect(url_for("production.index"))
+    try:
+        if session.get("user_id") and sync_and_verify_session():
+            return redirect(url_for("production.index"))
+    except Exception:
+        pass
     if session.get("user_id"):
         _clearAuthSessionKeys()
     if request.method == "POST":
         email = request.form.get("email", "").strip()
         password = request.form.get("password", "")
-        user_record, error_message = authenticate_credentials(email, password)
+        try:
+            user_record, error_message = authenticate_credentials(email, password)
+        except Exception as err:
+            user_record, error_message = None, f"Authentication error: {str(err)}"
         if error_message:
             if request.headers.get("X-Requested-With") == "XMLHttpRequest" or request.is_json:
                 return jsonify({"success": False, "error": error_message}), 401
             flash(error_message, "danger")
             return render_template("production/loginpage/login.html")
-        emp_id = int(user_record["employee_id"])
-        dept_id = int(user_record["department_id"])
-        pos_id = int(user_record["position_id"])
-        session["user_id"] = user_record.get("user_id") or emp_id or str(user_record.get("auth_user_id"))
-        session["employee_id"] = emp_id
-        session["department_id"] = dept_id
-        session["position_id"] = pos_id
-        session["email"] = user_record.get("email")
-        name = user_record.get("name") or ""
-        last_name = user_record.get("last_name") or ""
-        full_name = f"{name} {last_name}".strip()
-        session["employee_name"] = full_name if full_name else user_record.get("email")
-        session["position"] = user_record.get("position_name") or ("Manager" if pos_id == MANAGER_POSITION_ID else "Production Staff")
-        clear_employee_verify_cache(emp_id)
-        flash(f"Welcome back, {session['employee_name']}!", "success")
-        next_page = request.args.get("next")
-        next_url = next_page if (next_page and next_page.startswith("/production") and not next_page.startswith("/production/logout") and not next_page.startswith("/production/login")) else url_for("production.index")
-        if request.headers.get("X-Requested-With") == "XMLHttpRequest" or request.is_json:
-            return jsonify({"success": True, "redirect": next_url, "user": session["employee_name"]}), 200
-        return redirect(next_url)
+        try:
+            emp_id = int(user_record["employee_id"])
+            dept_id = int(user_record["department_id"])
+            pos_id = int(user_record["position_id"])
+            session["user_id"] = user_record.get("user_id") or emp_id or str(user_record.get("auth_user_id"))
+            session["employee_id"] = emp_id
+            session["department_id"] = dept_id
+            session["position_id"] = pos_id
+            session["email"] = user_record.get("email")
+            name = user_record.get("name") or ""
+            last_name = user_record.get("last_name") or ""
+            full_name = f"{name} {last_name}".strip()
+            session["employee_name"] = full_name if full_name else user_record.get("email")
+            session["position"] = user_record.get("position_name") or ("Manager" if pos_id == MANAGER_POSITION_ID else "Production Staff")
+            clear_employee_verify_cache(emp_id)
+            flash(f"Welcome back, {session['employee_name']}!", "success")
+            next_page = request.args.get("next")
+            next_url = next_page if (next_page and next_page.startswith("/production") and not next_page.startswith("/production/logout") and not next_page.startswith("/production/login")) else url_for("production.index")
+            if request.headers.get("X-Requested-With") == "XMLHttpRequest" or request.is_json:
+                return jsonify({"success": True, "redirect": next_url, "user": session["employee_name"]}), 200
+            return redirect(next_url)
+        except Exception as err:
+            err_msg = f"Session initialization error: {str(err)}"
+            if request.headers.get("X-Requested-With") == "XMLHttpRequest" or request.is_json:
+                return jsonify({"success": False, "error": err_msg}), 500
+            flash(err_msg, "danger")
+            return render_template("production/loginpage/login.html")
     return render_template("production/loginpage/login.html")
 
 @productionBlueprint.route("/feature-static/<path:filename>")
@@ -128,15 +141,21 @@ def loginpageStatic(filename):
 
 @productionBlueprint.route("/logout")
 def logout():
-    clear_employee_verify_cache(session.get("employee_id"))
-    session.clear()
-    flash("You have been signed out successfully.", "info")
+    try:
+        clear_employee_verify_cache(session.get("employee_id"))
+        session.clear()
+        flash("You have been signed out successfully.", "info")
+    except Exception:
+        session.clear()
     return redirect(url_for("production.login"))
 
 @productionBlueprint.route("/refresh", methods=["POST", "GET"])
 def refreshCache():
-    clearAllCache()
-    clear_employee_verify_cache()
+    try:
+        clearAllCache()
+        clear_employee_verify_cache()
+    except Exception:
+        pass
     if request.headers.get("X-Requested-With") == "XMLHttpRequest" or request.is_json:
         return jsonify({"status": "success", "message": "Live database synchronized."})
     flash("Live database synchronized.", "success")
@@ -544,7 +563,7 @@ def addFurniture():
     except UniqueViolation:
         flash(f"A product named '{furnitureName}' already exists in the catalog.", "warning")
     except Exception as err:
-        flash(f"Database error while adding product: {str(err)}", "error")
+        flash(f"DB error while adding product: {str(err)}", "error")
 
     return redirect(url_for("production.furnitureList"))
 
@@ -583,7 +602,7 @@ def editFurniture(furnitureID):
     except UniqueViolation:
         flash(f"Another product with the name '{furnitureName}' already exists.", "warning")
     except Exception as err:
-        flash(f"Database error while updating product: {str(err)}", "error")
+        flash(f"DB error while updating product: {str(err)}", "error")
 
     return redirect(url_for("production.furnitureList"))
 
@@ -596,7 +615,7 @@ def deleteFurniture(furnitureID):
     except ValueError as valErr:
         flash(str(valErr), "warning")
     except Exception as err:
-        flash(f"Database error while deleting product: {str(err)}", "error")
+        flash(f"DB error while deleting product: {str(err)}", "error")
 
     return redirect(url_for("production.furnitureList"))
 
@@ -733,7 +752,7 @@ def addBomItem():
         else:
             flash(f"Added '{materialName}' ({quantityRequired}) to BOM.", "success")
     except Exception as err:
-        flash(f"Database error while saving BOM item: {str(err)}", "error")
+        flash(f"DB error while saving BOM item: {str(err)}", "error")
 
     return redirect(url_for("production.bomList", furniture_id=furnitureID))
 
@@ -755,7 +774,7 @@ def removeBomItem(bomItemID):
         bom.removeMaterial(bomItemID)
         flash("Component removed from BOM.", "success")
     except Exception as err:
-        flash(f"Database error while removing component: {str(err)}", "error")
+        flash(f"DB error while removing component: {str(err)}", "error")
 
     return redirect(url_for("production.bomList", furniture_id=furnitureID))
 
@@ -783,7 +802,7 @@ def updateFurniturePriceFromBom():
         else:
             flash("Product not found.", "error")
     except Exception as err:
-        flash(f"Database error while updating price: {str(err)}", "error")
+        flash(f"DB error while updating price: {str(err)}", "error")
     return redirect(url_for("production.bomList", furniture_id=furnitureID))
 
 @productionBlueprint.route("/orders")
@@ -997,7 +1016,7 @@ def createOrder():
     except ValueError as valErr:
         flash(str(valErr), "warning")
     except Exception as err:
-        flash(f"Database error while creating production order: {str(err)}", "error")
+        flash(f"DB error while creating production order: {str(err)}", "error")
 
     return redirect(url_for("production.orderList"))
 
@@ -1010,7 +1029,7 @@ def deleteOrder(orderID):
     except ValueError as valErr:
         flash(str(valErr), "warning")
     except Exception as err:
-        flash(f"Database error while deleting order: {str(err)}", "error")
+        flash(f"DB error while deleting order: {str(err)}", "error")
 
     return redirect(url_for("production.orderList"))
 
@@ -1100,7 +1119,7 @@ def updateOrderSchedule(orderID):
     except ValueError as valErr:
         flash(str(valErr), "warning")
     except Exception as err:
-        flash(f"Database error while updating schedule: {str(err)}", "error")
+        flash(f"DB error while updating schedule: {str(err)}", "error")
 
     return redirect(targetRedirect)
 
@@ -1421,7 +1440,7 @@ def updateMonitoringProgress(monitoringID):
         isRollback = progressVal < existing.progress
         isAdvancingToQA = (stageInt >= 90 and not isRollback)
         if isAdvancingToQA and not rawBytes:
-            flash("A workshop photo proof is required when submitting Stage 4 (Ready for QA Inspection).", "error")
+            flash("A proof is required when submitting Stage 4 (Ready for QA Inspection).", "error")
             return redirect(url_for("production.monitoringList"))
 
         uploadedFileUrl = None
@@ -1665,7 +1684,7 @@ def recordInspection(orderID):
     except ValueError as valErr:
         flash(str(valErr), "warning")
     except Exception as err:
-        flash(f"Database error during quality inspection: {str(err)}", "error")
+        flash(f"DB error during quality inspection: {str(err)}", "error")
 
     return redirect(url_for("production.finishedGoodsList"))
 
@@ -1773,7 +1792,7 @@ def saveOrderCost(orderID):
     except ValueError as valErr:
         flash(str(valErr), "warning")
     except Exception as err:
-        flash(f"Database error while saving production cost: {str(err)}", "error")
+        flash(f"DB error while saving production cost: {str(err)}", "error")
 
     return redirect(url_for("production.costingList"))
 
