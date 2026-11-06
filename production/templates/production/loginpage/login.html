@@ -33,6 +33,24 @@
         <p>Log in to your account to continue</p>
       </div>
 
+      {% if ban_status and (ban_status.get('status') == 'banned' or ban_status.get('action') == 'banned') %}
+      <div class="flash-alert flash-danger" id="ipBanAlertBox" style="background: rgba(186, 73, 58, 0.12); border: 1.5px solid #ba493a; color: #ba493a; padding: 12px 14px; border-radius: 8px; margin-bottom: 16px; display: flex; align-items: flex-start; gap: 10px;">
+        <i class="fas fa-ban" style="font-size: 16px; margin-top: 3px; flex-shrink: 0;"></i>
+        <div>
+          <b style="display: block; font-size: 13.5px; margin-bottom: 3px;">Access Restricted &middot; IP Banned for 1 Day</b>
+          <span style="font-size: 12.5px; line-height: 1.4;">{{ ban_status.get('message') }}</span>
+        </div>
+      </div>
+      {% elif ban_status and (ban_status.get('status') == 'blocked' or ban_status.get('action') == 'blocked') %}
+      <div class="flash-alert flash-danger" id="ipBlockAlertBox" style="background: rgba(181, 143, 85, 0.15); border: 1.5px solid #8e622a; color: #8e622a; padding: 12px 14px; border-radius: 8px; margin-bottom: 16px; display: flex; align-items: flex-start; gap: 10px;">
+        <i class="fas fa-clock" style="font-size: 16px; margin-top: 3px; flex-shrink: 0;"></i>
+        <div>
+          <b style="display: block; font-size: 13.5px; margin-bottom: 3px;">Temporary Security Block</b>
+          <span style="font-size: 12.5px; line-height: 1.4;">{{ ban_status.get('message') }}</span>
+        </div>
+      </div>
+      {% endif %}
+
       {% with messages = get_flashed_messages(with_categories=true) %}
       {% if messages %}
       {% for category, message in messages %}

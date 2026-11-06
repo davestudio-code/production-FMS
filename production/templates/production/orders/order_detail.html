@@ -15,15 +15,6 @@
             <span class="statusBadge {{ 'completed' if order.status == 'Completed' else ('inProgress' if order.status == 'In Progress' else ('released' if order.status == 'Released' else 'draft')) }}" style="white-space: nowrap;">
                 {{ order.status }}
             </span>
-            {% if order.purpose == 'Scheduled Batch' %}
-            <span class="statusBadge" style="background: rgba(53, 122, 88, 0.12); color: #357a58; border: 1px solid rgba(53, 122, 88, 0.3); white-space: nowrap;">
-                Scheduled Batch
-            </span>
-            {% else %}
-            <span class="statusBadge" style="background: rgba(181, 143, 85, 0.12); color: #8e622a; border: 1px solid rgba(181, 143, 85, 0.3); white-space: nowrap;">
-                Warehouse Restock
-            </span>
-            {% endif %}
         </div>
         <span style="color: var(--mt); font-size: 13.5px;"><b>{{ order.furnitureName }}</b> ({{ order.furnitureType }}) &bull; Ordered on {{ order.orderDate|date_fmt }}</span>
     </div>

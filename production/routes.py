@@ -12,6 +12,8 @@ from .auth import (
     is_staff_session,
     sync_and_verify_session,
     clear_employee_verify_cache,
+    update_employee_profile,
+    change_employee_password,
     MANAGER_POSITION_ID
 )
 from .models.furniture import Furniture
@@ -32,6 +34,7 @@ from .models.workflow import (
 )
 from . import integration
 from .cache import clearAllCache, invalidateKeys
+from .security import check_ip_security, record_failed_login, record_successful_login, get_client_ip
 
 productionBlueprint = Blueprint(
     "production",
@@ -56,7 +59,21 @@ def dateFmtFilter(val):
         return str(val)
 
 def _clearAuthSessionKeys():
-    for key in ("user_id", "employee_id", "department_id", "position_id", "email", "employee_name", "position", "role"):
+    for key in (
+        "user_id",
+        "auth_user_id",
+        "employee_id",
+        "department_id",
+        "position_id",
+        "email",
+        "first_name",
+        "last_name",
+        "phone",
+        "employee_name",
+        "position",
+        "access_level",
+        "role",
+    ):
         session.pop(key, None)
 
 @productionBlueprint.before_request
@@ -88,32 +105,55 @@ def login():
         pass
     if session.get("user_id"):
         _clearAuthSessionKeys()
+
+    client_ip = get_client_ip()
+    is_allowed, ban_status = check_ip_security(client_ip)
+
     if request.method == "POST":
+        if not is_allowed:
+            err_msg = ban_status.get("message", "Access restricted due to security policy.")
+            if request.headers.get("X-Requested-With") == "XMLHttpRequest" or request.is_json:
+                return jsonify({"success": False, "error": err_msg, "security": ban_status}), 403
+            flash(err_msg, "danger")
+            return render_template("production/loginpage/login.html", ban_status=ban_status), 403
+
         email = request.form.get("email", "").strip()
         password = request.form.get("password", "")
         try:
             user_record, error_message = authenticate_credentials(email, password)
         except Exception as err:
             user_record, error_message = None, f"Authentication error: {str(err)}"
+
         if error_message:
+            security_info = record_failed_login(client_ip)
+            full_error = security_info.get("message", error_message)
+            status_code = 403 if security_info.get("action") in ("blocked", "banned") else 401
             if request.headers.get("X-Requested-With") == "XMLHttpRequest" or request.is_json:
-                return jsonify({"success": False, "error": error_message}), 401
-            flash(error_message, "danger")
-            return render_template("production/loginpage/login.html")
+                return jsonify({"success": False, "error": full_error, "security": security_info}), status_code
+            flash(full_error, "danger")
+            return render_template("production/loginpage/login.html", ban_status=security_info), status_code
+
+        record_successful_login(client_ip)
         try:
             emp_id = int(user_record["employee_id"])
             dept_id = int(user_record["department_id"])
             pos_id = int(user_record["position_id"])
             session["user_id"] = user_record.get("user_id") or emp_id or str(user_record.get("auth_user_id"))
+            if user_record.get("auth_user_id"):
+                session["auth_user_id"] = str(user_record.get("auth_user_id"))
             session["employee_id"] = emp_id
             session["department_id"] = dept_id
             session["position_id"] = pos_id
             session["email"] = user_record.get("email")
-            name = user_record.get("name") or ""
-            last_name = user_record.get("last_name") or ""
+            name = (user_record.get("name") or "").strip()
+            last_name = (user_record.get("last_name") or "").strip()
+            session["first_name"] = name
+            session["last_name"] = last_name
+            session["phone"] = (user_record.get("phone") or "").strip()
             full_name = f"{name} {last_name}".strip()
             session["employee_name"] = full_name if full_name else user_record.get("email")
             session["position"] = user_record.get("position_name") or ("Manager" if pos_id == MANAGER_POSITION_ID else "Production Staff")
+            session["access_level"] = user_record.get("access_level") or ("manager" if pos_id == MANAGER_POSITION_ID else "staff")
             clear_employee_verify_cache(emp_id)
             flash(f"Welcome back, {session['employee_name']}!", "success")
             next_page = request.args.get("next")
@@ -127,7 +167,8 @@ def login():
                 return jsonify({"success": False, "error": err_msg}), 500
             flash(err_msg, "danger")
             return render_template("production/loginpage/login.html")
-    return render_template("production/loginpage/login.html")
+
+    return render_template("production/loginpage/login.html", ban_status=ban_status)
 
 @productionBlueprint.route("/feature-static/<path:filename>")
 def featureStatic(filename):
@@ -148,6 +189,84 @@ def logout():
     except Exception:
         session.clear()
     return redirect(url_for("production.login"))
+
+@productionBlueprint.route("/account/update-profile", methods=["POST"])
+@login_required
+def updateAccountProfile():
+    try:
+        payload = request.get_json(silent=True) if request.is_json else request.form
+        first_name = (payload.get("first_name") or "").strip()
+        last_name = (payload.get("last_name") or "").strip()
+        phone = (payload.get("phone") or "").strip()
+        emp_id = session.get("employee_id")
+
+        updated, err = update_employee_profile(emp_id, first_name, last_name, phone)
+        if err:
+            if request.headers.get("X-Requested-With") == "XMLHttpRequest" or request.is_json:
+                return jsonify({"success": False, "error": err}), 400
+            flash(err, "error")
+            return redirect(request.referrer or url_for("production.index"))
+
+        session["first_name"] = (updated.get("name") or "").strip()
+        session["last_name"] = (updated.get("last_name") or "").strip()
+        session["phone"] = (updated.get("phone") or "").strip()
+        full_name = f"{session['first_name']} {session['last_name']}".strip()
+        if full_name:
+            session["employee_name"] = full_name
+        initial = (session["employee_name"] or "U")[:1].upper()
+
+        if request.headers.get("X-Requested-With") == "XMLHttpRequest" or request.is_json:
+            return jsonify({
+                "success": True,
+                "message": "Account profile updated successfully.",
+                "first_name": session["first_name"],
+                "last_name": session["last_name"],
+                "phone": session["phone"],
+                "employee_name": session["employee_name"],
+                "initial": initial,
+            }), 200
+        flash("Account profile updated successfully.", "success")
+        return redirect(request.referrer or url_for("production.index"))
+    except Exception as err:
+        err_msg = f"Profile update error: {str(err)}"
+        if request.headers.get("X-Requested-With") == "XMLHttpRequest" or request.is_json:
+            return jsonify({"success": False, "error": err_msg}), 500
+        flash(err_msg, "error")
+        return redirect(request.referrer or url_for("production.index"))
+
+@productionBlueprint.route("/account/change-password", methods=["POST"])
+@login_required
+def changeAccountPassword():
+    try:
+        payload = request.get_json(silent=True) if request.is_json else request.form
+        current_password = payload.get("current_password") or ""
+        new_password = payload.get("new_password") or ""
+        confirm_password = payload.get("confirm_password") or ""
+
+        if new_password != confirm_password:
+            err = "New password and confirmation password do not match."
+            if request.headers.get("X-Requested-With") == "XMLHttpRequest" or request.is_json:
+                return jsonify({"success": False, "error": err}), 400
+            flash(err, "error")
+            return redirect(request.referrer or url_for("production.index"))
+
+        ok, err = change_employee_password(session.get("employee_id"), current_password, new_password)
+        if not ok:
+            if request.headers.get("X-Requested-With") == "XMLHttpRequest" or request.is_json:
+                return jsonify({"success": False, "error": err}), 400
+            flash(err, "error")
+            return redirect(request.referrer or url_for("production.index"))
+
+        if request.headers.get("X-Requested-With") == "XMLHttpRequest" or request.is_json:
+            return jsonify({"success": True, "message": "Password changed successfully."}), 200
+        flash("Password changed successfully.", "success")
+        return redirect(request.referrer or url_for("production.index"))
+    except Exception as err:
+        err_msg = f"Password change error: {str(err)}"
+        if request.headers.get("X-Requested-With") == "XMLHttpRequest" or request.is_json:
+            return jsonify({"success": False, "error": err_msg}), 500
+        flash(err_msg, "error")
+        return redirect(request.referrer or url_for("production.index"))
 
 @productionBlueprint.route("/refresh", methods=["POST", "GET"])
 def refreshCache():
@@ -1701,9 +1820,9 @@ def costingList():
                 o.costID = savedCost.costID
                 o.materialCost = savedCost.materialCost
                 o.laborCost = savedCost.laborCost
-                o.overheadCost = savedCost.overheadCost
-                o.totalCost = savedCost.totalCost
-                o.unitCost = savedCost.unitCost
+                o.overheadCost = Decimal("0.00")
+                o.totalCost = (savedCost.materialCost + savedCost.laborCost).quantize(Decimal("0.01"))
+                o.unitCost = (o.totalCost / Decimal(str(o.plannedQuantity))).quantize(Decimal("0.01")) if o.plannedQuantity else Decimal("0.00")
                 o.costDate = savedCost.costDate
                 o.formattedCostDate = savedCost.formattedCostDate
             else:
@@ -1711,8 +1830,8 @@ def costingList():
                 o.costID = None
                 o.materialCost = ProductionCost.calculateActualMaterialCost(o.orderID)
                 o.laborCost = Decimal("0.00")
-                o.overheadCost = ProductionCost.calculateOverhead(o.materialCost)
-                o.totalCost = o.materialCost + o.laborCost + o.overheadCost
+                o.overheadCost = Decimal("0.00")
+                o.totalCost = (o.materialCost + o.laborCost).quantize(Decimal("0.01"))
                 o.unitCost = (o.totalCost / Decimal(str(o.plannedQuantity))).quantize(Decimal("0.01")) if o.plannedQuantity else Decimal("0.00")
                 o.costDate = None
                 o.formattedCostDate = "-"
@@ -1722,19 +1841,18 @@ def costingList():
             o.passedUnits = passedUnits
 
         allCostRecords = ProductionCost.getAll()
-        totalRecordedCost = sum(c.totalCost for c in allCostRecords)
+        totalRecordedCost = sum((c.materialCost + c.laborCost) for c in allCostRecords)
         summary = {
             "totalCost": totalRecordedCost,
             "costedOrders": len(allCostRecords),
             "pendingCosting": sum(1 for o in costOrders if not o.hasCostSheet),
-            "activeOrders": len(costOrders),
-            "overheadPercent": int(round(ProductionCost.DEFAULT_OVERHEAD_PERCENT * 100))
+            "activeOrders": len(costOrders)
         }
     except Exception as err:
         flash(f"Failed to load production costing records: {str(err)}", "error")
         costOrders = []
         allCostRecords = []
-        summary = {"totalCost": Decimal("0.00"), "costedOrders": 0, "pendingCosting": 0, "activeOrders": 0, "overheadPercent": int(round(ProductionCost.DEFAULT_OVERHEAD_PERCENT * 100))}
+        summary = {"totalCost": Decimal("0.00"), "costedOrders": 0, "pendingCosting": 0, "activeOrders": 0}
 
     return render_template(
         "production/costing/costing_list.html",
@@ -1786,7 +1904,7 @@ def saveOrderCost(orderID):
             orderID=orderID,
             materialCost=matCost,
             laborCost=labCost,
-            overheadCost=overCost
+            overheadCost=Decimal("0.00")
         )
         flash(f"Cost sheet saved for Order #PO-{orderID} (Total: ₱{saved.totalCost:,.2f})! Available for Team 5 Finance.", "success")
     except ValueError as valErr:
@@ -1823,11 +1941,19 @@ def reportView():
                            pc.labor_cost,
                            pc.overhead_cost,
                            pc.total_cost,
-                           pc.cost_date
+                           pc.cost_date,
+                           COALESCE(iss.issued_material_cost, 0.00) AS issued_material_cost
                     FROM prod_productionorder po
                     JOIN prod_furniture f ON po.furniture_id = f.furniture_id
                     LEFT JOIN prod_productionmonitoring pm ON po.order_id = pm.order_id
                     LEFT JOIN prod_productioncost pc ON po.order_id = pc.order_id
+                    LEFT JOIN (
+                        SELECT mi.order_id,
+                               SUM(mi.quantity_issued * rm.unit_cost) AS issued_material_cost
+                        FROM prod_materialissuance mi
+                        JOIN raw_material rm ON mi.material_id = rm.raw_material_id
+                        GROUP BY mi.order_id
+                    ) iss ON po.order_id = iss.order_id
                     ORDER BY po.order_id DESC
                 """)
                 rawOrders = cur.fetchall()
@@ -1858,7 +1984,22 @@ def reportView():
             qty = Decimal(str(item.get("planned_quantity") or 0))
             price = Decimal(str(item.get("selling_price") or 0))
             item["estimatedValue"] = qty * price
+            issuedMatCost = Decimal(str(item.get("issued_material_cost") or 0)).quantize(Decimal("0.01"))
+            if item.get("total_cost") is not None:
+                item["hasCostSheet"] = True
+                mat = Decimal(str(item.get("material_cost") or 0))
+                lab = Decimal(str(item.get("labor_cost") or 0))
+                item["effectiveCost"] = (mat + lab).quantize(Decimal("0.01"))
+            elif issuedMatCost > Decimal("0.00"):
+                item["hasCostSheet"] = False
+                item["effectiveCost"] = issuedMatCost
+            else:
+                item["hasCostSheet"] = False
+                item["effectiveCost"] = Decimal("0.00")
             allOrders.append(item)
+
+        issuances = MaterialIssuance.getAll()
+        outputRecords = ProductionOutput.getAll()
 
         totalOrders = len(allOrders)
         completedOrders = sum(1 for o in allOrders if o["status"] == "Completed")
@@ -1867,10 +2008,14 @@ def reportView():
         draftOrders = sum(1 for o in allOrders if o["status"] == "Draft")
 
         totalPlannedUnits = sum(int(o["planned_quantity"]) for o in allOrders)
-        totalCompletedUnits = sum(int(o["planned_quantity"]) for o in allOrders if o["status"] == "Completed")
+        passedQAUnits = sum(int(o.quantity) for o in outputRecords if o.qualityStatus == "Passed")
+        completedBatchUnits = sum(int(o["planned_quantity"]) for o in allOrders if o["status"] == "Completed")
+        totalCompletedUnits = passedQAUnits if passedQAUnits > 0 else completedBatchUnits
         completionRate = int(round((completedOrders / totalOrders * 100))) if totalOrders > 0 else 0
 
         totalRecordedCost = sum(Decimal(str(o["total_cost"])) for o in allOrders if o.get("total_cost") is not None)
+        totalIncurredCost = sum(o["effectiveCost"] for o in allOrders)
+        costedOrdersCount = sum(1 for o in allOrders if o.get("hasCostSheet"))
         totalMaterialExpense = sum(Decimal(str(m["total_material_expense"])) for m in materialUsageRows)
         totalPlannedValue = sum(o["estimatedValue"] for o in allOrders)
 
@@ -1884,6 +2029,8 @@ def reportView():
             "totalCompletedUnits": totalCompletedUnits,
             "completionRate": completionRate,
             "totalRecordedCost": totalRecordedCost,
+            "totalIncurredCost": totalIncurredCost,
+            "costedOrdersCount": costedOrdersCount,
             "totalMaterialExpense": totalMaterialExpense,
             "totalPlannedValue": totalPlannedValue
         }
@@ -1894,8 +2041,6 @@ def reportView():
             statusFilter = "All"
             filteredOrders = allOrders
 
-        issuances = MaterialIssuance.getAll()
-        outputRecords = ProductionOutput.getAll()
         activityDates = []
         for iss in issuances:
             if iss.issueDate:
@@ -1926,6 +2071,8 @@ def reportView():
             "totalCompletedUnits": 0,
             "completionRate": 0,
             "totalRecordedCost": Decimal("0.00"),
+            "totalIncurredCost": Decimal("0.00"),
+            "costedOrdersCount": 0,
             "totalMaterialExpense": Decimal("0.00"),
             "totalPlannedValue": Decimal("0.00")
         }
@@ -1939,7 +2086,8 @@ def reportView():
         currentFilter=statusFilter,
         issuances=issuances,
         outputRecords=outputRecords,
-        lastActivity=lastActivity
+        lastActivity=lastActivity,
+        reportDate=date.today().strftime("%B %d, %Y")
     )
 
 @productionBlueprint.route("/logs")

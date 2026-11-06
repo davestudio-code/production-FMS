@@ -4,12 +4,14 @@
 <div class="headerRow">
     <div>
         <h2>Material Requirement</h2>
-        <span style="color: var(--mt); font-size: 13.5px;">Calculate raw material demand from Bill of Materials specifications against live inventory stock</span>
+        <span style="color: var(--mt); font-size: 13.5px;">Check raw material required from Bill of Materials
+            specifications against inventory stock</span>
     </div>
 </div>
 
 <div class="card" style="margin-bottom: 20px;">
-    <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 14px;{% if selectedOrder %} padding-bottom: 16px; border-bottom: 1px solid var(--bd); margin-bottom: 16px;{% endif %}">
+    <div
+        style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 14px;{% if selectedOrder %} padding-bottom: 16px; border-bottom: 1px solid var(--bd); margin-bottom: 16px;{% endif %}">
         <div style="display: flex; gap: 12px; align-items: center; flex-wrap: wrap;">
             <div style="display: inline-flex; border: 1px solid var(--bd); border-radius: 6px; overflow: hidden;">
                 <a href="/production/requirement?filter=active{% if selectedOrder and selectedOrder.status in ('Draft', 'Released') %}&order_id={{ selectedOrder.orderID }}{% endif %}"
@@ -27,8 +29,10 @@
                 onchange="window.location.href='/production/requirement?filter={{ filterType }}&order_id=' + this.value"
                 style="min-width: 320px;">
                 {% for ord in displayedOrders %}
-                <option value="{{ ord.orderID }}" {{ 'selected' if selectedOrder and selectedOrder.orderID == ord.orderID else '' }}>
-                    #PO-{{ ord.orderID }} &ndash; {{ ord.furnitureName }} ({{ ord.plannedQuantity }} {{ 'unit' if ord.plannedQuantity == 1 else 'units' }}) &ndash; [{{ ord.status }}]
+                <option value="{{ ord.orderID }}" {{ 'selected' if selectedOrder and selectedOrder.orderID==ord.orderID
+                    else '' }}>
+                    #PO-{{ ord.orderID }} &ndash; {{ ord.furnitureName }} ({{ ord.plannedQuantity }} {{ 'unit' if
+                    ord.plannedQuantity == 1 else 'units' }}) &ndash; [{{ ord.status }}]
                 </option>
                 {% else %}
                 <option value="">No Production Orders Found</option>
@@ -43,8 +47,8 @@
 
         {% if selectedOrder %}
         <div style="display: flex; align-items: center; gap: 8px;">
-            <a href="/production/orders/{{ selectedOrder.orderID }}"
-                class="actionButton secondary" style="padding: 6px 12px; font-size: 12.5px; text-decoration: none;">View Order Details &rarr;</a>
+            <a href="/production/orders/{{ selectedOrder.orderID }}" class="actionButton secondary"
+                style="padding: 6px 12px; font-size: 12.5px; text-decoration: none;">View Order Details &rarr;</a>
         </div>
         {% endif %}
     </div>
@@ -53,54 +57,69 @@
     <div class="headerRow" style="margin-bottom: 14px; align-items: center;">
         <div>
             <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 4px;">
-                <h3 style="font-size: 16px; margin: 0;">Order #PO-{{ selectedOrder.orderID }} &bull; {{ selectedOrder.furnitureName }}</h3>
-                <span class="statusBadge {{ 'completed' if selectedOrder.status == 'Completed' else ('inProgress' if selectedOrder.status == 'In Progress' else ('released' if selectedOrder.status == 'Released' else 'draft')) }}">
+                <h3 style="font-size: 16px; margin: 0;">Order #PO-{{ selectedOrder.orderID }} &bull; {{
+                    selectedOrder.furnitureName }}</h3>
+                <span
+                    class="statusBadge {{ 'completed' if selectedOrder.status == 'Completed' else ('inProgress' if selectedOrder.status == 'In Progress' else ('released' if selectedOrder.status == 'Released' else 'draft')) }}">
                     {{ selectedOrder.status }}
                 </span>
             </div>
-            <span style="color: var(--mt); font-size: 12.5px;">Category: {{ selectedOrder.furnitureType }} &bull; Ordered: {{ selectedOrder.orderDate|date_fmt }}</span>
+            <span style="color: var(--mt); font-size: 12.5px;">Category: {{ selectedOrder.furnitureType }} &bull;
+                Ordered: {{ selectedOrder.orderDate|date_fmt }}</span>
         </div>
 
         <div>
             {% if selectedOrder.status == 'Draft' %}
-                {% if not hasBOM %}
-                <span class="statusBadge alert">BOM Not Configured</span>
-                {% elif not selectedOrder.isFullyPlanned %}
-                <a href="/production/planning" class="actionButton secondary" style="padding: 7px 14px; font-size: 13px; text-decoration: none;">Plan &amp; Assign in Planning &rarr;</a>
-                {% elif hasShortage %}
-                <span class="statusBadge alert">Shortage ({{ shortageCount }} Deficit{{ 's' if shortageCount != 1 else '' }})</span>
-                {% else %}
-                    {% if isManager %}
-                    <form method="POST" action="/production/requirement/release/{{ selectedOrder.orderID }}"
-                        onsubmit="return confirm('Release Order #PO-{{ selectedOrder.orderID }} to production?');" style="margin: 0;">
-                        <button type="submit" class="actionButton" style="padding: 7px 16px; font-size: 13px;">Release to Production &rarr;</button>
-                    </form>
-                    {% else %}
-                    <span class="statusBadge passed">Ready for Production</span>
-                    {% endif %}
-                {% endif %}
+            {% if not hasBOM %}
+            <span class="statusBadge alert">BOM Not Configured</span>
+            {% elif not selectedOrder.isFullyPlanned %}
+            <a href="/production/planning" class="actionButton secondary"
+                style="padding: 7px 14px; font-size: 13px; text-decoration: none;">Plan &amp; Assign in Planning
+                &rarr;</a>
+            {% elif hasShortage %}
+            <span class="statusBadge alert">Shortage ({{ shortageCount }} Deficit{{ 's' if shortageCount != 1 else ''
+                }})</span>
+            {% else %}
+            {% if isManager %}
+            <form method="POST" action="/production/requirement/release/{{ selectedOrder.orderID }}"
+                onsubmit="return confirm('Release Order #PO-{{ selectedOrder.orderID }} to production?');"
+                style="margin: 0;">
+                <button type="submit" class="actionButton" style="padding: 7px 16px; font-size: 13px;">Release to
+                    Production &rarr;</button>
+            </form>
+            {% else %}
+            <span class="statusBadge passed">Ready for Production</span>
+            {% endif %}
+            {% endif %}
             {% elif selectedOrder.status == 'Released' %}
-                <a href="/production/issuance" class="actionButton"
-                    style="padding: 7px 16px; font-size: 13px; text-decoration: none;">Proceed to Material Issuance &rarr;</a>
+            <a href="/production/issuance" class="actionButton"
+                style="padding: 7px 16px; font-size: 13px; text-decoration: none;">Proceed to Material Issuance
+                &rarr;</a>
             {% endif %}
         </div>
     </div>
 
-    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(175px, 1fr)); gap: 14px; padding: 14px 0; border-top: 1px solid var(--bd); border-bottom: 1px solid var(--bd); margin-bottom: 16px;">
+    <div
+        style="display: grid; grid-template-columns: repeat(auto-fit, minmax(175px, 1fr)); gap: 14px; padding: 14px 0; border-top: 1px solid var(--bd); border-bottom: 1px solid var(--bd); margin-bottom: 16px;">
         <div>
-            <span style="font-size: 11.5px; color: var(--mt); display: block; text-transform: uppercase;">Batch Quantity</span>
-            <b style="font-size: 15px;">{{ selectedOrder.plannedQuantity }} {{ 'unit' if selectedOrder.plannedQuantity == 1 else 'units' }}</b>
+            <span style="font-size: 11.5px; color: var(--mt); display: block; text-transform: uppercase;">Batch
+                Quantity</span>
+            <b style="font-size: 15px;">{{ selectedOrder.plannedQuantity }} {{ 'unit' if selectedOrder.plannedQuantity
+                == 1 else 'units' }}</b>
         </div>
         <div>
-            <span style="font-size: 11.5px; color: var(--mt); display: block; text-transform: uppercase;">Planned Timeline</span>
+            <span style="font-size: 11.5px; color: var(--mt); display: block; text-transform: uppercase;">Planned
+                Timeline</span>
             {% if selectedOrder.plannedStartDate and selectedOrder.dueDate %}
-            <b style="font-size: 14px;">{{ selectedOrder.plannedStartDate|date_fmt }} &rarr; {{ selectedOrder.dueDate|date_fmt }}</b>
+            <b style="font-size: 14px;">{{ selectedOrder.plannedStartDate|date_fmt }} &rarr; {{
+                selectedOrder.dueDate|date_fmt }}</b>
             {% else %}
             <span style="font-size: 14px; color: #8e622a; font-weight: 600;">Not Scheduled</span>
             {% endif %}
         </div>
         <div>
-            <span style="font-size: 11.5px; color: var(--mt); display: block; text-transform: uppercase;">Assigned Staff</span>
+            <span style="font-size: 11.5px; color: var(--mt); display: block; text-transform: uppercase;">Assigned
+                Staff</span>
             {% if selectedOrder.assignedStaffName %}
             <b style="font-size: 14.5px; color: var(--tx);">{{ selectedOrder.assignedStaffName }}</b>
             {% else %}
@@ -108,17 +127,20 @@
             {% endif %}
         </div>
         <div>
-            <span style="font-size: 11.5px; color: var(--mt); display: block; text-transform: uppercase;">Estimated Material Total</span>
+            <span style="font-size: 11.5px; color: var(--mt); display: block; text-transform: uppercase;">Estimated
+                Material Total</span>
             <b style="font-size: 15px;">₱{{ "{:,.2f}".format(totalEstimatedCost) }}</b>
         </div>
         <div>
-            <span style="font-size: 11.5px; color: var(--mt); display: block; text-transform: uppercase;">Material Stock Readiness</span>
+            <span style="font-size: 11.5px; color: var(--mt); display: block; text-transform: uppercase;">Material Stock
+                Readiness</span>
             {% if not hasBOM %}
             <span style="font-size: 14px; color: #8e622a; font-weight: 600;">BOM Not Configured</span>
             {% elif selectedOrder.status in ('In Progress', 'Completed') %}
             <b style="font-size: 15px;">Allocated &amp; Issued</b>
             {% elif hasShortage %}
-            <b style="font-size: 15px; color: var(--rd);">{{ shortageCount }} Deficit{{ 's' if shortageCount != 1 else '' }}</b>
+            <b style="font-size: 15px; color: var(--rd);">{{ shortageCount }} Deficit{{ 's' if shortageCount != 1 else
+                '' }}</b>
             {% else %}
             <b style="font-size: 15px;">{{ requirementsList|length }} of {{ requirementsList|length }} in Stock</b>
             {% endif %}
@@ -126,26 +148,36 @@
     </div>
 
     {% if selectedOrder.status == 'Draft' %}
-        {% if not hasBOM %}
-        <div style="color: #8e622a; font-size: 13px; background: rgba(142, 98, 42, 0.08); padding: 10px 14px; border-radius: 8px; border: 1px solid rgba(142, 98, 42, 0.25); margin-bottom: 16px;">
-            No BOM configured for {{ selectedOrder.furnitureName }}. <a href="/production/bom?furniture_id={{ selectedOrder.furnitureID }}" style="color: var(--p); font-weight: 700;">Add materials in Bill of Materials &rarr;</a>
-        </div>
-        {% elif not selectedOrder.isFullyPlanned %}
-        <div style="color: #8e622a; font-size: 13px; background: rgba(181, 143, 85, 0.10); padding: 10px 14px; border-radius: 8px; border: 1px solid rgba(181, 143, 85, 0.30); margin-bottom: 16px;">
-            <b>Production Planning Required:</b> Assign timeline dates and workshop staff in <a href="/production/planning" style="color: var(--p); font-weight: 700;">Production Planning &rarr;</a> before releasing Order #PO-{{ selectedOrder.orderID }}.
-        </div>
-        {% elif hasShortage %}
-        <div style="display: flex; align-items: center; gap: 8px; color: #9a4a3a; font-weight: 600; font-size: 13px; background: rgba(154, 74, 58, 0.08); padding: 10px 14px; border-radius: 8px; border: 1px solid rgba(154, 74, 58, 0.25); margin-bottom: 16px;">
-            Cannot release order to production: {{ shortageCount }} material component{{ 's have' if shortageCount != 1 else ' has' }} insufficient available stock after accounting for other released orders.
-        </div>
-        {% endif %}
+    {% if not hasBOM %}
+    <div
+        style="color: #8e622a; font-size: 13px; background: rgba(142, 98, 42, 0.08); padding: 10px 14px; border-radius: 8px; border: 1px solid rgba(142, 98, 42, 0.25); margin-bottom: 16px;">
+        No BOM configured for {{ selectedOrder.furnitureName }}. <a
+            href="/production/bom?furniture_id={{ selectedOrder.furnitureID }}"
+            style="color: var(--p); font-weight: 700;">Add materials in Bill of Materials &rarr;</a>
+    </div>
+    {% elif not selectedOrder.isFullyPlanned %}
+    <div
+        style="color: #8e622a; font-size: 13px; background: rgba(181, 143, 85, 0.10); padding: 10px 14px; border-radius: 8px; border: 1px solid rgba(181, 143, 85, 0.30); margin-bottom: 16px;">
+        <b>Production Planning Required:</b> Assign timeline dates and workshop staff in <a href="/production/planning"
+            style="color: var(--p); font-weight: 700;">Production Planning &rarr;</a> before releasing Order #PO-{{
+        selectedOrder.orderID }}.
+    </div>
+    {% elif hasShortage %}
+    <div
+        style="display: flex; align-items: center; gap: 8px; color: #9a4a3a; font-weight: 600; font-size: 13px; background: rgba(154, 74, 58, 0.08); padding: 10px 14px; border-radius: 8px; border: 1px solid rgba(154, 74, 58, 0.25); margin-bottom: 16px;">
+        Cannot release order to production: {{ shortageCount }} material component{{ 's have' if shortageCount != 1 else
+        ' has' }} insufficient available stock after accounting for other released orders.
+    </div>
+    {% endif %}
     {% endif %}
 
     <div style="margin-top: 10px;">
         <div class="headerRow" style="margin-bottom: 12px;">
             <div>
                 <h3 style="font-size: 15px; margin: 0;">Material Demand &amp; Stock Availability</h3>
-                <span style="color: var(--mt); font-size: 12.5px;">Required quantities calculated for batch of {{ selectedOrder.plannedQuantity }} {{ 'unit' if selectedOrder.plannedQuantity == 1 else 'units' }}</span>
+                <span style="color: var(--mt); font-size: 12.5px;">Required quantities calculated for batch of {{
+                    selectedOrder.plannedQuantity }} {{ 'unit' if selectedOrder.plannedQuantity == 1 else 'units'
+                    }}</span>
             </div>
         </div>
 
@@ -166,7 +198,8 @@
                 <tbody>
                     {% for req in requirementsList %}
                     <tr>
-                        <td><span style="font-family: monospace; font-size: 12.5px; font-weight: 600;">{{ req.itemCode }}</span></td>
+                        <td><span style="font-family: monospace; font-size: 12.5px; font-weight: 600;">{{ req.itemCode
+                                }}</span></td>
                         <td>
                             <b>{{ req.materialName }}</b>
                         </td>
@@ -174,12 +207,16 @@
                             {{ "{:,.3f}".format(req.quantityRequired).rstrip('0').rstrip('.') or '0' }} {{ req.unit }}
                         </td>
                         <td style="text-align: right;">
-                            <b>{{ "{:,.3f}".format(req.requiredQuantity).rstrip('0').rstrip('.') or '0' }} {{ req.unit }}</b>
+                            <b>{{ "{:,.3f}".format(req.requiredQuantity).rstrip('0').rstrip('.') or '0' }} {{ req.unit
+                                }}</b>
                         </td>
                         <td style="text-align: right;">
-                            <b>{{ "{:,.3f}".format(req.availableNet).rstrip('0').rstrip('.') or '0' }} {{ req.unit }}</b>
+                            <b>{{ "{:,.3f}".format(req.availableNet).rstrip('0').rstrip('.') or '0' }} {{ req.unit
+                                }}</b>
                             {% if req.reservedQuantity > 0 %}
-                            <div style="font-size: 11px; color: var(--mt);">({{ "{:,.3f}".format(req.onHandQuantity).rstrip('0').rstrip('.') }} on hand, {{ "{:,.3f}".format(req.reservedQuantity).rstrip('0').rstrip('.') }} reserved)</div>
+                            <div style="font-size: 11px; color: var(--mt);">({{
+                                "{:,.3f}".format(req.onHandQuantity).rstrip('0').rstrip('.') }} on hand, {{
+                                "{:,.3f}".format(req.reservedQuantity).rstrip('0').rstrip('.') }} reserved)</div>
                             {% endif %}
                         </td>
                         <td style="text-align: right; color: var(--mt);">
@@ -192,7 +229,8 @@
                             {% if selectedOrder.status in ('In Progress', 'Completed') %}
                             <span class="statusBadge completed">Issued</span>
                             {% elif req.isShort %}
-                            <span class="statusBadge alert">Short {{ "{:,.3f}".format(req.shortageQuantity).rstrip('0').rstrip('.') }} {{ req.unit }}</span>
+                            <span class="statusBadge alert">Short {{
+                                "{:,.3f}".format(req.shortageQuantity).rstrip('0').rstrip('.') }} {{ req.unit }}</span>
                             {% else %}
                             <span class="statusBadge passed">In Stock</span>
                             {% endif %}
@@ -201,7 +239,9 @@
                     {% else %}
                     <tr>
                         <td colspan="8" style="text-align: center; color: var(--mt); padding: 24px;">
-                            No BOM components found for this product. Use the <a href="/production/bom?furniture_id={{ selectedOrder.furnitureID }}" style="color: var(--p); font-weight: 700;">Bill of Materials</a> tab to add components.
+                            No BOM components found for this product. Use the <a
+                                href="/production/bom?furniture_id={{ selectedOrder.furnitureID }}"
+                                style="color: var(--p); font-weight: 700;">Bill of Materials</a> tab to add components.
                         </td>
                     </tr>
                     {% endfor %}
@@ -209,8 +249,11 @@
                 {% if requirementsList %}
                 <tfoot>
                     <tr style="background: rgba(0,0,0,0.02); font-weight: 700;">
-                        <td colspan="6" style="text-align: right; padding: 12px 14px; font-size: 13px; text-transform: uppercase; color: var(--mt);">Estimated Material Total:</td>
-                        <td style="text-align: right; padding: 12px 14px; font-size: 14px; color: var(--p);">₱{{ "{:,.2f}".format(totalEstimatedCost) }}</td>
+                        <td colspan="6"
+                            style="text-align: right; padding: 12px 14px; font-size: 13px; text-transform: uppercase; color: var(--mt);">
+                            Estimated Material Total:</td>
+                        <td style="text-align: right; padding: 12px 14px; font-size: 14px; color: var(--p);">₱{{
+                            "{:,.2f}".format(totalEstimatedCost) }}</td>
                         <td></td>
                     </tr>
                 </tfoot>

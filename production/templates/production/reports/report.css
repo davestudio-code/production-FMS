@@ -35,8 +35,57 @@
     border-bottom: none;
 }
 
-.printHeader {
+.reportAuditFilterWrap {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-wrap: wrap;
+}
+
+.reportCompactSelect,
+.reportCompactDate {
+    height: 32px;
+    padding: 0 10px;
+    font-size: 12px;
+    border-radius: 7px;
+    border: 1px solid var(--bd);
+    background: #faf7f0;
+    color: var(--tx);
+}
+
+.reportCompactDateGroup {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+}
+
+.reportCompactResetBtn {
+    height: 32px;
+    padding: 0 11px;
+    font-size: 12px;
+    font-weight: 600;
+    border-radius: 7px;
+    border: 1px solid var(--bd);
+    background: transparent;
+    color: var(--mt);
+    cursor: pointer;
+    transition: all 0.15s ease;
+}
+
+.reportCompactResetBtn:hover {
+    color: var(--tx);
+    border-color: var(--p);
+}
+
+.printDocumentHeader,
+.printSectionHeading,
+.printSignoffSection {
     display: none;
+}
+
+@page {
+    margin: 12mm 14mm;
+    size: auto;
 }
 
 @media print {
@@ -47,57 +96,227 @@
     .siteHeader,
     header,
     #toastContainer,
-    .reportMainTabs,
-    #paneAuditReport,
-    #reportPageHeader {
+    #reportPageHeader,
+    #reportWorkspaceToolbar,
+    .auditPagination,
+    #reportSectionDispatches {
         display: none !important;
-    }
-
-    #paneExecutiveReport {
-        display: block !important;
     }
 
     body,
     main {
         background: #ffffff !important;
-        color: #000000 !important;
+        color: #111111 !important;
         padding: 0 !important;
         margin: 0 !important;
         width: 100% !important;
+        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif !important;
+        -webkit-print-color-adjust: exact !important;
+        print-color-adjust: exact !important;
     }
 
     .card {
         box-shadow: none !important;
-        border: 1px solid #cccccc !important;
-        margin-bottom: 20px !important;
-        page-break-inside: avoid;
+        border: none !important;
+        border-radius: 0 !important;
+        background: transparent !important;
+        margin: 0 !important;
+        padding: 0 !important;
     }
 
-    .printHeader {
+    .printDocumentHeader {
         display: block !important;
-        margin-bottom: 24px;
-        border-bottom: 2px solid #333333;
-        padding-bottom: 12px;
+        margin-bottom: 16px !important;
     }
 
-    .metricGrid {
-        grid-template-columns: repeat(4, 1fr) !important;
-        margin-bottom: 20px !important;
+    .printHeaderMain {
+        display: flex !important;
+        justify-content: space-between !important;
+        align-items: flex-start !important;
     }
 
-    .metricCard {
-        border: 1px solid #cccccc !important;
-        background: #ffffff !important;
+    .printCompanyName {
+        font-size: 20px !important;
+        font-weight: 800 !important;
+        letter-spacing: 0.8px !important;
+        color: #111111 !important;
+        margin: 0 0 2px 0 !important;
+        line-height: 1.1 !important;
     }
 
-    table {
+    .printDepartment {
+        font-size: 12px !important;
+        font-weight: 600 !important;
+        color: #333333 !important;
+    }
+
+    .printAddress {
+        font-size: 11px !important;
+        color: #666666 !important;
+        margin-top: 2px !important;
+    }
+
+    .printReportTitle {
+        font-size: 13px !important;
+        font-weight: 800 !important;
+        letter-spacing: 0.8px !important;
+        text-transform: uppercase !important;
+        color: #111111 !important;
+        margin-bottom: 5px !important;
+        text-align: right !important;
+    }
+
+    .printMetaTable {
+        font-size: 11px !important;
+        margin-left: auto !important;
+        border-collapse: collapse !important;
+    }
+
+    .printMetaTable td {
+        padding: 1px 4px !important;
+        border: none !important;
+        text-align: right !important;
+        color: #444444 !important;
+    }
+
+    .printMetaTable td strong {
+        color: #111111 !important;
+    }
+
+    .printHeaderDivider {
+        height: 2px !important;
+        background: #111111 !important;
+        margin-top: 10px !important;
+    }
+
+    .printSectionHeading {
+        display: block !important;
+        font-size: 12px !important;
+        font-weight: 700 !important;
+        text-transform: uppercase !important;
+        letter-spacing: 0.5px !important;
+        color: #111111 !important;
+        margin: 20px 0 8px 0 !important;
+        padding-bottom: 4px !important;
+        border-bottom: 1.5px solid #111111 !important;
+    }
+
+    #reportSectionOrders,
+    #reportSectionMaterials {
+        display: block !important;
+        margin-bottom: 22px !important;
+    }
+
+    #reportSectionOrders tr.reportOrderRow,
+    #reportSectionMaterials tr.reportMaterialRow {
+        display: table-row !important;
+    }
+
+    .tableContainer {
+        overflow: visible !important;
+        border: none !important;
+    }
+
+    .reportTable {
+        width: 100% !important;
+        border-collapse: collapse !important;
         font-size: 11px !important;
     }
 
-    th,
-    td {
+    .reportTable th {
+        border-top: 1px solid #111111 !important;
+        border-bottom: 1.5px solid #111111 !important;
+        background: #f7f7f7 !important;
+        color: #111111 !important;
+        font-size: 10px !important;
+        text-transform: uppercase !important;
+        letter-spacing: 0.5px !important;
         padding: 6px 8px !important;
-        border-bottom: 1px solid #dddddd !important;
+        font-weight: 700 !important;
+    }
+
+    .reportTable td {
+        border-bottom: 1px solid #e0e0e0 !important;
+        padding: 6px 8px !important;
+        color: #111111 !important;
+    }
+
+    .reportTable td a {
+        color: #111111 !important;
+        font-weight: 700 !important;
+        text-decoration: none !important;
+    }
+
+    .reportTable tfoot td {
+        border-top: 1.5px solid #111111 !important;
+        border-bottom: 3px double #111111 !important;
+        font-weight: 700 !important;
+        padding: 8px !important;
+    }
+
+    .progressTrack {
+        display: none !important;
+    }
+
+    .statusBadge {
+        border: none !important;
+        background: transparent !important;
+        padding: 0 !important;
+        font-weight: 600 !important;
+        color: #111111 !important;
+        font-size: 11px !important;
+    }
+
+    .printSignoffSection {
+        display: block !important;
+        margin-top: 36px !important;
+        page-break-inside: avoid !important;
+    }
+
+    .printSignoffRow {
+        display: flex !important;
+        justify-content: space-between !important;
+        margin-bottom: 28px !important;
+    }
+
+    .printSignoffCol {
+        width: 220px !important;
+        text-align: left !important;
+    }
+
+    .printSignoffLabel {
+        font-size: 10.5px !important;
+        color: #555555 !important;
+        text-transform: uppercase !important;
+        letter-spacing: 0.5px !important;
+        margin-bottom: 38px !important;
+    }
+
+    .printSignoffLine {
+        border-bottom: 1px solid #222222 !important;
+        margin-bottom: 4px !important;
+    }
+
+    .printSignoffName {
+        font-size: 12px !important;
+        font-weight: 700 !important;
+        color: #111111 !important;
+    }
+
+    .printSignoffTitle {
+        font-size: 10.5px !important;
+        color: #555555 !important;
+    }
+
+    .printDocumentNotice {
+        display: flex !important;
+        justify-content: space-between !important;
+        border-top: 1px solid #d5d5d5 !important;
+        padding-top: 8px !important;
+        font-size: 9.5px !important;
+        color: #777777 !important;
+        text-transform: uppercase !important;
+        letter-spacing: 0.5px !important;
     }
 }
 

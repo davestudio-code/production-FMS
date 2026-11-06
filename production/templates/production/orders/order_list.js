@@ -3,10 +3,6 @@ window.openRestockModal = function(furnitureId) {
     if (furnSelect) {
         furnSelect.value = String(furnitureId);
     }
-    const restockRadio = document.getElementById('purposeRestock');
-    if (restockRadio) {
-        restockRadio.checked = true;
-    }
     const qtyInput = document.getElementById('modalQuantityInput');
     if (qtyInput && !qtyInput.value) {
         qtyInput.value = '5';

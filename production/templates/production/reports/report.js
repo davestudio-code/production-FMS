@@ -1,141 +1,155 @@
-function switchReportMainTab(tabKey) {
-    const isExecutive = (tabKey === 'executive');
-    document.getElementById('mainTabExecutive').classList.toggle('active', isExecutive);
-    document.getElementById('mainTabAudit').classList.toggle('active', !isExecutive);
-    document.getElementById('paneExecutiveReport').style.display = isExecutive ? 'block' : 'none';
-    document.getElementById('paneAuditReport').style.display = isExecutive ? 'none' : 'block';
-    const actionGroup = document.getElementById('reportActionBtnGroup');
-    if (actionGroup) actionGroup.style.display = isExecutive ? 'block' : 'none';
-    if (!isExecutive) {
-        applyAuditFilters();
-    }
-}
+const reportState = {
+    activeTab: 'orders',
+    pages: { orders: 1, materials: 1, dispatches: 1 },
+    pageSizes: { orders: 10, materials: 10, dispatches: 10 }
+};
 
-let activeAuditTab = 'dispatches';
-const auditPages = { dispatches: 1, quality: 1 };
-const pageSize = 25;
+window.setReportWorkspaceTab = function (tabKey) {
+    const validTabs = ['orders', 'materials', 'dispatches'];
+    const targetTab = validTabs.includes(tabKey) ? tabKey : 'orders';
+    reportState.activeTab = targetTab;
 
-function switchAuditTab(tabKey) {
-    activeAuditTab = tabKey;
-    document.getElementById('tabBtnDispatches').classList.toggle('active', tabKey === 'dispatches');
-    document.getElementById('tabBtnQuality').classList.toggle('active', tabKey === 'quality');
-    document.getElementById('paneDispatches').classList.toggle('active', tabKey === 'dispatches');
-    document.getElementById('paneQuality').classList.toggle('active', tabKey === 'quality');
-    applyAuditFilters();
-}
+    const tabInput = document.getElementById('reportActiveTabInput');
+    if (tabInput) tabInput.value = targetTab;
 
-function applyAuditFilters() {
-    const q = (document.getElementById('auditSearchInput').value || '').trim().toLowerCase();
-    const orderFilter = (document.getElementById('auditOrderSelect').value || '').trim();
-    const dateFrom = document.getElementById('auditDateFrom').value;
-    const dateTo = document.getElementById('auditDateTo').value;
-
-    const rowClass = activeAuditTab === 'dispatches' ? '.dispatchRow' : '.qualityRow';
-    const rows = Array.from(document.querySelectorAll(rowClass));
-
-    const matchedRows = [];
-    rows.forEach(row => {
-        const searchBlob = row.dataset.search || '';
-        const rowOrder = row.dataset.order || '';
-        const rowDate = row.dataset.date || '';
-
-        let matches = true;
-        if (q && !searchBlob.includes(q)) matches = false;
-        if (orderFilter && rowOrder !== orderFilter) matches = false;
-        if (dateFrom && rowDate && rowDate < dateFrom) matches = false;
-        if (dateTo && rowDate && rowDate > dateTo) matches = false;
-
-        if (matches) {
-            matchedRows.push(row);
-        } else {
-            row.style.display = 'none';
-        }
+    document.querySelectorAll('.workspaceFilterTabs .workspaceTabBtn[data-reporttab]').forEach(function (btn) {
+        btn.classList.toggle('active', btn.getAttribute('data-reporttab') === targetTab);
     });
 
-    const currentPage = auditPages[activeAuditTab];
+    const secOrders = document.getElementById('reportSectionOrders');
+    const secMaterials = document.getElementById('reportSectionMaterials');
+    const secDispatches = document.getElementById('reportSectionDispatches');
+    if (secOrders) secOrders.style.display = targetTab === 'orders' ? 'block' : 'none';
+    if (secMaterials) secMaterials.style.display = targetTab === 'materials' ? 'block' : 'none';
+    if (secDispatches) secDispatches.style.display = targetTab === 'dispatches' ? 'block' : 'none';
+
+    const tbOrders = document.getElementById('reportToolbarOrders');
+    const tbMaterials = document.getElementById('reportToolbarMaterials');
+    const tbDispatches = document.getElementById('reportToolbarDispatches');
+    if (tbOrders) tbOrders.style.display = targetTab === 'orders' ? 'flex' : 'none';
+    if (tbMaterials) tbMaterials.style.display = targetTab === 'materials' ? 'flex' : 'none';
+    if (tbDispatches) tbDispatches.style.display = targetTab === 'dispatches' ? 'flex' : 'none';
+
+    window.applyReportFilters();
+};
+
+function paginateAndRenderSection(sectionKey, allRows, matchedRows, emptyRowId) {
+    const pageSize = reportState.pageSizes[sectionKey] || 10;
     const totalRecords = matchedRows.length;
     const totalPages = Math.ceil(totalRecords / pageSize) || 1;
-    if (currentPage > totalPages) auditPages[activeAuditTab] = totalPages;
-    const effectivePage = auditPages[activeAuditTab];
+    if (reportState.pages[sectionKey] > totalPages) {
+        reportState.pages[sectionKey] = totalPages;
+    }
+    if (reportState.pages[sectionKey] < 1) {
+        reportState.pages[sectionKey] = 1;
+    }
+    const currentPage = reportState.pages[sectionKey];
+    const startIdx = (currentPage - 1) * pageSize;
+    const endIdx = startIdx + pageSize;
 
-    const startIndex = (effectivePage - 1) * pageSize;
-    const endIndex = startIndex + pageSize;
-
-    matchedRows.forEach((row, idx) => {
-        row.style.display = (idx >= startIndex && idx < endIndex) ? '' : 'none';
+    allRows.forEach(function (r) {
+        r.style.display = 'none';
     });
 
-    const infoEl = document.getElementById(activeAuditTab + 'PageInfo');
-    const indicatorEl = document.getElementById(activeAuditTab + 'PageIndicator');
-    const prevBtn = document.getElementById(activeAuditTab + 'PrevBtn');
-    const nextBtn = document.getElementById(activeAuditTab + 'NextBtn');
+    matchedRows.forEach(function (r, idx) {
+        r.style.display = (idx >= startIdx && idx < endIdx) ? '' : 'none';
+    });
+
+    const emptyRow = document.getElementById(emptyRowId);
+    if (emptyRow) {
+        emptyRow.style.display = (totalRecords === 0 && allRows.length > 0) ? '' : 'none';
+    }
+
+    const infoEl = document.getElementById(sectionKey + 'PageInfo');
+    const indicatorEl = document.getElementById(sectionKey + 'PageIndicator');
+    const prevBtn = document.getElementById(sectionKey + 'PrevBtn');
+    const nextBtn = document.getElementById(sectionKey + 'NextBtn');
 
     if (totalRecords === 0) {
-        if (infoEl) infoEl.textContent = 'No records match filter';
-        if (indicatorEl) indicatorEl.textContent = '0 of 0';
+        if (infoEl) infoEl.textContent = allRows.length === 0 ? '0 records' : 'No matching records';
+        if (indicatorEl) indicatorEl.textContent = 'Page 0 of 0';
         if (prevBtn) prevBtn.disabled = true;
         if (nextBtn) nextBtn.disabled = true;
     } else {
-        const startDisplay = startIndex + 1;
-        const endDisplay = Math.min(endIndex, totalRecords);
-        if (infoEl) infoEl.textContent = `Showing ${startDisplay}-${endDisplay} of ${totalRecords}`;
-        if (indicatorEl) indicatorEl.textContent = `Page ${effectivePage} of ${totalPages}`;
-        if (prevBtn) prevBtn.disabled = effectivePage <= 1;
-        if (nextBtn) nextBtn.disabled = effectivePage >= totalPages;
+        const startDisplay = startIdx + 1;
+        const endDisplay = Math.min(endIdx, totalRecords);
+        if (infoEl) infoEl.textContent = `Showing ${startDisplay}–${endDisplay} of ${totalRecords}`;
+        if (indicatorEl) indicatorEl.textContent = `Page ${currentPage} of ${totalPages}`;
+        if (prevBtn) prevBtn.disabled = currentPage <= 1;
+        if (nextBtn) nextBtn.disabled = currentPage >= totalPages;
     }
 }
 
-function changeAuditPage(tabKey, delta) {
-    auditPages[tabKey] += delta;
-    if (auditPages[tabKey] < 1) auditPages[tabKey] = 1;
-    applyAuditFilters();
-}
+window.applyReportFilters = function () {
+    const q = (document.getElementById('globalTabSearchInput')?.value || '').trim().toLowerCase();
 
-function resetAuditFilters() {
-    document.getElementById('auditSearchInput').value = '';
-    document.getElementById('auditOrderSelect').value = '';
-    document.getElementById('auditDateFrom').value = '';
-    document.getElementById('auditDateTo').value = '';
-    auditPages.dispatches = 1;
-    auditPages.quality = 1;
-    applyAuditFilters();
-}
-
-window.filterReportOrders = function() {
-    const status = (document.getElementById('reportStatusSelect')?.value || '').trim();
-    const resetBtn = document.getElementById('reportResetBtn');
-    if (resetBtn) {
-        resetBtn.style.display = status ? 'inline-block' : 'none';
-    }
-    const rows = document.querySelectorAll('tr.reportOrderRow');
-    let visibleCount = 0;
-    rows.forEach(function(row) {
-        const rowStatus = row.dataset.status || '';
-        const match = !status || rowStatus === status;
-        row.style.display = match ? '' : 'none';
-        if (match) visibleCount++;
+    const orderRows = Array.from(document.querySelectorAll('tr.reportOrderRow'));
+    const matchedOrderRows = orderRows.filter(function (row) {
+        const searchBlob = row.dataset.search || '';
+        return !q || searchBlob.includes(q);
     });
-    const emptyRow = document.getElementById('reportEmptyRow');
-    if (emptyRow) {
-        emptyRow.style.display = (visibleCount === 0 && rows.length > 0) ? '' : 'none';
-    }
-    const badge = document.getElementById('reportBatchBadge');
-    if (badge) {
-        badge.textContent = `${visibleCount} ${visibleCount === 1 ? 'Batch' : 'Batches'}`;
-        badge.className = 'statusBadge ' + (status === 'Completed' ? 'completed' : 'inProgress');
-    }
+    paginateAndRenderSection('orders', orderRows, matchedOrderRows, 'ordersEmptyFilterRow');
+
+    const materialRows = Array.from(document.querySelectorAll('tr.reportMaterialRow'));
+    const matchedMaterialRows = materialRows.filter(function (row) {
+        const searchBlob = row.dataset.search || '';
+        return !q || searchBlob.includes(q);
+    });
+    paginateAndRenderSection('materials', materialRows, matchedMaterialRows, 'materialsEmptyFilterRow');
+
+    const auditOrder = (document.getElementById('auditOrderSelect')?.value || '').trim();
+    const dateFrom = document.getElementById('auditDateFrom')?.value || '';
+    const dateTo = document.getElementById('auditDateTo')?.value || '';
+
+    const dispatchRows = Array.from(document.querySelectorAll('tr.dispatchRow'));
+    const matchedDispatchRows = dispatchRows.filter(function (row) {
+        const searchBlob = row.dataset.search || '';
+        const rowOrder = row.dataset.order || '';
+        const rowDate = row.dataset.date || '';
+        if (q && !searchBlob.includes(q)) return false;
+        if (auditOrder && rowOrder !== auditOrder) return false;
+        if (dateFrom && rowDate && rowDate < dateFrom) return false;
+        if (dateTo && rowDate && rowDate > dateTo) return false;
+        return true;
+    });
+    paginateAndRenderSection('dispatches', dispatchRows, matchedDispatchRows, 'dispatchesEmptyFilterRow');
 };
 
-window.resetReportFilter = function() {
-    const statusSelect = document.getElementById('reportStatusSelect');
-    if (statusSelect) statusSelect.value = '';
-    window.filterReportOrders();
+window.applyAuditFilters = window.applyReportFilters;
+
+window.changeReportPage = function (sectionKey, delta) {
+    if (!reportState.pages[sectionKey]) reportState.pages[sectionKey] = 1;
+    reportState.pages[sectionKey] += delta;
+    window.applyReportFilters();
+};
+
+window.changeReportPageSize = function (sectionKey, newSize) {
+    const parsed = parseInt(newSize, 10);
+    reportState.pageSizes[sectionKey] = (!isNaN(parsed) && parsed > 0) ? parsed : 10;
+    reportState.pages[sectionKey] = 1;
+    window.applyReportFilters();
+};
+
+window.resetAuditFilters = function () {
+    const orderSel = document.getElementById('auditOrderSelect');
+    const fromEl = document.getElementById('auditDateFrom');
+    const toEl = document.getElementById('auditDateTo');
+    if (orderSel) orderSel.value = '';
+    if (fromEl) fromEl.value = '';
+    if (toEl) toEl.value = '';
+    reportState.pages.dispatches = 1;
+    window.applyReportFilters();
 };
 
 function initReportWorkspace() {
     const urlParams = new URLSearchParams(window.location.search);
-    if (urlParams.get('tab') === 'audit') {
-        switchReportMainTab('audit');
+    const tabParam = (urlParams.get('tab') || '').toLowerCase();
+    if (tabParam === 'audit' || tabParam === 'dispatches') {
+        window.setReportWorkspaceTab('dispatches');
+    } else if (tabParam === 'materials') {
+        window.setReportWorkspaceTab('materials');
+    } else {
+        window.setReportWorkspaceTab('orders');
     }
 }
 

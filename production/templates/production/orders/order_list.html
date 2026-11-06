@@ -57,7 +57,6 @@
                 <tr>
                     <th>Order Ref</th>
                     <th>Furniture Product</th>
-                    <th>Purpose</th>
                     <th>Batch Quantity</th>
                     <th>Timeline</th>
                     <th>Status</th>
@@ -66,22 +65,11 @@
             </thead>
             <tbody>
                 {% for ord in orders %}
-                <tr class="orderRow" data-status="{{ ord.status }}" data-search="po-{{ ord.orderID }} {{ ord.furnitureName|lower }} {{ ord.furnitureType|lower }} {{ ord.orderType|lower }}">
+                <tr class="orderRow" data-status="{{ ord.status }}" data-search="po-{{ ord.orderID }} {{ ord.furnitureName|lower }} {{ ord.furnitureType|lower }}">
                     <td><b>#PO-{{ ord.orderID }}</b></td>
                     <td>
                         <b>{{ ord.furnitureName }}</b>
                         <span style="display: block; font-size: 12px; color: var(--mt);">{{ ord.furnitureType }}</span>
-                    </td>
-                    <td>
-                        {% if ord.purpose == 'Scheduled Batch' %}
-                        <span class="statusBadge" style="background: rgba(53, 122, 88, 0.12); color: #357a58; border: 1px solid rgba(53, 122, 88, 0.3);">
-                            Scheduled Batch
-                        </span>
-                        {% else %}
-                        <span class="statusBadge" style="background: rgba(181, 143, 85, 0.12); color: #8e622a; border: 1px solid rgba(181, 143, 85, 0.3);">
-                            Warehouse Restock
-                        </span>
-                        {% endif %}
                     </td>
                     <td><b>{{ ord.plannedQuantity }} units</b></td>
                     <td>
@@ -114,13 +102,13 @@
                 </tr>
                 {% else %}
                 <tr>
-                    <td colspan="7" style="text-align: center; color: var(--mt); padding: 28px;">
+                    <td colspan="6" style="text-align: center; color: var(--mt); padding: 28px;">
                         No production orders created yet. Click '+ New Production Order' to begin.
                     </td>
                 </tr>
                 {% endfor %}
                 <tr id="ordersEmptyRow" style="display: none;">
-                    <td colspan="7" style="text-align: center; color: var(--mt); padding: 28px;">
+                    <td colspan="6" style="text-align: center; color: var(--mt); padding: 28px;">
                         No production orders match your filter criteria.
                     </td>
                 </tr>
@@ -225,19 +213,6 @@
             <button class="modalClose" onclick="closeModal('createOrderModal')">&times;</button>
         </div>
         <form method="POST" action="/production/orders/create">
-            <div class="formGroup">
-                <label>Order Purpose / Trigger</label>
-                <div style="display: flex; gap: 20px; align-items: center; padding: 4px 0;">
-                    <label style="display: flex; align-items: center; gap: 8px; cursor: pointer; font-size: 13.5px; color: var(--tx); font-weight: 500;">
-                        <input type="radio" name="purpose" id="purposeRestock" value="Warehouse Restock" checked style="accent-color: var(--p);">
-                        Warehouse Restock
-                    </label>
-                    <label style="display: flex; align-items: center; gap: 8px; cursor: pointer; font-size: 13.5px; color: var(--tx); font-weight: 500;">
-                        <input type="radio" name="purpose" id="purposeScheduled" value="Scheduled Batch" style="accent-color: var(--p);">
-                        Scheduled Batch
-                    </label>
-                </div>
-            </div>
             <div class="formGroup">
                 <label>Furniture Product (Must have configured BOM)</label>
                 <select name="furnitureID" id="modalFurnitureSelect" onchange="updateLiveMrpCheck()" required>

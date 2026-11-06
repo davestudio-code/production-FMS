@@ -69,7 +69,7 @@
                     <td data-label="Order">
                         <div style="display: flex; align-items: center; gap: 6px; flex-wrap: wrap;">
                             <a href="/production/orders/{{ mon.orderID }}"
-                                style="color: var(--p); font-weight: 700; text-decoration: none; font-size: 13.5px;">Order
+                                style="color: var(--tx); font-weight: 700; text-decoration: none; font-size: 13.5px;">Order
                                 #PO-{{ mon.orderID }}</a>
                             {% if (mon.reworkCount or 0) > 0 and mon.progress < 90 %} <span
                                 style="font-size: 10.5px; font-weight: 700; color: #9a4a3a; background: #faeae6; padding: 1px 6px; border-radius: 99px;">
@@ -83,7 +83,6 @@
                     <td data-label="Assigned Staff">
                         {% if mon.assignedStaffName %}
                         <span class="staffAssignChip">
-                            <span class="staffAvatarMini">{{ mon.assignedStaffName[0]|upper }}</span>
                             <span>{{ mon.assignedStaffName }}</span>
                             {% if isMyOrder %}
                             <span

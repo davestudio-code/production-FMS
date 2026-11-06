@@ -84,7 +84,7 @@
                     style="display: flex; justify-content: space-between; align-items: center; padding: 7px 10px; background: #ffffff; border: 1px solid var(--bd); border-radius: 6px;">
                     <div style="font-size: 13px;">
                         <a href="/production/orders/{{ ord.orderID }}"
-                            style="color: var(--p); font-weight: 700; text-decoration: none;">Order #PO-{{ ord.orderID
+                            style="color: var(--tx); font-weight: 700; text-decoration: none;">Order #PO-{{ ord.orderID
                             }}</a>
                         &middot; <b>{{ ord.furnitureName }}</b> (Planned: {{ ord.plannedQuantity }}, Passed: {{
                         ord.alreadyPassed }}, Scrapped: {{ ord.alreadyFailed }})
@@ -117,7 +117,7 @@
                         <td data-label="Order">
                             <div>
                                 <a href="/production/orders/{{ ord.orderID }}"
-                                    style="color: var(--p); font-weight: 700; text-decoration: none; font-size: 13.5px;">Order
+                                    style="color: var(--tx); font-weight: 700; text-decoration: none; font-size: 13.5px;">Order
                                     #PO-{{ ord.orderID }}</a>
                             </div>
                         </td>
@@ -228,7 +228,7 @@
                         <td data-label="Date">{{ out.formattedInspectionDate }}</td>
                         <td data-label="Order">
                             <a href="/production/orders/{{ out.orderID }}"
-                                style="color: var(--p); font-weight: 700; text-decoration: none;">Order #PO-{{
+                                style="color: var(--tx); font-weight: 700; text-decoration: none;">Order #PO-{{
                                 out.orderID }}</a>
                         </td>
                         <td data-label="Product">{{ out.furnitureName }}</td>

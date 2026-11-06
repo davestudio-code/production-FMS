@@ -1,12 +1,14 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>Velmora Co. &middot; Production ERP</title>
     <link rel="icon" type="image/png" href="/production/static/images/velmora-logo.png">
-    <link rel="stylesheet" href="/production/static/css/style.css?v=20261031a">
+    <link rel="stylesheet" href="/production/static/css/style.css?v=20261106c">
 </head>
+
 <body>
     <div class="container">
         <nav>
@@ -20,7 +22,8 @@
                         <span>Manufacturing &middot; Production</span>
                     </div>
                 </a>
-                <button id="hamburgerBtn" class="hamburgerBtn" onclick="toggleMobileNav()" aria-label="Toggle navigation">
+                <button id="hamburgerBtn" class="hamburgerBtn" onclick="toggleMobileNav()"
+                    aria-label="Toggle navigation">
                     <span class="hamburgerBar"></span>
                     <span class="hamburgerBar"></span>
                     <span class="hamburgerBar"></span>
@@ -28,55 +31,107 @@
             </div>
             <div id="navLinksContainer" class="navLinksContainer">
                 <a href="/production/" class="{{ 'active' if activeTab == 'dashboard' else '' }}">
-                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"></path><polyline points="9 22 9 12 15 12 15 22"></polyline></svg>
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                        stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"></path>
+                        <polyline points="9 22 9 12 15 12 15 22"></polyline>
+                    </svg>
                     <span>Dashboard</span>
                 </a>
                 <a href="/production/furniture" class="{{ 'active' if activeTab == 'furniture' else '' }}">
-                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="7" width="20" height="14" rx="2" ry="2"></rect><path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16"></path></svg>
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                        stroke-linecap="round" stroke-linejoin="round">
+                        <rect x="2" y="7" width="20" height="14" rx="2" ry="2"></rect>
+                        <path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16"></path>
+                    </svg>
                     <span>Product Master</span>
                 </a>
                 <a href="/production/bom" class="{{ 'active' if activeTab == 'bom' else '' }}">
-                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="16" y1="13" x2="8" y2="13"></line><line x1="16" y1="17" x2="8" y2="17"></line></svg>
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                        stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+                        <polyline points="14 2 14 8 20 8"></polyline>
+                        <line x1="16" y1="13" x2="8" y2="13"></line>
+                        <line x1="16" y1="17" x2="8" y2="17"></line>
+                    </svg>
                     <span>Bill of Materials (BOM)</span>
                 </a>
                 <a href="/production/orders" class="{{ 'active' if activeTab == 'orders' else '' }}">
-                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"></path><rect x="8" y="2" width="8" height="4" rx="1" ry="1"></rect></svg>
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                        stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"></path>
+                        <rect x="8" y="2" width="8" height="4" rx="1" ry="1"></rect>
+                    </svg>
                     <span>Production Order</span>
                 </a>
                 <a href="/production/planning" class="{{ 'active' if activeTab == 'planning' else '' }}">
-                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect><line x1="16" y1="2" x2="16" y2="6"></line><line x1="8" y1="2" x2="8" y2="6"></line><line x1="3" y1="10" x2="21" y2="10"></line></svg>
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                        stroke-linecap="round" stroke-linejoin="round">
+                        <rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect>
+                        <line x1="16" y1="2" x2="16" y2="6"></line>
+                        <line x1="8" y1="2" x2="8" y2="6"></line>
+                        <line x1="3" y1="10" x2="21" y2="10"></line>
+                    </svg>
                     <span>Production Planning</span>
                 </a>
                 <a href="/production/requirement" class="{{ 'active' if activeTab == 'requirement' else '' }}">
-                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"></path><polyline points="3.27 6.96 12 12.01 20.73 6.96"></polyline><line x1="12" y1="22.08" x2="12" y2="12"></line></svg>
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                        stroke-linecap="round" stroke-linejoin="round">
+                        <path
+                            d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z">
+                        </path>
+                        <polyline points="3.27 6.96 12 12.01 20.73 6.96"></polyline>
+                        <line x1="12" y1="22.08" x2="12" y2="12"></line>
+                    </svg>
                     <span>Material Requirement</span>
                 </a>
                 <a href="/production/issuance" class="{{ 'active' if activeTab == 'issuance' else '' }}">
-                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="19" x2="12" y2="5"></line><polyline points="5 12 12 5 19 12"></polyline></svg>
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                        stroke-linecap="round" stroke-linejoin="round">
+                        <line x1="12" y1="19" x2="12" y2="5"></line>
+                        <polyline points="5 12 12 5 19 12"></polyline>
+                    </svg>
                     <span>Material Issuance</span>
                 </a>
                 <a href="/production/monitoring" class="{{ 'active' if activeTab == 'monitoring' else '' }}">
-                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 12h-4l-3 9L9 3l-3 9H2"></path></svg>
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                        stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M22 12h-4l-3 9L9 3l-3 9H2"></path>
+                    </svg>
                     <span>Production Monitoring</span>
                 </a>
                 <a href="/production/finished-goods" class="{{ 'active' if activeTab == 'finishedGoods' else '' }}">
-                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path><polyline points="22 4 12 14.01 9 11.01"></polyline></svg>
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                        stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path>
+                        <polyline points="22 4 12 14.01 9 11.01"></polyline>
+                    </svg>
                     <span>Finished Goods</span>
                 </a>
                 {% if isManager %}
                 <a href="/production/costing" class="{{ 'active' if activeTab == 'costing' else '' }}">
-                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="1" x2="12" y2="23"></line><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"></path></svg>
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                        stroke-linecap="round" stroke-linejoin="round">
+                        <line x1="12" y1="1" x2="12" y2="23"></line>
+                        <path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"></path>
+                    </svg>
                     <span>Production Costing</span>
                 </a>
                 <a href="/production/reports" class="{{ 'active' if activeTab == 'report' else '' }}">
-                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="20" x2="18" y2="10"></line><line x1="12" y1="20" x2="12" y2="4"></line><line x1="6" y1="20" x2="6" y2="14"></line></svg>
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                        stroke-linecap="round" stroke-linejoin="round">
+                        <line x1="18" y1="20" x2="18" y2="10"></line>
+                        <line x1="12" y1="20" x2="12" y2="4"></line>
+                        <line x1="6" y1="20" x2="6" y2="14"></line>
+                    </svg>
                     <span>Production Reports</span>
                 </a>
                 {% endif %}
 
                 {% if session.get('user_id') %}
                 <div class="userProfileFooter">
-                    <div class="userProfileCard">
+                    <div class="userProfileBar" onclick="window.toggleAccountDropdown(event)"
+                        title="View account profile">
                         <div class="userAvatar">
                             {{ (session.get('employee_name') or 'U')[:1]|upper }}
                         </div>
@@ -86,19 +141,20 @@
                             </span>
                             <div>
                                 <span class="userBadge {{ 'managerBadge' if isManager else 'staffBadge' }}">
-                                    {{ 'Manager' if isManager else 'Production Staff' }}
+                                    {{ 'Manager' if isManager else 'Staff' }}
                                 </span>
                             </div>
                         </div>
+                        <button type="button" class="sidebarSignOutIconBtn"
+                            onclick="event.stopPropagation(); window.promptSignOut();" title="Sign Out">
+                            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                                stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+                                <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path>
+                                <polyline points="16 17 21 12 16 7"></polyline>
+                                <line x1="21" y1="12" x2="9" y2="12"></line>
+                            </svg>
+                        </button>
                     </div>
-                    <a href="/production/logout" class="logoutFooterBtn" title="Sign Out">
-                        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                            <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path>
-                            <polyline points="16 17 21 12 16 7"></polyline>
-                            <line x1="21" y1="12" x2="9" y2="12"></line>
-                        </svg>
-                        <span>Sign Out</span>
-                    </a>
                 </div>
                 {% endif %}
             </div>
@@ -106,52 +162,74 @@
         <div class="appContentWrapper">
             <header class="topNavBar">
                 <div class="topSearchWrapper">
-                    <svg class="topSearchIcon" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+                    <svg class="topSearchIcon" width="15" height="15" viewBox="0 0 24 24" fill="none"
+                        stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
                         <circle cx="11" cy="11" r="8"></circle>
                         <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
                     </svg>
-                    <input type="text" id="globalTabSearchInput" class="topSearchInput" value="{{ searchQuery or '' }}" placeholder="Search orders, products, BOM components..." autocomplete="off" oninput="window.handleGlobalTabSearch(this.value)" onkeydown="window.handleGlobalTabSearchKeydown(event)">
-                    <button type="button" id="globalSearchClearBtn" class="topSearchClearBtn" onclick="window.clearGlobalTabSearch()" title="Clear search">
-                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+                    <input type="text" id="globalTabSearchInput" class="topSearchInput" value="{{ searchQuery or '' }}"
+                        placeholder="Search orders, products, BOM components..." autocomplete="off"
+                        oninput="window.handleGlobalTabSearch(this.value)"
+                        onkeydown="window.handleGlobalTabSearchKeydown(event)">
+                    <button type="button" id="globalSearchClearBtn" class="topSearchClearBtn"
+                        onclick="window.clearGlobalTabSearch()" title="Clear search">
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                            stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
                             <line x1="18" y1="6" x2="6" y2="18"></line>
                             <line x1="6" y1="6" x2="18" y2="18"></line>
                         </svg>
                     </button>
                 </div>
                 <div class="topNavActions">
-                    <button type="button" class="topIconBtn" onclick="triggerGlobalRefresh(this)" title="Sync Database Data">
-                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+                    <button type="button" class="topIconBtn" onclick="triggerGlobalRefresh(this)"
+                        title="Sync Database Data">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                            stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
                             <polyline points="23 4 23 10 17 10"></polyline>
                             <polyline points="1 20 1 14 7 14"></polyline>
                             <path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"></path>
                         </svg>
                     </button>
                     <div class="topNotifContainer" id="topNotifWrap">
-                        <button type="button" class="topIconBtn" id="topNotifBellBtn" onclick="window.toggleNotifDropdown(event)" title="Notifications">
-                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+                        <button type="button" class="topIconBtn" id="topNotifBellBtn"
+                            onclick="window.toggleNotifDropdown(event)" title="Notifications">
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                                stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
                                 <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"></path>
                                 <path d="M13.73 21a2 2 0 0 1-3.46 0"></path>
                             </svg>
-                            <span class="topIconBadge" id="topNotifBadge" style="{{ '' if totalNotifBadgeCount and totalNotifBadgeCount > 0 else 'display: none;' }}">{{ totalNotifBadgeCount or 0 }}</span>
+                            <span class="topIconBadge" id="topNotifBadge"
+                                style="{{ '' if totalNotifBadgeCount and totalNotifBadgeCount > 0 else 'display: none;' }}">{{
+                                totalNotifBadgeCount or 0 }}</span>
                         </button>
-                        <div class="topNotifDropdown" id="topNotifDropdown" data-emp-id="{{ session.get('employee_id') or '0' }}" data-stockout-pin="{{ '1' if isManager and stockoutAlertCount and stockoutAlertCount > 0 else '0' }}">
+                        <div class="topNotifDropdown" id="topNotifDropdown"
+                            data-emp-id="{{ session.get('employee_id') or '0' }}"
+                            data-stockout-pin="{{ '1' if isManager and stockoutAlertCount and stockoutAlertCount > 0 else '0' }}">
                             <div class="topNotifHeader">
                                 <b>Notifications</b>
-                                <button type="button" class="topNotifReadAllBtn" style="{{ '' if accountUnreadCount and accountUnreadCount > 0 else 'display: none;' }}" onclick="window.markAllNotifsRead(event)">Mark all read</button>
+                                <button type="button" class="topNotifReadAllBtn"
+                                    style="{{ '' if accountUnreadCount and accountUnreadCount > 0 else 'display: none;' }}"
+                                    onclick="window.markAllNotifsRead(event)">Mark all read</button>
                             </div>
                             <div class="topNotifList">
                                 {% if isManager and stockoutAlertCount and stockoutAlertCount > 0 %}
-                                <a href="/production/orders?stockouts=1" class="topNotifItem stockoutPin" onclick="window.openStockoutPin(event)">
+                                <a href="/production/orders?stockouts=1" class="topNotifItem stockoutPin"
+                                    onclick="window.openStockoutPin(event)">
                                     <span class="topNotifDot"></span>
                                     <div class="topNotifBody">
-                                        <div class="topNotifTitle">Warehouse Stockout Alert ({{ stockoutAlertCount }})</div>
-                                        <div class="topNotifMsg">{{ stockoutAlertCount }} catalog furniture {{ 'item is' if stockoutAlertCount == 1 else 'items are' }} at 0 stock in Finished Goods.</div>
+                                        <div class="topNotifTitle">Warehouse Stockout Alert ({{ stockoutAlertCount }})
+                                        </div>
+                                        <div class="topNotifMsg">{{ stockoutAlertCount }} catalog furniture {{ 'item is'
+                                            if stockoutAlertCount == 1 else 'items are' }} at 0 stock in Finished Goods.
+                                        </div>
                                         <span class="topNotifTime">Action Needed &middot; View Stockouts &rarr;</span>
                                     </div>
                                 </a>
                                 {% endif %}
                                 {% for n in navNotifications %}
-                                <a href="{{ n.targetUrl }}" class="topNotifItem unread" data-notif-key="{{ n.notifKey }}" onclick="window.openNotifItem(event, '{{ n.notifKey }}', '{{ n.targetUrl }}')">
+                                <a href="{{ n.targetUrl }}" class="topNotifItem unread"
+                                    data-notif-key="{{ n.notifKey }}"
+                                    onclick="window.openNotifItem(event, '{{ n.notifKey }}', '{{ n.targetUrl }}')">
                                     <span class="topNotifDot"></span>
                                     <div class="topNotifBody">
                                         <div class="topNotifTitle">{{ n.title }}</div>
@@ -160,14 +238,73 @@
                                     </div>
                                 </a>
                                 {% endfor %}
-                                {% if not navNotifications and not (isManager and stockoutAlertCount and stockoutAlertCount > 0) %}
+                                {% if not navNotifications and not (isManager and stockoutAlertCount and
+                                stockoutAlertCount > 0) %}
                                 <div class="topNotifEmpty">You're all caught up &mdash; no notifications yet.</div>
                                 {% endif %}
                             </div>
                         </div>
                     </div>
-                    <div class="topUserAvatar" title="{{ session.get('employee_name', 'Operator') }}">
-                        {{ (session.get('employee_name') or 'U')[:1]|upper }}
+                    <div class="topAccountContainer" id="topAccountWrap">
+                        <button type="button" class="topUserAvatarBtn" id="topAccountBtn"
+                            onclick="window.toggleAccountDropdown(event)" title="Account details & options">
+                            <span class="topUserAvatar">
+                                {{ (session.get('employee_name') or 'U')[:1]|upper }}
+                            </span>
+                        </button>
+                        <div class="topAccountDropdown" id="topAccountDropdown">
+                            <div class="topAccountHeader">
+                                <div class="topAccountAvatarLarge">
+                                    {{ (session.get('employee_name') or 'U')[:1]|upper }}
+                                </div>
+                                <div class="topAccountDetails">
+                                    <div class="topAccountName" title="{{ session.get('employee_name', 'Operator') }}">
+                                        {{ session.get('employee_name', 'Operator') }}</div>
+                                    <div class="topAccountEmail" title="{{ session.get('email', '') }}">{{
+                                        session.get('email', '') }}</div>
+                                    <div class="topAccountBadgeRow">
+                                        <span class="userBadge {{ 'managerBadge' if isManager else 'staffBadge' }}">
+                                            {{ 'Manager' if isManager else 'Staff' }}
+                                        </span>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="topAccountMenu">
+                                <button type="button" class="topAccountMenuItem"
+                                    onclick="window.openAccountSettingsModal('profile')">
+                                    <span class="topAccountMenuIcon">
+                                        <svg width="15" height="15" viewBox="0 0 24 24" fill="none"
+                                            stroke="currentColor" stroke-width="2" stroke-linecap="round"
+                                            stroke-linejoin="round">
+                                            <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path>
+                                            <circle cx="12" cy="7" r="4"></circle>
+                                        </svg>
+                                    </span>
+                                    <span class="topAccountMenuLabel">Personal Information</span>
+                                    <svg class="topAccountMenuChevron" width="14" height="14" viewBox="0 0 24 24"
+                                        fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"
+                                        stroke-linejoin="round">
+                                        <polyline points="9 18 15 12 9 6"></polyline>
+                                    </svg>
+                                </button>
+                            </div>
+                            <div class="topAccountMenuDivider"></div>
+                            <div class="topAccountMenu">
+                                <button type="button" class="topAccountMenuItem dangerItem"
+                                    onclick="window.promptSignOut()">
+                                    <span class="topAccountMenuIcon">
+                                        <svg width="15" height="15" viewBox="0 0 24 24" fill="none"
+                                            stroke="currentColor" stroke-width="2" stroke-linecap="round"
+                                            stroke-linejoin="round">
+                                            <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path>
+                                            <polyline points="16 17 21 12 16 7"></polyline>
+                                            <line x1="21" y1="12" x2="9" y2="12"></line>
+                                        </svg>
+                                    </span>
+                                    <span class="topAccountMenuLabel">Sign Out</span>
+                                </button>
+                            </div>
+                        </div>
                     </div>
                 </div>
             </header>
@@ -179,7 +316,8 @@
 
     <div id="toastContainer" class="toastContainer" aria-live="polite"></div>
 
-    <div id="globalProofLightbox" class="modalOverlay" style="z-index: 2500;" onclick="if(event.target===this) window.closeProofLightbox();">
+    <div id="globalProofLightbox" class="modalOverlay" style="z-index: 2500;"
+        onclick="if(event.target===this) window.closeProofLightbox();">
         <div class="modalCard" style="max-width: 640px;">
             <div class="modalHeader">
                 <div>
@@ -191,7 +329,120 @@
             <div class="proofLightboxImgWrap">
                 <img id="proofLightboxImg" src="" alt="Workshop Stage Proof">
             </div>
-            <div id="proofLightboxNote" style="display: none; margin-top: 12px; padding: 10px 12px; background: #faf8f2; border: 1px solid var(--bd); border-radius: 8px; font-size: 13px; color: var(--tx);"></div>
+            <div id="proofLightboxNote"
+                style="display: none; margin-top: 12px; padding: 10px 12px; background: #faf8f2; border: 1px solid var(--bd); border-radius: 8px; font-size: 13px; color: var(--tx);">
+            </div>
+        </div>
+    </div>
+
+    <div id="accountSettingsModal" class="modalOverlay" style="z-index: 2600;"
+        onclick="if(event.target===this) window.closeAccountSettingsModal();">
+        <div class="modalCard" style="max-width: 480px;">
+            <div class="modalHeader">
+                <div>
+                    <h3 style="margin: 0; font-size: 18px; color: var(--tx);">Account Settings</h3>
+                    <span style="font-size: 12px; color: var(--mt);">Manage your personal details and security
+                        credentials</span>
+                </div>
+                <button type="button" class="modalClose" onclick="window.closeAccountSettingsModal()">&times;</button>
+            </div>
+
+            <div class="accountModalTabs">
+                <button type="button" class="accountModalTabBtn active" id="acctTabBtnProfile"
+                    onclick="window.switchAccountSettingsTab('profile')">Personal Details</button>
+                <button type="button" class="accountModalTabBtn" id="acctTabBtnPassword"
+                    onclick="window.switchAccountSettingsTab('password')">Change Password</button>
+            </div>
+
+            <div id="acctTabPanelProfile" class="accountModalPanel active">
+                <form id="accountProfileForm" onsubmit="return window.submitProfileUpdate(event)">
+                    <div class="formRowGrid">
+                        <div class="formGroup">
+                            <label for="acctFirstNameInput">First Name</label>
+                            <input type="text" id="acctFirstNameInput" name="first_name"
+                                value="{{ session.get('first_name') or (session.get('employee_name') or '').split(' ')[0] }}"
+                                maxlength="60" required>
+                        </div>
+                        <div class="formGroup">
+                            <label for="acctLastNameInput">Last Name</label>
+                            <input type="text" id="acctLastNameInput" name="last_name"
+                                value="{{ session.get('last_name') or ((session.get('employee_name') or '').split(' ')[1:]|join(' ')) }}"
+                                maxlength="60" required>
+                        </div>
+                    </div>
+                    <div class="formGroup" style="margin-top: 12px;">
+                        <label for="acctPhoneInput">Phone Number</label>
+                        <input type="text" id="acctPhoneInput" name="phone" value="{{ session.get('phone') or '' }}"
+                            maxlength="25" placeholder="e.g. 09123456789">
+                    </div>
+                    <div class="formGroup" style="margin-top: 12px;">
+                        <label>Work Email (Read-Only)</label>
+                        <input type="email" value="{{ session.get('email') or '' }}" disabled
+                            style="background: #f3efe4; color: var(--mt); cursor: not-allowed;">
+                    </div>
+                    <div id="acctProfileMsg" class="accountFormFeedback" style="display: none;"></div>
+                    <div class="modalActions" style="margin-top: 18px;">
+                        <button type="button" class="actionButton secondary"
+                            onclick="window.closeAccountSettingsModal()">Cancel</button>
+                        <button type="submit" id="acctProfileSubmitBtn" class="actionButton">Save Changes</button>
+                    </div>
+                </form>
+            </div>
+
+            <div id="acctTabPanelPassword" class="accountModalPanel" style="display: none;">
+                <form id="accountPasswordForm" onsubmit="return window.submitPasswordChange(event)">
+                    <div class="accountCooldownNotice">
+                        For account security, your password can be updated once every <b>30 days</b>.
+                    </div>
+                    <div class="formGroup" style="margin-top: 12px;">
+                        <label for="acctCurrentPasswordInput">Current Password</label>
+                        <input type="password" id="acctCurrentPasswordInput" name="current_password" required
+                            autocomplete="current-password" placeholder="Enter your current password">
+                    </div>
+                    <div class="formGroup" style="margin-top: 12px;">
+                        <label for="acctNewPasswordInput">New Password (Min. 8 characters)</label>
+                        <input type="password" id="acctNewPasswordInput" name="new_password" minlength="8" required
+                            autocomplete="new-password" placeholder="At least 8 characters">
+                    </div>
+                    <div class="formGroup" style="margin-top: 12px;">
+                        <label for="acctConfirmPasswordInput">Confirm New Password</label>
+                        <input type="password" id="acctConfirmPasswordInput" name="confirm_password" minlength="8"
+                            required autocomplete="new-password" placeholder="Re-enter new password">
+                    </div>
+                    <div id="acctPasswordMsg" class="accountFormFeedback" style="display: none;"></div>
+                    <div class="modalActions" style="margin-top: 18px;">
+                        <button type="button" class="actionButton secondary"
+                            onclick="window.closeAccountSettingsModal()">Cancel</button>
+                        <button type="submit" id="acctPasswordSubmitBtn" class="actionButton">Update Password</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <div id="signOutConfirmModal" class="modalOverlay" style="z-index: 2600;"
+        onclick="if(event.target===this) window.closeSignOutModal();">
+        <div class="modalCard" style="max-width: 420px; text-align: center; padding: 26px 22px;">
+            <div class="signOutIconCircle">
+                <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"
+                    stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path>
+                    <polyline points="16 17 21 12 16 7"></polyline>
+                    <line x1="21" y1="12" x2="9" y2="12"></line>
+                </svg>
+            </div>
+            <h3 style="margin: 14px 0 6px; font-size: 18px; color: var(--tx);">Sign out from velmora?</h3>
+            <p style="margin: 0 0 20px; font-size: 13.5px; color: var(--mt); line-height: 1.45;">
+                Are you sure you want to end your current session as <b id="signOutUserNameLabel">{{
+                    session.get('employee_name', 'Operator') }}</b>?
+            </p>
+            <div style="display: flex; gap: 10px; justify-content: center;">
+                <button type="button" class="actionButton secondary" onclick="window.closeSignOutModal()"
+                    style="min-width: 105px;">Cancel</button>
+                <a href="/production/logout" class="actionButton"
+                    style="min-width: 125px; background: #9A4A3A; border-color: #9A4A3A; color: #ffffff; text-decoration: none; display: inline-flex; align-items: center; justify-content: center;">Yes,
+                    Sign Out</a>
+            </div>
         </div>
     </div>
 
@@ -250,19 +501,19 @@
             closeBtn.className = 'toastClose';
             closeBtn.innerHTML = '&times;';
             closeBtn.setAttribute('aria-label', 'Close toast');
-            closeBtn.onclick = function() {
+            closeBtn.onclick = function () {
                 removeToast(toast);
             };
             toast.appendChild(closeBtn);
 
             container.appendChild(toast);
 
-            requestAnimationFrame(function() {
+            requestAnimationFrame(function () {
                 toast.classList.add('show');
             });
 
             const duration = (toastType === 'error' || toastType === 'warning') ? 8000 : 4000;
-            const timer = setTimeout(function() {
+            const timer = setTimeout(function () {
                 removeToast(toast);
             }, duration);
 
@@ -270,7 +521,7 @@
                 clearTimeout(timer);
                 el.classList.remove('show');
                 el.classList.add('hide');
-                setTimeout(function() {
+                setTimeout(function () {
                     if (el.parentNode) {
                         el.parentNode.removeChild(el);
                     }
@@ -278,9 +529,10 @@
             }
         }
 
-        document.addEventListener('submit', function(event) {
+        document.addEventListener('submit', function (event) {
             const form = event.target;
             if (!form || form.tagName !== 'FORM') return;
+            if (form.id === 'accountProfileForm' || form.id === 'accountPasswordForm') return;
             const formData = new FormData(form);
             const formEntries = Object.fromEntries(formData.entries());
             if (formEntries.password) formEntries.password = '***';
@@ -306,16 +558,17 @@
             }
         }, true);
 
-        document.addEventListener('DOMContentLoaded', function() {
-            {% with messages = get_flashed_messages(with_categories=true) %}
-                {% if messages %}
-                    const flashed = {{ messages|tojson }};
-                    flashed.forEach(function(item) {
-                        console.log('[Server Message - ' + item[0].toUpperCase() + ']:', item[1]);
-                        showToast(item[1], item[0]);
-                    });
-                {% endif %}
-            {% endwith %}
+        document.addEventListener('DOMContentLoaded', function () {
+            {% with messages = get_flashed_messages(with_categories = true) %}
+            {% if messages %}
+            const flashed = {{ messages| tojson
+        }};
+        flashed.forEach(function (item) {
+            console.log('[Server Message - ' + item[0].toUpperCase() + ']:', item[1]);
+            showToast(item[1], item[0]);
+        });
+        {% endif %}
+        {% endwith %}
         });
 
         function openUpdateCostModal(id, name, cost, unit) {
@@ -420,11 +673,11 @@
             const cacheKey = normalizeUrlKey(targetUrl);
             if (tabHtmlCache.has(cacheKey)) return;
             fetch(targetUrl, { headers: { 'X-Requested-With': 'XMLHttpRequest' } })
-                .then(function(res) { return res.ok ? res.text() : null; })
-                .then(function(html) {
+                .then(function (res) { return res.ok ? res.text() : null; })
+                .then(function (html) {
                     if (html) tabHtmlCache.set(cacheKey, html);
                 })
-                .catch(function(err) {
+                .catch(function (err) {
                     console.log(`error message: ${err.message}`);
                 });
         }
@@ -460,7 +713,7 @@
             }
         }
 
-        document.addEventListener('DOMContentLoaded', function() {
+        document.addEventListener('DOMContentLoaded', function () {
             const navLinks = document.querySelectorAll('.navLinksContainer a');
             const mainContainer = document.querySelector('main');
 
@@ -468,7 +721,7 @@
                 let targetPath = '/production';
                 try {
                     targetPath = new URL(targetUrl || window.location.href, window.location.origin).pathname.replace(/\/+$/, '') || '/production';
-                } catch (e) {}
+                } catch (e) { }
 
                 if (targetPath === '/production') {
                     return `
@@ -525,27 +778,6 @@
                     `;
                 }
 
-                const showKpiRow = (targetPath === '/production/reports');
-                const kpiHtml = showKpiRow ? `
-                        <div class="skeletonMetricGrid">
-                            <div class="skeletonCard skeletonMetricCard">
-                                <div class="skeletonBlock" style="width: 70px; height: 12px; margin-bottom: 10px;"></div>
-                                <div class="skeletonBlock" style="width: 50px; height: 26px;"></div>
-                            </div>
-                            <div class="skeletonCard skeletonMetricCard">
-                                <div class="skeletonBlock" style="width: 70px; height: 12px; margin-bottom: 10px;"></div>
-                                <div class="skeletonBlock" style="width: 50px; height: 26px;"></div>
-                            </div>
-                            <div class="skeletonCard skeletonMetricCard">
-                                <div class="skeletonBlock" style="width: 70px; height: 12px; margin-bottom: 10px;"></div>
-                                <div class="skeletonBlock" style="width: 50px; height: 26px;"></div>
-                            </div>
-                            <div class="skeletonCard skeletonMetricCard">
-                                <div class="skeletonBlock" style="width: 70px; height: 12px; margin-bottom: 10px;"></div>
-                                <div class="skeletonBlock" style="width: 50px; height: 26px;"></div>
-                            </div>
-                        </div>` : '';
-
                 return `
                     <div class="skeletonContainer">
                         <div class="headerRow">
@@ -555,7 +787,6 @@
                             </div>
                             <div class="skeletonBlock skeletonButton" style="width: 120px; height: 36px;"></div>
                         </div>
-                        ${kpiHtml}
                         <div class="skeletonCard" style="padding: 20px;">
                             <div style="display: flex; justify-content: space-between; gap: 12px; margin-bottom: 18px; flex-wrap: wrap;">
                                 <div class="skeletonBlock" style="width: 320px; height: 36px; border-radius: 10px;"></div>
@@ -600,7 +831,7 @@
                 return 'Search orders or products (Press Enter)...';
             }
 
-            window.updateGlobalSearchClearBtn = function() {
+            window.updateGlobalSearchClearBtn = function () {
                 const input = document.getElementById('globalTabSearchInput');
                 const clearBtn = document.getElementById('globalSearchClearBtn');
                 if (input && clearBtn) {
@@ -608,7 +839,7 @@
                 }
             };
 
-            window.syncGlobalSearchContext = function(targetUrl, resetValue) {
+            window.syncGlobalSearchContext = function (targetUrl, resetValue) {
                 const input = document.getElementById('globalTabSearchInput');
                 if (!input) return;
                 let parsedUrl;
@@ -624,7 +855,7 @@
                 window.updateGlobalSearchClearBtn();
             };
 
-            window.handleGlobalTabSearch = function(rawVal) {
+            window.handleGlobalTabSearch = function (rawVal) {
                 window.updateGlobalSearchClearBtn();
                 const q = (rawVal || '').toLowerCase().trim();
                 const p = window.location.pathname.replace(/\/+$/, '') || '/production';
@@ -653,19 +884,15 @@
                     window.filterCostingTable();
                     return;
                 }
-                if (p === '/production/reports') {
-                    const auditInput = document.getElementById('auditSearchInput');
-                    if (auditInput) {
-                        auditInput.value = rawVal || '';
-                        if (typeof window.applyAuditFilters === 'function') {
-                            window.applyAuditFilters();
-                        }
+                if (p === '/production/reports' || p === '/production/report') {
+                    if (typeof window.applyReportFilters === 'function') {
+                        window.applyReportFilters();
                     }
                     return;
                 }
                 if (p === '/production/issuance') {
                     const blocks = document.querySelectorAll('main .card > div > div[style*="border: 1px solid"]');
-                    blocks.forEach(function(block) {
+                    blocks.forEach(function (block) {
                         block.style.display = (!q || block.textContent.toLowerCase().includes(q)) ? '' : 'none';
                     });
                     return;
@@ -675,13 +902,13 @@
                 }
 
                 const genericRows = document.querySelectorAll('main table tbody tr');
-                genericRows.forEach(function(row) {
+                genericRows.forEach(function (row) {
                     if (row.querySelector('td[colspan]')) return;
                     row.style.display = (!q || row.textContent.toLowerCase().includes(q)) ? '' : 'none';
                 });
             };
 
-            window.handleGlobalTabSearchKeydown = function(event) {
+            window.handleGlobalTabSearchKeydown = function (event) {
                 if (event.key !== 'Enter') return;
                 event.preventDefault();
                 const input = document.getElementById('globalTabSearchInput');
@@ -699,7 +926,7 @@
                 }
             };
 
-            window.clearGlobalTabSearch = function() {
+            window.clearGlobalTabSearch = function () {
                 const input = document.getElementById('globalTabSearchInput');
                 if (!input) return;
                 input.value = '';
@@ -707,173 +934,382 @@
                 input.focus();
             };
 
-        window.openProofLightbox = function(imgUrl, titleText, metaText, noteText) {
-            const overlay = document.getElementById('globalProofLightbox');
-            const img = document.getElementById('proofLightboxImg');
-            const titleEl = document.getElementById('proofLightboxTitle');
-            const metaEl = document.getElementById('proofLightboxMeta');
-            const noteEl = document.getElementById('proofLightboxNote');
-            if (!overlay || !img) return;
-            img.src = imgUrl || '';
-            if (titleEl) titleEl.textContent = titleText || 'Workshop Stage Proof';
-            if (metaEl) metaEl.textContent = metaText || '';
-            if (noteEl) {
-                if (noteText && noteText.trim()) {
-                    noteEl.style.display = 'block';
-                    noteEl.textContent = 'Workshop Note: ' + noteText.trim();
-                } else {
-                    noteEl.style.display = 'none';
-                    noteEl.textContent = '';
+            window.openProofLightbox = function (imgUrl, titleText, metaText, noteText) {
+                const overlay = document.getElementById('globalProofLightbox');
+                const img = document.getElementById('proofLightboxImg');
+                const titleEl = document.getElementById('proofLightboxTitle');
+                const metaEl = document.getElementById('proofLightboxMeta');
+                const noteEl = document.getElementById('proofLightboxNote');
+                if (!overlay || !img) return;
+                img.src = imgUrl || '';
+                if (titleEl) titleEl.textContent = titleText || 'Workshop Stage Proof';
+                if (metaEl) metaEl.textContent = metaText || '';
+                if (noteEl) {
+                    if (noteText && noteText.trim()) {
+                        noteEl.style.display = 'block';
+                        noteEl.textContent = 'Workshop Note: ' + noteText.trim();
+                    } else {
+                        noteEl.style.display = 'none';
+                        noteEl.textContent = '';
+                    }
                 }
-            }
-            overlay.classList.add('active');
-        };
+                overlay.classList.add('active');
+            };
 
-        window.closeProofLightbox = function() {
-            const overlay = document.getElementById('globalProofLightbox');
-            const img = document.getElementById('proofLightboxImg');
-            if (overlay) overlay.classList.remove('active');
-            if (img) img.src = '';
-        };
+            window.closeProofLightbox = function () {
+                const overlay = document.getElementById('globalProofLightbox');
+                const img = document.getElementById('proofLightboxImg');
+                if (overlay) overlay.classList.remove('active');
+                if (img) img.src = '';
+            };
 
-        window.toggleNotifDropdown = function(event) {
-            if (event) {
-                event.preventDefault();
-                event.stopPropagation();
-            }
-            const dd = document.getElementById('topNotifDropdown');
-            if (dd) {
-                dd.classList.toggle('open');
-            }
-        };
-
-        function getNotifStorageKey() {
-            const dd = document.getElementById('topNotifDropdown');
-            const empId = (dd && dd.getAttribute('data-emp-id')) || '0';
-            return 'velmora_notif_read_' + empId;
-        }
-
-        function readNotifStore() {
-            try {
-                const raw = window.localStorage.getItem(getNotifStorageKey());
-                return raw ? JSON.parse(raw) : {};
-            } catch (e) {
-                return {};
-            }
-        }
-
-        function writeNotifStore(storeObj) {
-            try {
-                window.localStorage.setItem(getNotifStorageKey(), JSON.stringify(storeObj || {}));
-            } catch (e) {}
-        }
-
-        window.syncLiveNotifState = function() {
-            const dd = document.getElementById('topNotifDropdown');
-            const badge = document.getElementById('topNotifBadge');
-            if (!dd || !badge) return;
-            const readMap = readNotifStore();
-            let unreadRows = 0;
-            dd.querySelectorAll('.topNotifItem[data-notif-key]').forEach(function(item) {
-                const key = item.getAttribute('data-notif-key') || '';
-                if (key && readMap[key]) {
-                    item.classList.remove('unread');
-                } else {
-                    item.classList.add('unread');
-                    unreadRows++;
+            window.toggleAccountDropdown = function (event) {
+                if (event) {
+                    event.preventDefault();
+                    event.stopPropagation();
                 }
-            });
-            const readAllBtn = dd.querySelector('.topNotifReadAllBtn');
-            if (readAllBtn) {
-                readAllBtn.style.display = unreadRows > 0 ? '' : 'none';
-            }
-            const pinCount = dd.getAttribute('data-stockout-pin') === '1' ? 1 : 0;
-            const total = unreadRows + pinCount;
-            badge.textContent = String(total);
-            badge.style.display = total > 0 ? '' : 'none';
-        };
+                const notifDd = document.getElementById('topNotifDropdown');
+                if (notifDd) notifDd.classList.remove('open');
+                const dd = document.getElementById('topAccountDropdown');
+                if (dd) dd.classList.toggle('open');
+            };
 
-        function syncActiveNavLink(targetUrl) {
-            let targetPath = '/production';
-            try {
-                targetPath = new URL(targetUrl || window.location.href, window.location.origin).pathname.replace(/\/+$/, '') || '/production';
-            } catch (e) {}
-            navLinks.forEach(function(link) {
-                let linkPath = '/production';
+            window.closeAccountDropdown = function () {
+                const dd = document.getElementById('topAccountDropdown');
+                if (dd) dd.classList.remove('open');
+            };
+
+            window.promptSignOut = function () {
+                window.closeAccountDropdown();
+                const modal = document.getElementById('signOutConfirmModal');
+                if (modal) modal.classList.add('active');
+            };
+
+            window.closeSignOutModal = function () {
+                const modal = document.getElementById('signOutConfirmModal');
+                if (modal) modal.classList.remove('active');
+            };
+
+            window.openAccountSettingsModal = function (initialTab) {
+                window.closeAccountDropdown();
+                const profileMsg = document.getElementById('acctProfileMsg');
+                const passMsg = document.getElementById('acctPasswordMsg');
+                if (profileMsg) { profileMsg.style.display = 'none'; profileMsg.textContent = ''; }
+                if (passMsg) { passMsg.style.display = 'none'; passMsg.textContent = ''; }
+                window.switchAccountSettingsTab(initialTab || 'profile');
+                const modal = document.getElementById('accountSettingsModal');
+                if (modal) modal.classList.add('active');
+            };
+
+            window.closeAccountSettingsModal = function () {
+                const modal = document.getElementById('accountSettingsModal');
+                if (modal) modal.classList.remove('active');
+            };
+
+            window.switchAccountSettingsTab = function (tabName) {
+                const isPass = tabName === 'password';
+                const btnProfile = document.getElementById('acctTabBtnProfile');
+                const btnPass = document.getElementById('acctTabBtnPassword');
+                const panelProfile = document.getElementById('acctTabPanelProfile');
+                const panelPass = document.getElementById('acctTabPanelPassword');
+                if (btnProfile) btnProfile.classList.toggle('active', !isPass);
+                if (btnPass) btnPass.classList.toggle('active', isPass);
+                if (panelProfile) panelProfile.style.display = isPass ? 'none' : 'block';
+                if (panelPass) panelPass.style.display = isPass ? 'block' : 'none';
+            };
+
+            window.submitProfileUpdate = async function (event) {
+                if (event) event.preventDefault();
+                const firstInput = document.getElementById('acctFirstNameInput');
+                const lastInput = document.getElementById('acctLastNameInput');
+                const phoneInput = document.getElementById('acctPhoneInput');
+                const msgEl = document.getElementById('acctProfileMsg');
+                const submitBtn = document.getElementById('acctProfileSubmitBtn');
+
+                const firstName = (firstInput ? firstInput.value : '').trim();
+                const lastName = (lastInput ? lastInput.value : '').trim();
+                const phone = (phoneInput ? phoneInput.value : '').trim();
+
+                if (msgEl) { msgEl.style.display = 'none'; msgEl.textContent = ''; }
+                if (submitBtn) { submitBtn.disabled = true; submitBtn.textContent = 'Saving...'; }
+
                 try {
-                    linkPath = new URL(link.href, window.location.origin).pathname.replace(/\/+$/, '') || '/production';
-                } catch (e) {}
-                const isMatch = (linkPath === '/production')
-                    ? (targetPath === '/production')
-                    : (targetPath === linkPath || targetPath.indexOf(linkPath + '/') === 0);
-                if (isMatch) {
-                    link.classList.add('active');
-                } else {
-                    link.classList.remove('active');
+                    const resp = await fetch('/production/account/update-profile', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'X-Requested-With': 'XMLHttpRequest'
+                        },
+                        body: JSON.stringify({
+                            first_name: firstName,
+                            last_name: lastName,
+                            phone: phone
+                        })
+                    });
+                    const data = await resp.json();
+                    if (!resp.ok || !data.success) {
+                        const errText = (data && data.error) ? data.error : 'Unable to update profile.';
+                        if (msgEl) {
+                            msgEl.className = 'accountFormFeedback error';
+                            msgEl.textContent = errText;
+                            msgEl.style.display = 'block';
+                        }
+                        showToast(errText, 'error');
+                        return false;
+                    }
+
+                    const newFullName = data.employee_name || (firstName + ' ' + lastName).trim();
+                    const newInitial = data.initial || (newFullName ? newFullName.charAt(0).toUpperCase() : 'U');
+                    document.querySelectorAll('.userFullName, .topAccountName').forEach(function (el) {
+                        el.textContent = newFullName;
+                        el.setAttribute('title', newFullName);
+                    });
+                    document.querySelectorAll('.userAvatar, .topUserAvatar, .topAccountAvatarLarge').forEach(function (el) {
+                        el.textContent = newInitial;
+                    });
+                    const phoneValEl = document.getElementById('topAccountPhoneVal');
+                    if (phoneValEl) phoneValEl.textContent = data.phone || 'Not set';
+                    const signOutNameEl = document.getElementById('signOutUserNameLabel');
+                    if (signOutNameEl) signOutNameEl.textContent = newFullName;
+
+                    showToast(data.message || 'Account profile updated.', 'success');
+                    window.closeAccountSettingsModal();
+                } catch (error) {
+                    console.log(`error message: ${error.message}`);
+                    if (msgEl) {
+                        msgEl.className = 'accountFormFeedback error';
+                        msgEl.textContent = 'Network error while updating profile.';
+                        msgEl.style.display = 'block';
+                    }
+                } finally {
+                    if (submitBtn) { submitBtn.disabled = false; submitBtn.textContent = 'Save Changes'; }
+                }
+                return false;
+            };
+
+            window.submitPasswordChange = async function (event) {
+                if (event) event.preventDefault();
+                const curInput = document.getElementById('acctCurrentPasswordInput');
+                const newInput = document.getElementById('acctNewPasswordInput');
+                const confInput = document.getElementById('acctConfirmPasswordInput');
+                const msgEl = document.getElementById('acctPasswordMsg');
+                const submitBtn = document.getElementById('acctPasswordSubmitBtn');
+
+                const currentPassword = curInput ? curInput.value : '';
+                const newPassword = newInput ? newInput.value : '';
+                const confirmPassword = confInput ? confInput.value : '';
+
+                if (msgEl) { msgEl.style.display = 'none'; msgEl.textContent = ''; }
+                if (newPassword !== confirmPassword) {
+                    if (msgEl) {
+                        msgEl.className = 'accountFormFeedback error';
+                        msgEl.textContent = 'New password and confirmation password do not match.';
+                        msgEl.style.display = 'block';
+                    }
+                    return false;
+                }
+
+                if (submitBtn) { submitBtn.disabled = true; submitBtn.textContent = 'Updating...'; }
+
+                try {
+                    const resp = await fetch('/production/account/change-password', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'X-Requested-With': 'XMLHttpRequest'
+                        },
+                        body: JSON.stringify({
+                            current_password: currentPassword,
+                            new_password: newPassword,
+                            confirm_password: confirmPassword
+                        })
+                    });
+                    const data = await resp.json();
+                    if (!resp.ok || !data.success) {
+                        const errText = (data && data.error) ? data.error : 'Unable to change password.';
+                        if (msgEl) {
+                            msgEl.className = 'accountFormFeedback error';
+                            msgEl.textContent = errText;
+                            msgEl.style.display = 'block';
+                        }
+                        showToast(errText, 'error');
+                        return false;
+                    }
+
+                    if (curInput) curInput.value = '';
+                    if (newInput) newInput.value = '';
+                    if (confInput) confInput.value = '';
+                    showToast(data.message || 'Password updated successfully.', 'success');
+                    window.closeAccountSettingsModal();
+                } catch (error) {
+                    console.log(`error message: ${error.message}`);
+                    if (msgEl) {
+                        msgEl.className = 'accountFormFeedback error';
+                        msgEl.textContent = 'Network error while updating password.';
+                        msgEl.style.display = 'block';
+                    }
+                } finally {
+                    if (submitBtn) { submitBtn.disabled = false; submitBtn.textContent = 'Update Password'; }
+                }
+                return false;
+            };
+
+            window.toggleNotifDropdown = function (event) {
+                if (event) {
+                    event.preventDefault();
+                    event.stopPropagation();
+                }
+                const acctDd = document.getElementById('topAccountDropdown');
+                if (acctDd) acctDd.classList.remove('open');
+                const dd = document.getElementById('topNotifDropdown');
+                if (dd) {
+                    dd.classList.toggle('open');
+                }
+            };
+
+            function getNotifStorageKey() {
+                const dd = document.getElementById('topNotifDropdown');
+                const empId = (dd && dd.getAttribute('data-emp-id')) || '0';
+                return 'velmora_notif_read_' + empId;
+            }
+
+            function readNotifStore() {
+                try {
+                    const raw = window.localStorage.getItem(getNotifStorageKey());
+                    return raw ? JSON.parse(raw) : {};
+                } catch (e) {
+                    return {};
+                }
+            }
+
+            function writeNotifStore(storeObj) {
+                try {
+                    window.localStorage.setItem(getNotifStorageKey(), JSON.stringify(storeObj || {}));
+                } catch (e) { }
+            }
+
+            window.syncLiveNotifState = function () {
+                const dd = document.getElementById('topNotifDropdown');
+                const badge = document.getElementById('topNotifBadge');
+                if (!dd || !badge) return;
+                const readMap = readNotifStore();
+                let unreadRows = 0;
+                dd.querySelectorAll('.topNotifItem[data-notif-key]').forEach(function (item) {
+                    const key = item.getAttribute('data-notif-key') || '';
+                    if (key && readMap[key]) {
+                        item.classList.remove('unread');
+                    } else {
+                        item.classList.add('unread');
+                        unreadRows++;
+                    }
+                });
+                const readAllBtn = dd.querySelector('.topNotifReadAllBtn');
+                if (readAllBtn) {
+                    readAllBtn.style.display = unreadRows > 0 ? '' : 'none';
+                }
+                const pinCount = dd.getAttribute('data-stockout-pin') === '1' ? 1 : 0;
+                const total = unreadRows + pinCount;
+                badge.textContent = String(total);
+                badge.style.display = total > 0 ? '' : 'none';
+            };
+
+            function syncActiveNavLink(targetUrl) {
+                let targetPath = '/production';
+                try {
+                    targetPath = new URL(targetUrl || window.location.href, window.location.origin).pathname.replace(/\/+$/, '') || '/production';
+                } catch (e) { }
+                navLinks.forEach(function (link) {
+                    let linkPath = '/production';
+                    try {
+                        linkPath = new URL(link.href, window.location.origin).pathname.replace(/\/+$/, '') || '/production';
+                    } catch (e) { }
+                    const isMatch = (linkPath === '/production')
+                        ? (targetPath === '/production')
+                        : (targetPath === linkPath || targetPath.indexOf(linkPath + '/') === 0);
+                    if (isMatch) {
+                        link.classList.add('active');
+                    } else {
+                        link.classList.remove('active');
+                    }
+                });
+            }
+            window.syncActiveNavLink = syncActiveNavLink;
+
+            window.openStockoutPin = function (event) {
+                const dd = document.getElementById('topNotifDropdown');
+                if (dd) dd.classList.remove('open');
+                const curPath = (window.location.pathname || '').replace(/\/+$/, '');
+                if (curPath === '/production/orders' && typeof window.setOrderStatusTab === 'function') {
+                    if (event) event.preventDefault();
+                    window.setOrderStatusTab('__stockouts__');
+                    syncActiveNavLink('/production/orders?stockouts=1');
+                } else if (typeof window.loadTabContent === 'function') {
+                    if (event) event.preventDefault();
+                    window.loadTabContent('/production/orders?stockouts=1');
+                }
+            };
+
+            window.openNotifItem = function (event, notifKey, targetUrl) {
+                if (event) event.preventDefault();
+                if (notifKey) {
+                    const readMap = readNotifStore();
+                    readMap[notifKey] = 1;
+                    writeNotifStore(readMap);
+                }
+                const dd = document.getElementById('topNotifDropdown');
+                if (dd) {
+                    dd.classList.remove('open');
+                }
+                window.syncLiveNotifState();
+                if (targetUrl && typeof window.loadTabContent === 'function') {
+                    window.loadTabContent(targetUrl);
+                } else if (targetUrl) {
+                    window.location.href = targetUrl;
+                }
+            };
+
+            window.markAllNotifsRead = function (event) {
+                if (event) {
+                    event.preventDefault();
+                    event.stopPropagation();
+                }
+                const dd = document.getElementById('topNotifDropdown');
+                if (dd) {
+                    const readMap = readNotifStore();
+                    dd.querySelectorAll('.topNotifItem[data-notif-key]').forEach(function (r) {
+                        const key = r.getAttribute('data-notif-key');
+                        if (key) readMap[key] = 1;
+                    });
+                    writeNotifStore(readMap);
+                }
+                window.syncLiveNotifState();
+            };
+
+            document.addEventListener('click', function (e) {
+                const wrap = document.getElementById('topNotifWrap');
+                const dd = document.getElementById('topNotifDropdown');
+                if (dd && dd.classList.contains('open') && wrap && !wrap.contains(e.target)) {
+                    dd.classList.remove('open');
+                }
+                const acctWrap = document.getElementById('topAccountWrap');
+                const acctDd = document.getElementById('topAccountDropdown');
+                if (acctDd && acctDd.classList.contains('open') && acctWrap && !acctWrap.contains(e.target)) {
+                    acctDd.classList.remove('open');
                 }
             });
-        }
-        window.syncActiveNavLink = syncActiveNavLink;
 
-        window.openStockoutPin = function(event) {
-            const dd = document.getElementById('topNotifDropdown');
-            if (dd) dd.classList.remove('open');
-            const curPath = (window.location.pathname || '').replace(/\/+$/, '');
-            if (curPath === '/production/orders' && typeof window.setOrderStatusTab === 'function') {
-                if (event) event.preventDefault();
-                window.setOrderStatusTab('__stockouts__');
-                syncActiveNavLink('/production/orders?stockouts=1');
-            } else if (typeof window.loadTabContent === 'function') {
-                if (event) event.preventDefault();
-                window.loadTabContent('/production/orders?stockouts=1');
-            }
-        };
+            document.addEventListener('keydown', function (e) {
+                if (e.key === 'Escape') {
+                    window.closeAccountDropdown();
+                    const notifDd = document.getElementById('topNotifDropdown');
+                    if (notifDd) notifDd.classList.remove('open');
+                    window.closeSignOutModal();
+                    window.closeAccountSettingsModal();
+                    if (typeof window.closeProofLightbox === 'function') window.closeProofLightbox();
+                }
+            });
 
-        window.openNotifItem = function(event, notifKey, targetUrl) {
-            if (event) event.preventDefault();
-            if (notifKey) {
-                const readMap = readNotifStore();
-                readMap[notifKey] = 1;
-                writeNotifStore(readMap);
-            }
-            const dd = document.getElementById('topNotifDropdown');
-            if (dd) {
-                dd.classList.remove('open');
-            }
-            window.syncLiveNotifState();
-            if (targetUrl && typeof window.loadTabContent === 'function') {
-                window.loadTabContent(targetUrl);
-            } else if (targetUrl) {
-                window.location.href = targetUrl;
-            }
-        };
-
-        window.markAllNotifsRead = function(event) {
-            if (event) {
-                event.preventDefault();
-                event.stopPropagation();
-            }
-            const dd = document.getElementById('topNotifDropdown');
-            if (dd) {
-                const readMap = readNotifStore();
-                dd.querySelectorAll('.topNotifItem[data-notif-key]').forEach(function(r) {
-                    const key = r.getAttribute('data-notif-key');
-                    if (key) readMap[key] = 1;
-                });
-                writeNotifStore(readMap);
-            }
-            window.syncLiveNotifState();
-        };
-
-        document.addEventListener('click', function(e) {
-            const wrap = document.getElementById('topNotifWrap');
-            const dd = document.getElementById('topNotifDropdown');
-            if (dd && dd.classList.contains('open') && wrap && !wrap.contains(e.target)) {
-                dd.classList.remove('open');
-            }
-        });
-
-        function applyTabHtml(pageHtml, targetUrl, shouldPushState) {
+            function applyTabHtml(pageHtml, targetUrl, shouldPushState) {
                 const domParser = new DOMParser();
                 const parsedDocument = domParser.parseFromString(pageHtml, 'text/html');
                 const incomingMain = parsedDocument.querySelector('main');
@@ -890,7 +1326,7 @@
                     let nextPath = prevPath;
                     try {
                         nextPath = new URL(targetUrl, window.location.origin).pathname;
-                    } catch (e) {}
+                    } catch (e) { }
 
                     if (shouldPushState) {
                         history.pushState({ targetUrl: targetUrl }, '', targetUrl);
@@ -901,9 +1337,9 @@
                     mainContainer.innerHTML = incomingMain.innerHTML;
                     document.title = parsedDocument.title;
 
-                    mainContainer.querySelectorAll('script').forEach(function(oldScript) {
+                    mainContainer.querySelectorAll('script').forEach(function (oldScript) {
                         const newScript = document.createElement('script');
-                        Array.from(oldScript.attributes).forEach(function(attr) {
+                        Array.from(oldScript.attributes).forEach(function (attr) {
                             newScript.setAttribute(attr.name, attr.value);
                         });
                         newScript.textContent = oldScript.textContent;
@@ -939,8 +1375,8 @@
                     window.scrollTo({ top: 0, behavior: 'instant' });
 
                     fetch(targetUrl, { headers: { 'X-Requested-With': 'XMLHttpRequest' } })
-                        .then(function(res) { return res.ok ? res.text() : null; })
-                        .then(function(freshHtml) {
+                        .then(function (res) { return res.ok ? res.text() : null; })
+                        .then(function (freshHtml) {
                             if (freshHtml && freshHtml !== cachedHtml) {
                                 tabHtmlCache.set(cacheKey, freshHtml);
                                 const currentKey = normalizeUrlKey(window.location.href);
@@ -953,9 +1389,9 @@
                                 }
                             }
                         })
-                        .catch(function(err) {
-                    console.log(`error message: ${err.message}`);
-                });
+                        .catch(function (err) {
+                            console.log(`error message: ${err.message}`);
+                        });
                     return;
                 }
 
@@ -1034,7 +1470,7 @@
 
             window.navigateActivityWeek = navigateActivityWeek;
 
-            document.addEventListener('mouseover', function(event) {
+            document.addEventListener('mouseover', function (event) {
                 const link = event.target.closest('a');
                 if (!link) return;
                 const href = link.getAttribute('href');
@@ -1043,7 +1479,7 @@
                 }
             }, { passive: true });
 
-            document.addEventListener('touchstart', function(event) {
+            document.addEventListener('touchstart', function (event) {
                 const link = event.target.closest('a');
                 if (!link) return;
                 const href = link.getAttribute('href');
@@ -1052,7 +1488,7 @@
                 }
             }, { passive: true });
 
-            document.addEventListener('click', function(event) {
+            document.addEventListener('click', function (event) {
                 if (event.defaultPrevented) return;
                 const link = event.target.closest('a');
                 if (!link) return;
@@ -1088,7 +1524,7 @@
                 loadTabContent(targetUrl.href);
             });
 
-            window.addEventListener('popstate', function(event) {
+            window.addEventListener('popstate', function (event) {
                 if (event.state && event.state.targetUrl) {
                     loadTabContent(event.state.targetUrl, false);
                 } else {
@@ -1111,9 +1547,9 @@
                 '/production/planning',
                 '/production/monitoring'
             ];
-            const scheduleWarmup = window.requestIdleCallback || function(cb) { setTimeout(cb, 1200); };
-            scheduleWarmup(function() {
-                warmupTabs.forEach(function(tabPath) {
+            const scheduleWarmup = window.requestIdleCallback || function (cb) { setTimeout(cb, 1200); };
+            scheduleWarmup(function () {
+                warmupTabs.forEach(function (tabPath) {
                     const fullTabUrl = new URL(tabPath, window.location.origin).href;
                     prefetchTab(fullTabUrl);
                 });
@@ -1121,4 +1557,5 @@
         });
     </script>
 </body>
+
 </html>

@@ -3,18 +3,39 @@
 {% block content %}
 <link rel="stylesheet" href="/production/feature-static/reports/report.css">
 
-<div class="printHeader">
-    <h1 style="margin: 0; font-size: 22px;">Production Performance &amp; Material Analytics Report</h1>
-    <div style="font-size: 12px; color: #666666; margin-top: 4px;">
-        Velmora Co. Production &amp; Manufacturing Management System &middot; Generated on Live Database
+<div class="printDocumentHeader">
+    <div class="printHeaderMain">
+        <div class="printCompany">
+            <h1 class="printCompanyName">velmora co.</h1>
+            <div class="printDepartment">Manufacturing &amp; Production</div>
+            <div class="printAddress">San Pablo City, Laguna, Philippines</div>
+        </div>
+        <div class="printMeta">
+            <div class="printReportTitle">PRODUCTION SUMMARY</div>
+            <table class="printMetaTable">
+                <tr>
+                    <td>Date:</td>
+                    <td><strong>{{ reportDate }}</strong></td>
+                </tr>
+                <tr>
+                    <td>Prepared By:</td>
+                    <td><strong>{{ session.get('employee_name', 'Dave Cagalitan') }}</strong></td>
+                </tr>
+                <tr>
+                    <td>Designation:</td>
+                    <td><strong>Production Manager</strong></td>
+                </tr>
+            </table>
+        </div>
     </div>
+    <div class="printHeaderDivider"></div>
 </div>
 
-<div class="headerRow" id="reportPageHeader" style="margin-bottom: 16px;">
+<div class="headerRow" id="reportPageHeader">
     <div>
-        <h2 style="margin: 0 0 4px 0;">Production Performance &amp; Reports</h2>
-        <span style="color: var(--mt); font-size: 13.5px;">Executive analytics, batch cost performance, and operational
-            audit trail</span>
+        <h2>Production Reports</h2>
+        <span style="color: var(--mt); font-size: 13.5px;">Batch cost performance, raw material consumption, and
+            dispatch audit trail</span>
     </div>
     <div id="reportActionBtnGroup">
         <button type="button" class="actionButton secondary" onclick="window.print()">&darr; Export / Print
@@ -22,93 +43,91 @@
     </div>
 </div>
 
-<div class="reportMainTabs"
-    style="display: flex; gap: 8px; margin-bottom: 20px; border-bottom: 1.5px solid var(--bd); padding-bottom: 12px;">
-    <button type="button" class="auditTabBtn active" id="mainTabExecutive" onclick="switchReportMainTab('executive')">
-        Executive Analytics &amp; KPIs
-    </button>
-    <button type="button" class="auditTabBtn" id="mainTabAudit" onclick="switchReportMainTab('audit')">
-        Audit &amp; Transaction Logs ({{ issuances|length + outputRecords|length }})
-    </button>
-</div>
+<div class="card">
+    <div class="workspaceToolbar" id="reportWorkspaceToolbar">
+        <div class="workspaceFilterTabs" role="tablist">
+            <button type="button" class="workspaceTabBtn active" data-reporttab="orders"
+                onclick="setReportWorkspaceTab('orders')">
+                <span>Batch Summary</span>
+                <span class="workspaceTabCount">{{ summary.totalOrders }}</span>
+            </button>
+            <button type="button" class="workspaceTabBtn" data-reporttab="materials"
+                onclick="setReportWorkspaceTab('materials')">
+                <span>Material Consumption</span>
+                <span class="workspaceTabCount">{{ materialUsage|length }}</span>
+            </button>
+            <span class="workspaceTabDivider"></span>
+            <button type="button" class="workspaceTabBtn" data-reporttab="dispatches"
+                onclick="setReportWorkspaceTab('dispatches')">
+                <span>Material Dispatches</span>
+                <span class="workspaceTabCount">{{ issuances|length }}</span>
+            </button>
+        </div>
 
-<div id="paneExecutiveReport">
-    <div class="metricGrid">
-        <div class="metricCard">
-            <small>Units Output</small>
-            <b>{{ summary.totalCompletedUnits }} / {{ summary.totalPlannedUnits }} units</b>
-            <div style="color: var(--mt); font-size: 11.5px; margin-top: 3px;">{{ summary.completionRate }}% volume
-                fulfillment</div>
+        <div class="workspaceMetaGroup" id="reportToolbarOrders">
+            <span class="workspaceMetaPill">Output: <b>{{ summary.totalCompletedUnits }} / {{ summary.totalPlannedUnits
+                    }} units</b></span>
+            <span class="workspaceMetaPill success">Incurred Cost: <b>₱{{ "{:,.2f}".format(summary.totalIncurredCost)
+                    }}</b></span>
         </div>
-        <div class="metricCard">
-            <small>Batch Completion</small>
-            <b>{{ summary.completedOrders }} / {{ summary.totalOrders }} Batches</b>
-            <div style="color: var(--mt); font-size: 11.5px; margin-top: 3px;">{{ summary.inProgressOrders }} currently
-                in progress</div>
+
+        <div class="workspaceMetaGroup" id="reportToolbarMaterials" style="display: none;">
+            <span class="workspaceMetaPill">Batches Issued: <b>{{ summary.inProgressOrders + summary.completedOrders
+                    }}</b></span>
+            <span class="workspaceMetaPill success">Total Consumed: <b>₱{{
+                    "{:,.2f}".format(summary.totalMaterialExpense) }}</b></span>
         </div>
-        <div class="metricCard">
-            <small>Factory Cost Incurred</small>
-            <b>₱{{ "{:,.2f}".format(summary.totalRecordedCost) }}</b>
-            <div style="color: var(--mt); font-size: 11.5px; margin-top: 3px;">Recorded job cost total</div>
+
+        <div class="workspaceMetaGroup reportAuditFilterWrap" id="reportToolbarDispatches" style="display: none;">
+            <select id="auditOrderSelect" class="reportCompactSelect" onchange="applyReportFilters()">
+                <option value="">All Orders</option>
+                {% set seenOrders = [] %}
+                {% for iss in issuances %}
+                {% if iss.orderID not in seenOrders %}
+                {% set _ = seenOrders.append(iss.orderID) %}
+                <option value="PO-{{ iss.orderID }}">Order #PO-{{ iss.orderID }}</option>
+                {% endif %}
+                {% endfor %}
+            </select>
+            <div class="reportCompactDateGroup">
+                <input type="date" id="auditDateFrom" class="reportCompactDate" title="From Date"
+                    onchange="applyReportFilters()">
+                <span style="color: var(--mt); font-size: 11.5px;">to</span>
+                <input type="date" id="auditDateTo" class="reportCompactDate" title="To Date"
+                    onchange="applyReportFilters()">
+            </div>
+            <button type="button" class="reportCompactResetBtn" onclick="resetAuditFilters()">Reset</button>
         </div>
-        <div class="metricCard">
-            <small>Raw Materials Consumed</small>
-            <b>₱{{ "{:,.2f}".format(summary.totalMaterialExpense) }}</b>
-            <div style="color: var(--mt); font-size: 11.5px; margin-top: 3px;">{{ materialUsage|length }} raw materials
-                issued</div>
-        </div>
+        <input type="hidden" id="reportActiveTabInput" value="orders">
     </div>
 
-    <div class="card">
-        <form class="toolBar" style="margin-bottom: 22px;" onsubmit="return false;">
-            <select id="reportStatusSelect" style="width: 220px;" onchange="filterReportOrders()">
-                <option value="">All Lifecycle Stages ({{ summary.totalOrders }})</option>
-                <option value="In Progress">In Progress ({{ summary.inProgressOrders }})</option>
-                <option value="Completed">Completed ({{ summary.completedOrders }})</option>
-                <option value="Released">Released ({{ summary.releasedOrders }})</option>
-                <option value="Draft">Draft ({{ summary.draftOrders }})</option>
-            </select>
-            <button type="button" id="reportResetBtn" class="actionButton secondary" style="padding: 8px 14px; font-size: 13px; display: none;" onclick="resetReportFilter()">Reset</button>
-        </form>
-
-        <div class="headerRow" style="margin-bottom: 14px;">
-            <div>
-                <h3 style="margin: 0;">Production Orders Performance Ledger</h3>
-                <small style="color: var(--mt);">Real-time progress, scheduled timelines, and batch cost audit</small>
-            </div>
-            <span id="reportBatchBadge" class="statusBadge inProgress">{{ reportRows|length }} {{ 'Batch' if reportRows|length == 1 else 'Batches' }}</span>
-        </div>
-
+    <div id="reportSectionOrders" class="reportWorkspaceSection">
+        <div class="printSectionHeading">1. Production Orders</div>
         <div class="tableContainer">
             <table class="reportTable">
                 <thead>
                     <tr>
                         <th>Order Reference</th>
-                        <th>Batch Size</th>
                         <th>Status</th>
                         <th>Workshop Progress</th>
-                        <th>Schedule Dates</th>
-                        <th>Completion</th>
-                        <th>Total Cost</th>
+                        <th>Schedule Timeline</th>
+                        <th>Batch Cost</th>
                         <th>Est. Value</th>
                     </tr>
                 </thead>
                 <tbody>
                     {% for r in reportRows %}
-                    <tr class="reportOrderRow" data-status="{{ r.status }}">
+                    <tr class="reportOrderRow" data-status="{{ r.status }}"
+                        data-search="po-{{ r.order_id }} {{ r.furniture_name|lower }} {{ r.furniture_type|lower }} {{ r.status|lower }}">
                         <td data-label="Order">
                             <div>
                                 <a href="/production/orders/{{ r.order_id }}"
-                                    style="color: var(--p); font-weight: 700; text-decoration: none; font-size: 13.5px;">Order
+                                    style="color: var(--tx); font-weight: 700; text-decoration: none; font-size: 13.5px;">Order
                                     #PO-{{ r.order_id }}</a>
                             </div>
                             <div style="color: var(--tx); font-size: 12px; margin-top: 2px;">
-                                {{ r.furniture_name }} &middot; <small style="color: var(--mt);">{{ r.furniture_type
-                                    }}</small>
+                                {{ r.furniture_name }} &middot; <b>{{ r.planned_quantity }} units</b>
                             </div>
-                        </td>
-                        <td data-label="Batch Size">
-                            <b>{{ r.planned_quantity }} units</b>
                         </td>
                         <td data-label="Status">
                             <span
@@ -125,28 +144,24 @@
                                     int }}%</span>
                             </div>
                         </td>
-                        <td data-label="Dates">
-                            <div style="font-size: 12.5px;">Start: {{ r.formattedStartDate }}</div>
-                            <div style="font-size: 12px; color: var(--mt); margin-top: 2px;">Due: {{ r.formattedDueDate
+                        <td data-label="Timeline">
+                            <div style="font-size: 12.5px;">Start: <b>{{ r.formattedStartDate }}</b></div>
+                            {% if r.status == 'Completed' and r.completion_date %}
+                            <div style="font-size: 12px; color: var(--p); font-weight: 600; margin-top: 2px;">Done: {{
+                                r.formattedCompletionDate }}</div>
+                            {% else %}
+                            <div style="font-size: 12px; color: var(--mt); margin-top: 2px;">due: {{ r.formattedDueDate
                                 }}</div>
-                        </td>
-                        <td data-label="Completion">
-                            {% if r.status == 'Completed' %}
-                            <b style="color: var(--p); font-size: 12.5px;">{{ r.formattedCompletionDate }}</b>
-                            {% elif r.status == 'In Progress' %}
-                            <span style="color: #8e622a; font-size: 12.5px;">In Progress</span>
-                            {% else %}
-                            <span style="color: var(--mt); font-size: 12px;">Not Started</span>
                             {% endif %}
                         </td>
-                        <td data-label="Total Cost">
-                            {% if r.total_cost is not none and r.total_cost > 0 %}
-                            <b style="color: var(--p); font-size: 13.5px;">₱{{ "{:,.2f}".format(r.total_cost) }}</b>
-                            {% if r.cost_id %}
-                            <div style="font-size: 10.5px; color: var(--mt);">Ref #CST-{{ r.cost_id }}</div>
-                            {% endif %}
+                        <td data-label="Batch Cost">
+                            {% if r.hasCostSheet %}
+                            <b style="color: var(--tx); font-size: 13.5px;">₱{{ "{:,.2f}".format(r.effectiveCost) }}</b>
+                            {% elif r.effectiveCost > 0 %}
+                            <b style="color: var(--tx); font-size: 13.5px;">₱{{ "{:,.2f}".format(r.effectiveCost) }}</b>
+                            <div style="font-size: 11px; color: #8e622a;">materials only</div>
                             {% else %}
-                            <span style="color: var(--mt); font-size: 12px;">Pending</span>
+                            <span style="color: var(--mt); font-size: 12px;">No Materials Issued</span>
                             {% endif %}
                         </td>
                         <td data-label="Est. Value">
@@ -155,32 +170,47 @@
                     </tr>
                     {% else %}
                     <tr>
-                        <td colspan="8" style="text-align: center; color: var(--mt); padding: 28px;">
+                        <td colspan="6" style="text-align: center; color: var(--mt); padding: 28px;">
                             No production orders recorded yet.
                         </td>
                     </tr>
                     {% endfor %}
-                    <tr id="reportEmptyRow" style="display: none;">
-                        <td colspan="8" style="text-align: center; color: var(--mt); padding: 28px;">
-                            No production orders match your filter criteria.
+                    <tr id="ordersEmptyFilterRow" style="display: none;">
+                        <td colspan="6" style="text-align: center; color: var(--mt); padding: 28px;">
+                            No production orders match your search criteria.
                         </td>
                     </tr>
                 </tbody>
             </table>
         </div>
-
-        <div style="height: 1px; background: var(--bd); margin: 32px 0 24px 0;"></div>
-
-        <div class="headerRow" style="margin-bottom: 14px;">
-            <div>
-                <h3 style="margin: 0;">Raw Material Usage &amp; Consumption Ledger</h3>
-                <small style="color: var(--mt);">Authoritative rollup of raw materials issued from inventory to workshop
-                    production batches</small>
+        <div class="auditPagination" id="ordersPagination"
+            style="margin-top: 14px; padding-top: 12px; border-top: 1px solid var(--bd);">
+            <div style="display: flex; align-items: center; gap: 12px; flex-wrap: wrap;">
+                <span class="auditPaginationInfo" id="ordersPageInfo"></span>
+                <div style="display: inline-flex; align-items: center; gap: 6px;">
+                    <label style="font-size: 12px; color: var(--mt);">Per page:</label>
+                    <select id="ordersPageSizeSelect" onchange="changeReportPageSize('orders', this.value)"
+                        style="padding: 4px 8px; font-size: 12px; border-radius: 6px;">
+                        <option value="10" selected>10</option>
+                        <option value="25">25</option>
+                        <option value="50">50</option>
+                    </select>
+                </div>
             </div>
-            <span class="statusBadge inProgress">{{ materialUsage|length }} {{ 'Material' if materialUsage|length == 1
-                else 'Materials' }}</span>
+            <div class="auditPaginationControls">
+                <button type="button" class="actionButton secondary" id="ordersPrevBtn"
+                    onclick="changeReportPage('orders', -1)" style="padding: 5px 12px; font-size: 12px;">&larr;
+                    Prev</button>
+                <span id="ordersPageIndicator" style="font-size: 12.5px; font-weight: 600; color: var(--tx);"></span>
+                <button type="button" class="actionButton secondary" id="ordersNextBtn"
+                    onclick="changeReportPage('orders', 1)" style="padding: 5px 12px; font-size: 12px;">Next
+                    &rarr;</button>
+            </div>
         </div>
+    </div>
 
+    <div id="reportSectionMaterials" class="reportWorkspaceSection" style="display: none;">
+        <div class="printSectionHeading">2. Raw Material Consumption</div>
         <div class="tableContainer">
             <table class="reportTable">
                 <thead>
@@ -190,12 +220,12 @@
                         <th>Standard Unit Cost</th>
                         <th>Total Quantity Issued</th>
                         <th>Total Material Expense</th>
-                        <th>Orders Consumed In</th>
+                        <th>Consumed In</th>
                     </tr>
                 </thead>
                 <tbody>
                     {% for m in materialUsage %}
-                    <tr>
+                    <tr class="reportMaterialRow" data-search="{{ m.material_name|lower }} {{ m.unit|lower }}">
                         <td data-label="Material">
                             <b>{{ m.material_name }}</b>
                         </td>
@@ -210,232 +240,159 @@
                                 }}</b>
                         </td>
                         <td data-label="Expense">
-                            <b style="color: var(--p); font-size: 13.5px;">₱{{
+                            <b style="color: var(--tx); font-size: 13.5px;">₱{{
                                 "{:,.2f}".format(m.total_material_expense) }}</b>
                         </td>
-                        <td data-label="Orders Count">
-                            <b>{{ m.orders_consumed_count }}</b> Batches
+                        <td data-label="Consumed In">
+                            <b>{{ m.orders_consumed_count }}</b> {{ 'batch' if m.orders_consumed_count == 1 else
+                            'batches' }}
                         </td>
                     </tr>
                     {% else %}
                     <tr>
                         <td colspan="6" style="text-align: center; color: var(--mt); padding: 28px;">
-                            No material issuances recorded yet. Issuing materials to production orders will populate
-                            this consumption ledger.
+                            No material issuances recorded yet.
                         </td>
                     </tr>
                     {% endfor %}
+                    <tr id="materialsEmptyFilterRow" style="display: none;">
+                        <td colspan="6" style="text-align: center; color: var(--mt); padding: 28px;">
+                            No raw material usage records match your search criteria.
+                        </td>
+                    </tr>
                 </tbody>
                 {% if materialUsage %}
                 <tfoot>
                     <tr>
-                        <td colspan="4" style="text-align: right;">Total Factory Material Consumption Expense:</td>
-                        <td colspan="2"><b style="color: var(--p); font-size: 14px;">₱{{
+                        <td colspan="4" style="text-align: right;">Total Material Consumption Expense:</td>
+                        <td colspan="2"><b style="color: var(--tx); font-size: 14px;">₱{{
                                 "{:,.2f}".format(summary.totalMaterialExpense) }}</b></td>
                     </tr>
                 </tfoot>
                 {% endif %}
             </table>
         </div>
-    </div>
-</div>
-
-<div id="paneAuditReport" style="display: none;">
-    <div class="auditSummaryRow">
-        <div class="auditSummaryCard">
-            <span class="auditSummaryLabel">Total Dispatches</span>
-            <b class="auditSummaryVal">{{ issuances|length }}</b>
-        </div>
-        <div class="auditSummaryCard">
-            <span class="auditSummaryLabel">Quality Handoffs</span>
-            <b class="auditSummaryVal">{{ outputRecords|length }}</b>
-        </div>
-        <div class="auditSummaryCard">
-            <span class="auditSummaryLabel">Last Activity</span>
-            <b class="auditSummaryVal" style="font-size: 18px;">{{ lastActivity }}</b>
-        </div>
-    </div>
-
-    <div class="card" style="padding: 16px 20px;">
-        <div class="auditTabNav">
-            <button type="button" class="auditTabBtn active" id="tabBtnDispatches"
-                onclick="switchAuditTab('dispatches')">
-                Material Dispatches ({{ issuances|length }})
-            </button>
-            <button type="button" class="auditTabBtn" id="tabBtnQuality" onclick="switchAuditTab('quality')">
-                Quality Handoffs ({{ outputRecords|length }})
-            </button>
-        </div>
-
-        <div class="auditFilterBar">
-            <div class="auditFilterItem" style="flex: 1; min-width: 200px;">
-                <input type="text" id="auditSearchInput" class="auditFilterInput"
-                    placeholder="Search by Order #, Product, Material..." oninput="applyAuditFilters()">
+        <div class="auditPagination" id="materialsPagination"
+            style="margin-top: 14px; padding-top: 12px; border-top: 1px solid var(--bd);">
+            <div style="display: flex; align-items: center; gap: 12px; flex-wrap: wrap;">
+                <span class="auditPaginationInfo" id="materialsPageInfo"></span>
+                <div style="display: inline-flex; align-items: center; gap: 6px;">
+                    <label style="font-size: 12px; color: var(--mt);">Per page:</label>
+                    <select id="materialsPageSizeSelect" onchange="changeReportPageSize('materials', this.value)"
+                        style="padding: 4px 8px; font-size: 12px; border-radius: 6px;">
+                        <option value="10" selected>10</option>
+                        <option value="25">25</option>
+                        <option value="50">50</option>
+                    </select>
+                </div>
             </div>
-            <div class="auditFilterItem">
-                <select id="auditOrderSelect" class="auditFilterSelect" onchange="applyAuditFilters()">
-                    <option value="">All Orders</option>
-                    {% set seenOrders = [] %}
+            <div class="auditPaginationControls">
+                <button type="button" class="actionButton secondary" id="materialsPrevBtn"
+                    onclick="changeReportPage('materials', -1)" style="padding: 5px 12px; font-size: 12px;">&larr;
+                    Prev</button>
+                <span id="materialsPageIndicator" style="font-size: 12.5px; font-weight: 600; color: var(--tx);"></span>
+                <button type="button" class="actionButton secondary" id="materialsNextBtn"
+                    onclick="changeReportPage('materials', 1)" style="padding: 5px 12px; font-size: 12px;">Next
+                    &rarr;</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="reportSectionDispatches" class="reportWorkspaceSection" style="display: none;">
+        <div class="tableContainer">
+            <table class="reportTable">
+                <thead>
+                    <tr>
+                        <th>Issuance Ref</th>
+                        <th>Associated Order</th>
+                        <th>Raw Material</th>
+                        <th style="text-align: center;">Dispatched Quantity</th>
+                        <th>Issue Date</th>
+                        <th>Issued By</th>
+                    </tr>
+                </thead>
+                <tbody id="dispatchesTableBody">
                     {% for iss in issuances %}
-                    {% if iss.orderID not in seenOrders %}
-                    {% set _ = seenOrders.append(iss.orderID) %}
-                    <option value="PO-{{ iss.orderID }}">Order #PO-{{ iss.orderID }}</option>
-                    {% endif %}
+                    <tr class="dispatchRow" data-order="PO-{{ iss.orderID }}"
+                        data-search="is-{{ iss.issuanceID }} po-{{ iss.orderID }} {{ iss.furnitureName|lower }} {{ iss.materialName|lower }} {{ (iss.recordedBy or '')|lower }}"
+                        data-date="{{ iss.issueDate }}">
+                        <td data-label="Issuance Ref"><b>#IS-{{ iss.issuanceID }}</b></td>
+                        <td data-label="Associated Order">
+                            <a href="/production/orders/{{ iss.orderID }}"
+                                style="color: var(--tx); font-weight: 700; text-decoration: none;">Order #PO-{{
+                                iss.orderID }}</a>
+                            <div style="color: var(--mt); font-size: 12px; margin-top: 2px;">{{ iss.furnitureName }}
+                            </div>
+                        </td>
+                        <td data-label="Raw Material"><b>{{ iss.materialName }}</b></td>
+                        <td data-label="Dispatched Quantity" style="text-align: center; font-weight: 600;">
+                            {{ "{:,.3f}".format(iss.quantityIssued).rstrip('0').rstrip('.') }} {{ iss.unit }}
+                        </td>
+                        <td data-label="Issue Date">{{ iss.issueDate|date_fmt }}</td>
+                        <td data-label="Issued By">
+                            <span style="font-weight: 500; color: var(--tx);">{{ iss.recordedBy or 'Dave Cagalitan'
+                                }}</span>
+                        </td>
+                    </tr>
+                    {% else %}
+                    <tr>
+                        <td colspan="6" style="text-align: center; color: var(--mt); padding: 28px;">No material
+                            dispatch records recorded yet.</td>
+                    </tr>
                     {% endfor %}
-                    {% for o in outputRecords %}
-                    {% if o.orderID not in seenOrders %}
-                    {% set _ = seenOrders.append(o.orderID) %}
-                    <option value="PO-{{ o.orderID }}">Order #PO-{{ o.orderID }}</option>
-                    {% endif %}
-                    {% endfor %}
-                </select>
-            </div>
-            <div class="auditFilterItem" style="display: flex; align-items: center; gap: 6px;">
-                <input type="date" id="auditDateFrom" class="auditFilterInput" title="From Date"
-                    onchange="applyAuditFilters()">
-                <span style="color: var(--mt); font-size: 12px;">to</span>
-                <input type="date" id="auditDateTo" class="auditFilterInput" title="To Date"
-                    onchange="applyAuditFilters()">
-            </div>
-            <button type="button" class="auditResetBtn" onclick="resetAuditFilters()">Reset</button>
+                    <tr id="dispatchesEmptyFilterRow" style="display: none;">
+                        <td colspan="6" style="text-align: center; color: var(--mt); padding: 28px;">
+                            No dispatch records match your filter criteria.
+                        </td>
+                    </tr>
+                </tbody>
+            </table>
         </div>
-
-        <div id="paneDispatches" class="auditTabPane active">
-            <div class="tableContainer auditTableWrapper">
-                <table class="auditTable">
-                    <thead>
-                        <tr>
-                            <th style="width: 130px;">Issuance Ref</th>
-                            <th>Associated Order</th>
-                            <th>Raw Material</th>
-                            <th style="text-align: right; width: 150px;">Dispatched Quantity</th>
-                            <th style="width: 120px;">Issue Date</th>
-                            <th style="width: 140px;">Issued By</th>
-                        </tr>
-                    </thead>
-                    <tbody id="dispatchesTableBody">
-                        {% for iss in issuances %}
-                        <tr class="auditRow dispatchRow" data-order="PO-{{ iss.orderID }}"
-                            data-search="PO-{{ iss.orderID }} {{ iss.furnitureName|lower }} {{ iss.materialName|lower }} {{ (iss.recordedBy or '')|lower }}"
-                            data-date="{{ iss.issueDate }}">
-                            <td data-label="Issuance Ref"><b>#IS-{{ iss.issuanceID }}</b></td>
-                            <td data-label="Associated Order">
-                                <a href="/production/orders/{{ iss.orderID }}"
-                                    class="auditOrderLink">Order #PO-{{ iss.orderID }}</a>
-                                <span style="color: var(--mt); font-size: 12.5px;">&middot; {{ iss.furnitureName
-                                    }}</span>
-                            </td>
-                            <td data-label="Raw Material"><b>{{ iss.materialName }}</b></td>
-                            <td data-label="Dispatched Quantity" style="text-align: right; font-weight: 600;">
-                                {{ "{:,.3f}".format(iss.quantityIssued).rstrip('0').rstrip('.') }} {{ iss.unit }}
-                            </td>
-                            <td data-label="Issue Date">{{ iss.issueDate|date_fmt }}</td>
-                            <td data-label="Issued By">
-                                <span style="font-weight: 500; color: var(--tx);">{{ iss.recordedBy or 'Dave Cagalitan'
-                                    }}</span>
-                            </td>
-                        </tr>
-                        {% else %}
-                        <tr class="auditEmptyRow">
-                            <td colspan="6" class="auditEmptyCell">No dispatch records recorded.</td>
-                        </tr>
-                        {% endfor %}
-                    </tbody>
-                </table>
-            </div>
-            <div class="auditPagination" id="dispatchesPagination">
+        <div class="auditPagination" id="dispatchesPagination"
+            style="margin-top: 14px; padding-top: 12px; border-top: 1px solid var(--bd);">
+            <div style="display: flex; align-items: center; gap: 12px; flex-wrap: wrap;">
                 <span class="auditPaginationInfo" id="dispatchesPageInfo"></span>
-                <div class="auditPaginationControls">
-                    <button type="button" class="btn" id="dispatchesPrevBtn"
-                        onclick="changeAuditPage('dispatches', -1)">&larr; Prev</button>
-                    <span id="dispatchesPageIndicator"
-                        style="font-size: 12.5px; font-weight: 600; color: var(--tx);"></span>
-                    <button type="button" class="btn" id="dispatchesNextBtn"
-                        onclick="changeAuditPage('dispatches', 1)">Next &rarr;</button>
+                <div style="display: inline-flex; align-items: center; gap: 6px;">
+                    <label style="font-size: 12px; color: var(--mt);">Per page:</label>
+                    <select id="dispatchesPageSizeSelect" onchange="changeReportPageSize('dispatches', this.value)"
+                        style="padding: 4px 8px; font-size: 12px; border-radius: 6px;">
+                        <option value="10" selected>10</option>
+                        <option value="25">25</option>
+                        <option value="50">50</option>
+                    </select>
                 </div>
+            </div>
+            <div class="auditPaginationControls">
+                <button type="button" class="actionButton secondary" id="dispatchesPrevBtn"
+                    onclick="changeReportPage('dispatches', -1)" style="padding: 5px 12px; font-size: 12px;">&larr;
+                    Prev</button>
+                <span id="dispatchesPageIndicator"
+                    style="font-size: 12.5px; font-weight: 600; color: var(--tx);"></span>
+                <button type="button" class="actionButton secondary" id="dispatchesNextBtn"
+                    onclick="changeReportPage('dispatches', 1)" style="padding: 5px 12px; font-size: 12px;">Next
+                    &rarr;</button>
             </div>
         </div>
+    </div>
 
-        <div id="paneQuality" class="auditTabPane">
-            <div class="tableContainer auditTableWrapper qualityWrapper">
-                <table class="auditTable qualityTable">
-                    <thead>
-                        <tr>
-                            <th style="width: 140px;">Inspection Ref</th>
-                            <th>Order Reference</th>
-                            <th>Furniture Product</th>
-                            <th style="text-align: right; width: 130px;">Inspected Units</th>
-                            <th style="width: 120px;">Quality Status</th>
-                            <th>Inventory Stock Effect</th>
-                            <th style="width: 140px;">Inspected By</th>
-                        </tr>
-                    </thead>
-                    <tbody id="qualityTableBody">
-                        {% for o in outputRecords %}
-                        <tr class="auditRow qualityRow" data-order="PO-{{ o.orderID }}"
-                            data-search="PO-{{ o.orderID }} {{ o.furnitureName|lower }} {{ o.qualityStatus|lower }} {{ (o.recordedBy or '')|lower }}"
-                            data-date="{{ o.inspectionDate }}">
-                            <td data-label="Inspection Ref">
-                                <b>#OP-{{ o.outputID }}</b>
-                                <div class="auditDateSub">{{ o.formattedInspectionDate }}</div>
-                            </td>
-                            <td data-label="Order Reference">
-                                <a href="/production/orders/{{ o.orderID }}"
-                                    class="auditOrderLink">Order #PO-{{ o.orderID }}</a>
-                            </td>
-                            <td data-label="Furniture Product">{{ o.furnitureName }}</td>
-                            <td data-label="Inspected Units" style="text-align: right; font-weight: 600;">{{ o.quantity
-                                }} units</td>
-                            <td data-label="Quality Status">
-                                {% if o.qualityStatus == 'Passed' %}
-                                <span class="statusBadge completed">Passed</span>
-                                {% elif o.qualityStatus == 'Rework' %}
-                                <span class="statusBadge"
-                                    style="background: rgba(181, 143, 85, 0.15); color: #8e622a; border: 1px solid rgba(181, 143, 85, 0.35);">&circlearrowright;
-                                    Rework</span>
-                                {% elif o.qualityStatus == 'Failed' %}
-                                <span class="statusBadge alert">&cross; Failed</span>
-                                {% else %}
-                                <span class="statusBadge draft">{{ o.qualityStatus }}</span>
-                                {% endif %}
-                            </td>
-                            <td data-label="Inventory Effect">
-                                {% if o.qualityStatus == 'Passed' %}
-                                <b style="color: var(--p); font-size: 12.5px;">+{{ o.quantity }} units credited
-                                    to Finished Goods</b>
-                                {% elif o.qualityStatus == 'Rework' %}
-                                <span style="color: #8e622a; font-size: 12.5px;">&circlearrowright; Returned to workshop
-                                    (75%)</span>
-                                {% elif o.qualityStatus == 'Failed' %}
-                                <span style="color: var(--rd); font-size: 12.5px;">&cross; Rejected / Scrapped</span>
-                                {% else %}
-                                <span style="color: var(--mt); font-size: 12.5px;">Pending QA review</span>
-                                {% endif %}
-                            </td>
-                            <td data-label="Inspected By">
-                                <span style="font-weight: 500; color: var(--tx);">{{ o.recordedBy or 'Dave Cagalitan'
-                                    }}</span>
-                            </td>
-                        </tr>
-                        {% else %}
-                        <tr class="auditEmptyRow">
-                            <td colspan="7" class="auditEmptyCell">No quality inspection records recorded.</td>
-                        </tr>
-                        {% endfor %}
-                    </tbody>
-                </table>
+    <div class="printSignoffSection">
+        <div class="printSignoffRow">
+            <div class="printSignoffCol">
+                <div class="printSignoffLabel">Prepared By:</div>
+                <div class="printSignoffLine"></div>
+                <div class="printSignoffName">{{ session.get('employee_name', 'Dave Cagalitan') }}</div>
+                <div class="printSignoffTitle">Production Manager</div>
             </div>
-            <div class="auditPagination" id="qualityPagination">
-                <span class="auditPaginationInfo" id="qualityPageInfo"></span>
-                <div class="auditPaginationControls">
-                    <button type="button" class="btn" id="qualityPrevBtn"
-                        onclick="changeAuditPage('quality', -1)">&larr; Prev</button>
-                    <span id="qualityPageIndicator"
-                        style="font-size: 12.5px; font-weight: 600; color: var(--tx);"></span>
-                    <button type="button" class="btn" id="qualityNextBtn" onclick="changeAuditPage('quality', 1)">Next
-                        &rarr;</button>
-                </div>
+            <div class="printSignoffCol">
+                <div class="printSignoffLabel">Verified &amp; Approved By:</div>
+                <div class="printSignoffLine"></div>
+                <div class="printSignoffName">Operations &amp; Plant Director</div>
+                <div class="printSignoffTitle">Executive Management</div>
             </div>
+        </div>
+        <div class="printDocumentNotice">
+            <span>Confidential &middot; Velmora Co. Production &amp; Manufacturing Operations</span>
+            <span>Generated: {{ reportDate }}</span>
         </div>
     </div>
 </div>

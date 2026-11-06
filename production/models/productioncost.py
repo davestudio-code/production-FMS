@@ -3,7 +3,7 @@ from datetime import date
 from production.db import openTransaction
 
 class ProductionCost:
-    DEFAULT_OVERHEAD_PERCENT = Decimal("0.10")
+    DEFAULT_OVERHEAD_PERCENT = Decimal("0.00")
 
     def __init__(self, data=None):
         if data:
@@ -67,8 +67,8 @@ class ProductionCost:
             return str(self.costDate)
 
     @classmethod
-    def calculateOverhead(cls, materialCost):
-        return (Decimal(str(materialCost)) * cls.DEFAULT_OVERHEAD_PERCENT).quantize(Decimal("0.01"))
+    def calculateOverhead(cls, materialCost=None):
+        return Decimal("0.00")
 
     @classmethod
     def getAll(cls, conn=None):

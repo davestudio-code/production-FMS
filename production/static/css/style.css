@@ -227,6 +227,7 @@ nav {
     from {
         opacity: 0.4;
     }
+
     to {
         opacity: 1;
     }
@@ -243,6 +244,7 @@ nav {
     0% {
         background-position: 200% 0;
     }
+
     100% {
         background-position: -200% 0;
     }
@@ -498,6 +500,7 @@ main {
     from {
         transform: rotate(0deg);
     }
+
     to {
         transform: rotate(360deg);
     }
@@ -614,7 +617,9 @@ h3 {
     color: #3d5225;
 }
 
-.statusBadge.alert, .statusBadge.failed, .statusBadge.cancelled {
+.statusBadge.alert,
+.statusBadge.failed,
+.statusBadge.cancelled {
     background: #faebea;
     border-color: rgba(154, 74, 58, 0.3);
     color: #9a4a3a;
@@ -657,7 +662,8 @@ table {
     font-size: 13.5px;
 }
 
-th, td {
+th,
+td {
     padding: 12px 16px;
     text-align: left;
     border-bottom: 1px solid var(--bd);
@@ -674,7 +680,8 @@ th {
     border-bottom: 1.5px solid var(--bd);
 }
 
-table th:first-child, table td:first-child {
+table th:first-child,
+table td:first-child {
     position: sticky;
     left: 0;
     z-index: 2;
@@ -701,7 +708,9 @@ tr:hover td:first-child {
     background: #f7f1e1;
 }
 
-input:not([type="radio"]):not([type="checkbox"]), select, textarea {
+input:not([type="radio"]):not([type="checkbox"]),
+select,
+textarea {
     padding: 9px 13px;
     border: 1px solid var(--bd);
     border-radius: 8px;
@@ -713,16 +722,20 @@ input:not([type="radio"]):not([type="checkbox"]), select, textarea {
     transition: border-color 0.15s ease;
 }
 
-input:not([type="radio"]):not([type="checkbox"]):focus, select:focus, textarea:focus {
+input:not([type="radio"]):not([type="checkbox"]):focus,
+select:focus,
+textarea:focus {
     border-color: var(--p);
 }
 
-input[type="radio"], input[type="checkbox"] {
+input[type="radio"],
+input[type="checkbox"] {
     accent-color: var(--p);
     cursor: pointer;
 }
 
-button, .actionButton {
+button,
+.actionButton {
     background: var(--p);
     color: var(--pt);
     border: 0;
@@ -739,18 +752,21 @@ button, .actionButton {
     transition: all 0.15s ease;
 }
 
-button:hover, .actionButton:hover {
+button:hover,
+.actionButton:hover {
     background: #55633e;
     transform: translateY(-1px);
 }
 
-button.secondary, .actionButton.secondary {
+button.secondary,
+.actionButton.secondary {
     background: transparent;
     color: var(--tx);
     border: 1px solid var(--bd);
 }
 
-button.secondary:hover, .actionButton.secondary:hover {
+button.secondary:hover,
+.actionButton.secondary:hover {
     background: rgba(213, 199, 170, 0.3);
     border-color: var(--tx);
 }
@@ -1403,7 +1419,8 @@ button.toastClose:hover {
     margin-bottom: 14px;
 }
 
-.auditFilterInput, .auditFilterSelect {
+.auditFilterInput,
+.auditFilterSelect {
     padding: 7px 12px;
     border: 1px solid var(--bd);
     border-radius: 8px;
@@ -1413,7 +1430,8 @@ button.toastClose:hover {
     outline: none;
 }
 
-.auditFilterInput:focus, .auditFilterSelect:focus {
+.auditFilterInput:focus,
+.auditFilterSelect:focus {
     border-color: var(--p);
 }
 
@@ -1514,13 +1532,19 @@ button.toastClose:hover {
     .auditSummaryRow {
         flex-direction: column;
     }
-    .qualityTable, .qualityTable tbody, .qualityTable tr, .qualityTable td {
+
+    .qualityTable,
+    .qualityTable tbody,
+    .qualityTable tr,
+    .qualityTable td {
         display: block;
         width: 100%;
     }
+
     .qualityTable thead {
         display: none;
     }
+
     .qualityTable tr {
         margin-bottom: 12px;
         border: 1px solid var(--bd);
@@ -1528,6 +1552,7 @@ button.toastClose:hover {
         padding: 8px 12px;
         background: #FFFFFF;
     }
+
     .qualityTable td {
         display: flex;
         justify-content: space-between;
@@ -1536,9 +1561,11 @@ button.toastClose:hover {
         border-bottom: 1px dashed var(--bd);
         white-space: normal;
     }
+
     .qualityTable td:last-child {
         border-bottom: none;
     }
+
     .qualityTable td::before {
         content: attr(data-label);
         font-weight: 600;
@@ -1657,6 +1684,7 @@ button.toastClose:hover {
         grid-template-columns: repeat(2, 1fr);
         gap: 12px;
     }
+
     .heroKpiDivider {
         display: none;
     }
@@ -2966,4 +2994,340 @@ button.proofThumbBtn:hover {
     display: block;
 }
 
+.userProfileBar {
+    display: flex;
+    align-items: center;
+    gap: 9px;
+    padding: 7px 10px;
+    background: rgba(246, 238, 218, 0.12);
+    border: 1px solid rgba(213, 199, 170, 0.25);
+    border-radius: 10px;
+    cursor: pointer;
+    transition: background 0.15s ease, border-color 0.15s ease;
+}
 
+.userProfileBar:hover {
+    background: rgba(246, 238, 218, 0.2);
+    border-color: rgba(246, 238, 218, 0.4);
+}
+
+.sidebarSignOutIconBtn {
+    background: rgba(213, 199, 170, 0.18);
+    border: 1px solid rgba(213, 199, 170, 0.35);
+    color: #F6EEDA;
+    width: 32px;
+    height: 32px;
+    border-radius: 8px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    transition: all 0.15s ease;
+    flex-shrink: 0;
+    padding: 0;
+    margin-left: auto;
+}
+
+.sidebarSignOutIconBtn:hover {
+    background: #9A4A3A;
+    border-color: #9A4A3A;
+    color: #FFFFFF;
+    transform: translateY(-1px);
+}
+
+.topAccountContainer {
+    position: relative;
+    display: inline-flex;
+    align-items: center;
+}
+
+button.topUserAvatarBtn {
+    background: transparent;
+    border: none;
+    padding: 0;
+    cursor: pointer;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    outline: none;
+    transform: none;
+}
+
+button.topUserAvatarBtn:hover {
+    transform: none;
+}
+
+button.topUserAvatarBtn:hover .topUserAvatar {
+    box-shadow: 0 0 0 3px rgba(102, 117, 76, 0.25);
+}
+
+.topAccountDropdown {
+    position: absolute;
+    top: calc(100% + 10px);
+    right: 0;
+    width: 310px;
+    max-width: calc(100vw - 28px);
+    background: #ffffff;
+    border: 1px solid var(--bd);
+    border-radius: 12px;
+    box-shadow: 0 12px 28px rgba(33, 40, 24, 0.16);
+    z-index: 250;
+    display: none;
+    flex-direction: column;
+    overflow: hidden;
+}
+
+.topAccountDropdown.open {
+    display: flex;
+}
+
+.topAccountHeader {
+    padding: 14px 16px;
+    background: #faf7ef;
+    border-bottom: 1px solid var(--bd);
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+
+.topAccountAvatarLarge {
+    width: 44px;
+    height: 44px;
+    border-radius: 50%;
+    background: var(--p);
+    color: #ffffff;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 18px;
+    font-weight: 700;
+    flex-shrink: 0;
+    box-shadow: 0 2px 6px rgba(43, 51, 31, 0.15);
+}
+
+.topAccountDetails {
+    display: flex;
+    flex-direction: column;
+    gap: 3px;
+    min-width: 0;
+    flex: 1;
+}
+
+.topAccountName {
+    font-size: 13.5px;
+    font-weight: 700;
+    color: var(--tx);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.topAccountEmail {
+    font-size: 12px;
+    color: var(--mt);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.topAccountBadgeRow {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    margin-top: 3px;
+}
+
+.topAccountDeptPill {
+    font-size: 11px;
+    font-weight: 600;
+    color: var(--mt);
+    background: rgba(43, 51, 31, 0.06);
+    padding: 2px 7px;
+    border-radius: 4px;
+}
+
+.topAccountMenu {
+    padding: 6px;
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    background: #ffffff;
+}
+
+button.topAccountMenuItem {
+    width: 100%;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 9px 10px;
+    background: transparent;
+    border: none;
+    border-radius: 8px;
+    color: var(--tx);
+    font-size: 13px;
+    font-weight: 600;
+    cursor: pointer;
+    text-align: left;
+    transition: background 0.14s ease, color 0.14s ease;
+    transform: none;
+}
+
+button.topAccountMenuItem:hover {
+    background: #f5f0e2;
+    color: var(--tx);
+    transform: none;
+}
+
+.topAccountMenuIcon {
+    width: 28px;
+    height: 28px;
+    border-radius: 7px;
+    background: #f4efe2;
+    color: var(--p);
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    transition: background 0.14s ease, color 0.14s ease;
+}
+
+button.topAccountMenuItem:hover .topAccountMenuIcon {
+    background: rgba(102, 117, 76, 0.18);
+    color: var(--tx);
+}
+
+.topAccountMenuLabel {
+    flex: 1;
+    min-width: 0;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.topAccountMenuChevron {
+    color: var(--mt);
+    opacity: 0.7;
+    flex-shrink: 0;
+    transition: transform 0.14s ease, opacity 0.14s ease;
+}
+
+button.topAccountMenuItem:hover .topAccountMenuChevron {
+    transform: translateX(2px);
+    opacity: 1;
+}
+
+.topAccountMenuDivider {
+    height: 1px;
+    background: var(--bd);
+    margin: 0;
+}
+
+button.topAccountMenuItem.dangerItem {
+    color: #9A4A3A;
+}
+
+button.topAccountMenuItem.dangerItem .topAccountMenuIcon {
+    background: rgba(154, 74, 58, 0.1);
+    color: #9A4A3A;
+}
+
+button.topAccountMenuItem.dangerItem:hover {
+    background: rgba(154, 74, 58, 0.09);
+    color: #9A4A3A;
+}
+
+button.topAccountMenuItem.dangerItem:hover .topAccountMenuIcon {
+    background: #9A4A3A;
+    color: #ffffff;
+}
+
+.signOutIconCircle {
+    width: 52px;
+    height: 52px;
+    border-radius: 50%;
+    background: rgba(154, 74, 58, 0.12);
+    color: #9A4A3A;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin: 0 auto;
+}
+
+.accountModalTabs {
+    display: flex;
+    gap: 6px;
+    background: #f4efe2;
+    padding: 4px;
+    border-radius: 9px;
+    margin-bottom: 16px;
+    border: 1px solid var(--bd);
+}
+
+button.accountModalTabBtn {
+    flex: 1;
+    background: transparent;
+    color: var(--mt);
+    border: none;
+    padding: 8px 12px;
+    font-size: 12.5px;
+    font-weight: 600;
+    border-radius: 6px;
+    cursor: pointer;
+    transition: all 0.15s ease;
+    transform: none;
+}
+
+button.accountModalTabBtn:hover {
+    color: var(--tx);
+    background: rgba(255, 255, 255, 0.5);
+    transform: none;
+}
+
+button.accountModalTabBtn.active {
+    background: #ffffff;
+    color: var(--tx);
+    box-shadow: 0 2px 6px rgba(33, 40, 24, 0.08);
+}
+
+.formRowGrid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 12px;
+}
+
+@media (max-width: 520px) {
+    .formRowGrid {
+        grid-template-columns: 1fr;
+    }
+}
+
+.accountCooldownNotice {
+    padding: 9px 12px;
+    background: #faf7ef;
+    border: 1px solid var(--bd);
+    border-radius: 8px;
+    font-size: 12px;
+    color: var(--mt);
+    line-height: 1.45;
+}
+
+.accountFormFeedback {
+    margin-top: 12px;
+    padding: 9px 12px;
+    border-radius: 8px;
+    font-size: 12.5px;
+    font-weight: 600;
+}
+
+.accountFormFeedback.error {
+    background: rgba(154, 74, 58, 0.1);
+    border: 1px solid rgba(154, 74, 58, 0.3);
+    color: #9A4A3A;
+}
+
+.accountFormFeedback.success {
+    background: rgba(102, 117, 76, 0.12);
+    border: 1px solid rgba(102, 117, 76, 0.3);
+    color: var(--p);
+}
