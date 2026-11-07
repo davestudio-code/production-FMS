@@ -238,6 +238,27 @@ body {
   color: var(--olive-dark);
 }
 
+.form-options {
+  display: flex;
+  justify-content: flex-end;
+  margin-top: -6px;
+  margin-bottom: 14px;
+  padding: 0 8px;
+}
+
+.forgot-password {
+  color: var(--text-muted);
+  font-size: 0.85rem;
+  text-decoration: none;
+  font-weight: 500;
+  transition: color 0.15s ease;
+}
+
+.forgot-password:hover {
+  color: var(--olive-dark);
+  text-decoration: underline;
+}
+
 .btn-submit {
   width: 100%;
   background: var(--olive-btn);
@@ -263,6 +284,13 @@ body {
   background: var(--olive-hover);
   transform: translateY(-1px);
   box-shadow: 0 10px 24px rgba(63, 77, 40, 0.35);
+}
+
+.btn-submit:disabled {
+  opacity: 0.78;
+  cursor: not-allowed;
+  transform: none;
+  box-shadow: none;
 }
 
 .form-footer {

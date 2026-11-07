@@ -23,7 +23,11 @@ const submit = async (event) => {
     const form = event.target;
     const submitBtn = form.querySelector('.btn-submit');
     const formData = new FormData(form);
-    if (submitBtn) submitBtn.disabled = true;
+    let isSuccess = false;
+    if (submitBtn) {
+        submitBtn.disabled = true;
+        submitBtn.innerHTML = '<span>Signing in...</span><i class="fas fa-circle-notch fa-spin"></i>';
+    }
 
     try {
         const response = await fetch(form.action, {
@@ -33,6 +37,7 @@ const submit = async (event) => {
         });
         const data = await response.json();
         if (data.success) {
+            isSuccess = true;
             window.location.href = data.redirect || '/production/';
             return;
         }
@@ -61,7 +66,10 @@ const submit = async (event) => {
     } catch (error) {
         console.log(`error message: ${error.message}`);
     } finally {
-        if (submitBtn) submitBtn.disabled = false;
+        if (submitBtn && !isSuccess) {
+            submitBtn.disabled = false;
+            submitBtn.innerHTML = '<span>Login</span><i class="fas fa-arrow-right"></i>';
+        }
     }
 };
 
@@ -86,6 +94,23 @@ document.addEventListener('DOMContentLoaded', function () {
                 eyeIcon.classList.remove('fa-eye-slash');
                 eyeIcon.classList.add('fa-eye');
             }
+        });
+    }
+
+    const forgotLink = document.getElementById('forgotPasswordLink');
+    if (forgotLink && loginForm) {
+        forgotLink.addEventListener('click', function (e) {
+            e.preventDefault();
+            let alertBox = document.getElementById('loginFlashAlert');
+            if (!alertBox) {
+                alertBox = document.createElement('div');
+                alertBox.id = 'loginFlashAlert';
+                loginForm.parentNode.insertBefore(alertBox, loginForm);
+            }
+            if (countdownTimer) clearInterval(countdownTimer);
+            alertBox.className = 'flash-alert flash-info';
+            alertBox.style.cssText = 'background: rgba(94, 114, 69, 0.12); border: 1.5px solid #5a7442; color: #354a24; padding: 12px 14px; border-radius: 8px; margin-bottom: 16px; display: flex; align-items: flex-start; gap: 10px;';
+            alertBox.innerHTML = '<i class="fas fa-info-circle" style="font-size: 16px; margin-top: 3px; flex-shrink: 0;"></i><div><b style="display: block; font-size: 13.5px; margin-bottom: 2px;">Password Recovery Notice</b><span style="font-size: 12.5px; line-height: 1.4;">Automated password recovery is currently under development. Please contact your IT or HR Administrator to reset your credentials.</span></div>';
         });
     }
 });
