@@ -10,3 +10,6 @@ misc-needed_info(ignore)/
 production_mvp_plan.md
 README.md
 .agents/
+*.pdf
+*.md
+production/database/
