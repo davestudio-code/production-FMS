@@ -154,7 +154,7 @@ class ProductionAttachment:
         25: "Stage 1: Cutting & Sizing",
         50: "Stage 2: Joinery & Assembly",
         75: "Stage 3: Sanding & Finishing",
-        90: "Stage 4: Ready for QA"
+        90: "Stage 4: Ready for QC"
     }
 
     def __init__(self, data=None):
@@ -322,11 +322,11 @@ def getLiveNotificationsForUser(employeeID=None, isManager=False, isProdStaff=Fa
 
                         if status == "In Progress" and prog >= 90.0:
                             items.append({
-                                "notifKey": f"qa-ready-{oid}-r{rwk}",
-                                "title": f"Order #PO-{oid} Ready for QA",
+                                "notifKey": f"qc-ready-{oid}-r{rwk}",
+                                "title": f"Order #PO-{oid} Ready for QC",
                                 "message": f"{fname} ({qty} units) submitted by {staff} is at 90% awaiting inspection.",
                                 "targetUrl": "/production/finished-goods",
-                                "timeLabel": "Stage 4 Complete · Inspect QA →"
+                                "timeLabel": "Stage 4 Complete · Inspect QC →"
                             })
 
                         if dueDate and dueDate < todayVal:
@@ -392,7 +392,7 @@ def getLiveNotificationsForUser(employeeID=None, isManager=False, isProdStaff=Fa
                             reasonSuffix = f": {reason}" if reason else "."
                             items.append({
                                 "notifKey": f"staff-rework-{oid}-r{rwk}",
-                                "title": f"QA Rework #{rwk} — Order #PO-{oid}",
+                                "title": f"QC Rework #{rwk} — Order #PO-{oid}",
                                 "message": f"{fname} ({qty} units) returned to Stage 3 (75%){reasonSuffix}",
                                 "targetUrl": "/production/monitoring",
                                 "timeLabel": "Rework Needed · Open Monitoring →"

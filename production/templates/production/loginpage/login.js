@@ -7,11 +7,11 @@ function startBlockCountdown(remainingSeconds, alertBox) {
         if (currentSec <= 0) {
             clearInterval(countdownTimer);
             alertBox.style.cssText = 'background: rgba(94, 114, 69, 0.15); border: 1.5px solid #5a7442; color: #354a24; padding: 12px 14px; border-radius: 8px; margin-bottom: 16px; display: flex; align-items: flex-start; gap: 10px;';
-            alertBox.innerHTML = '<i class="fas fa-check-circle" style="font-size: 16px; margin-top: 3px; flex-shrink: 0;"></i><div><b style="display: block; font-size: 13.5px; margin-bottom: 3px;">Block Expired</b><span style="font-size: 12.5px; line-height: 1.4;">You may now attempt to log in again.</span></div>';
+            alertBox.innerHTML = '<i class="fas fa-check-circle" style="font-size: 16px; margin-top: 3px; flex-shrink: 0;"></i><div><b style="display: block; font-size: 13.5px; margin-bottom: 3px;">Block Expired</b><span style="font-size: 12.5px; line-height: 1.4;">You may now try again.</span></div>';
             return;
         }
         alertBox.style.cssText = 'background: rgba(181, 143, 85, 0.15); border: 1.5px solid #8e622a; color: #8e622a; padding: 12px 14px; border-radius: 8px; margin-bottom: 16px; display: flex; align-items: flex-start; gap: 10px;';
-        alertBox.innerHTML = '<i class="fas fa-clock" style="font-size: 16px; margin-top: 3px; flex-shrink: 0;"></i><div><b style="display: block; font-size: 13.5px; margin-bottom: 3px;">Temporary Security Block</b><span style="font-size: 12.5px; line-height: 1.4;">Too many failed login attempts. Try again in ' + currentSec + 's.</span></div>';
+        alertBox.innerHTML = '<i class="fas fa-clock" style="font-size: 16px; margin-top: 3px; flex-shrink: 0;"></i><div><b style="display: block; font-size: 13.5px; margin-bottom: 3px;">Temporary Security Block</b><span style="font-size: 12.5px; line-height: 1.4;">Too many failed attempts. Try again in ' + currentSec + 's.</span></div>';
         currentSec--;
     };
     update();
@@ -26,7 +26,7 @@ const submit = async (event) => {
     let isSuccess = false;
     if (submitBtn) {
         submitBtn.disabled = true;
-        submitBtn.innerHTML = '<span>Signing in...</span><i class="fas fa-circle-notch fa-spin"></i>';
+        submitBtn.innerHTML = '<span>Please wait...</span><i class="fas fa-circle-notch fa-spin"></i>';
     }
 
     try {

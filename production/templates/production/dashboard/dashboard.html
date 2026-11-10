@@ -7,123 +7,163 @@
 </div>
 {% endif %}
 
-<div class="dashboardRowTop">
-    <div class="dashboardHeroCard">
-        <div style="flex: 1; z-index: 2;">
+<div class="dashboardHeroCard" style="margin-bottom: 20px;">
+    <div style="flex: 1; z-index: 2;">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
             <span class="dashboardHeroBadge">Quick Overview</span>
-            <h2 class="dashboardHeroTitle">Here's how the production stands, {{ session.get('employee_name', 'Operator')
-                }}.</h2>
-            <div class="heroKpiStrip">
-                <div class="heroKpiItem">
-                    <div class="heroKpiNum">{{ metrics.inProgressOrders }}</div>
-                    <span class="heroKpiLabel">Active Batches</span>
-                </div>
-                <div class="heroKpiDivider"></div>
-                <div class="heroKpiItem">
-                    <div class="heroKpiNum accent">{{ metrics.completedOrders }}</div>
-                    <span class="heroKpiLabel">QC Passed</span>
-                </div>
-                <div class="heroKpiDivider"></div>
-                <div class="heroKpiItem">
-                    <div class="heroKpiNum">{{ metrics.totalOrders }}</div>
-                    <span class="heroKpiLabel">Total Orders</span>
-                </div>
-                <div class="heroKpiDivider"></div>
-                <div class="heroKpiItem">
-                    <div class="heroKpiNum {{ 'alert' if metrics.lowStockCount > 0 else '' }}">{{ metrics.lowStockCount
-                        }}</div>
-                    <span class="heroKpiLabel {{ 'alert' if metrics.lowStockCount > 0 else '' }}">Low Stock</span>
-                </div>
-            </div>
-            <div class="dashboardHeroActions">
-                <a href="/production/orders" class="actionButton"
-                    style="padding: 8px 18px; font-size: 13px; text-decoration: none;">View Production Orders</a>
-                {% if isManager %}
-                <a href="/production/planning" class="actionButton secondary"
-                    style="padding: 8px 18px; font-size: 13px; text-decoration: none;">Production Planning</a>
-                {% else %}
-                <a href="/production/monitoring" class="actionButton secondary"
-                    style="padding: 8px 18px; font-size: 13px; text-decoration: none;">Production Monitoring</a>
-                {% endif %}
-            </div>
+            <span style="font-size: 11.5px; color: var(--mt); font-weight: 500;">
+                <i class="fas fa-clock" style="font-size: 11px; margin-right: 4px; opacity: 0.7;"></i>Last updated {{ lastUpdatedTime }}
+            </span>
         </div>
-        <div class="dashboardHeroIllustration">
-            <svg width="130" height="110" viewBox="0 0 150 130" fill="none">
-                <rect x="15" y="40" width="120" height="80" rx="8" fill="#F6EEDA" stroke="#D5C7AA" stroke-width="2" />
-                <path d="M15 65 H135" stroke="#D5C7AA" stroke-width="1.5" stroke-dasharray="3 3" />
-                <rect x="35" y="20" width="80" height="30" rx="6" fill="#66754C" fill-opacity="0.15" stroke="#66754C"
-                    stroke-width="2" />
-                <path d="M50 35 L65 35 M75 35 L100 35" stroke="#66754C" stroke-width="2.5" stroke-linecap="round" />
-                <rect x="30" y="80" width="40" height="26" rx="4" fill="#66754C" fill-opacity="0.85" />
-                <circle cx="85" cy="93" r="14" fill="#8E9B6D" fill-opacity="0.25" stroke="#8E9B6D" stroke-width="2" />
-                <path d="M85 86 V93 H92" stroke="#66754C" stroke-width="2" stroke-linecap="round" />
-                <circle cx="115" cy="25" r="5" fill="#66754C" />
-                <circle cx="128" cy="18" r="3" fill="#8E9B6D" />
-            </svg>
+        <h2 class="dashboardHeroTitle">{{ greetingText }}, {{ firstName }}</h2>
+        <p class="dashboardHeroSubtitle" style="margin: 0 0 16px;">Here's how the manufacturing operations stand today.</p>
+        
+        <div class="heroKpiStrip">
+            <a href="/production/orders?status=In+Progress" class="heroKpiItem" title="View In Progress Orders">
+                <div class="heroKpiNum">{{ metrics.inProgressOrders }}</div>
+                <span class="heroKpiLabel">Active Work Orders</span>
+            </a>
+            <a href="/production/finished-goods" class="heroKpiItem" title="View Completed Finished Goods">
+                <div class="heroKpiNum">{{ metrics.completedOrders }}</div>
+                <span class="heroKpiLabel">Completed</span>
+            </a>
+            <a href="/production/orders" class="heroKpiItem" title="View All Production Orders">
+                <div class="heroKpiNum">{{ metrics.totalOrders }}</div>
+                <span class="heroKpiLabel">Total Production Orders</span>
+            </a>
         </div>
-    </div>
-
-    <div class="dashboardInsightsCard">
-        <div>
-            <div class="dashboardInsightsTitle">Operations Quick Insights</div>
-            <ul class="dashboardInsightsList">
-                <li>
-                    {% if metrics.lowStockCount > 0 %}
-                    <span><b>{{ metrics.lowStockCount }} raw material(s)</b> are below safety stock thresholds.</span>
-                    {% else %}
-                    <span>All raw material inventories are currently well-stocked.</span>
-                    {% endif %}
-                </li>
-                {% if isManager %}
-                <li>
-                    {% if metrics.stockoutTotal > 0 %}
-                    <span><b>{{ metrics.stockoutTotal }} products</b> have 0 stock in inventory warehouse.</span>
-                    {% else %}
-                    <span>All products have available stock in inventory warehouse.</span>
-                    {% endif %}
-                </li>
-                <li>
-                    {% if metrics.draftOrders > 0 %}
-                    <span><b>{{ metrics.draftOrders }} draft order(s)</b> awaiting schedule dates & release.</span>
-                    {% else %}
-                    <span>All registered orders have been released or completed.</span>
-                    {% endif %}
-                </li>
-                {% else %}
-                <li>
-                    {% if metrics.inProgressOrders > 0 %}
-                    <span><b>{{ metrics.inProgressOrders }} batch(es)</b> active in the workshop.</span>
-                    {% else %}
-                    <span>No active batches currently in the workshop.</span>
-                    {% endif %}
-                </li>
-                <li>
-                    {% if scheduleTracker.dueToday > 0 %}
-                    <span><b>{{ scheduleTracker.dueToday }} batch(es)</b> scheduled for completion today.</span>
-                    {% else %}
-                    <span>All active batches are progressing on schedule.</span>
-                    {% endif %}
-                </li>
-                {% endif %}
-            </ul>
-        </div>
-        {% if isManager %}
-        <a href="/production/orders?stockouts=1" class="dashboardInsightsLink">
-            <span>View Warehouse Stockouts</span>
-            <span>&rarr;</span>
-        </a>
-        {% else %}
-        <a href="/production/monitoring" class="dashboardInsightsLink">
-            <span>Go to Production Monitoring</span>
-            <span>&rarr;</span>
-        </a>
-        {% endif %}
     </div>
 </div>
 
+<div class="dashboardCard ordersCard" style="margin-bottom: 20px;">
+    <div class="dashboardCardHeader">
+        <div style="display: flex; align-items: center; gap: 10px;">
+            <h3 class="dashboardCardTitle">Production Orders</h3>
+            {% if scheduleTracker.overdue > 0 %}
+            <span class="dashboardBadge" style="background: rgba(154, 74, 58, 0.12); color: var(--rd); font-weight: 700;">
+                {{ scheduleTracker.overdue }} Overdue
+            </span>
+            {% endif %}
+        </div>
+        <a href="/production/orders" style="font-size: 12px; color: var(--p); text-decoration: none; font-weight: 700;">View All</a>
+    </div>
+    <div class="tableContainer">
+        <table>
+            <thead>
+                <tr>
+                    <th style="width: 90px;">Order</th>
+                    <th>Product</th>
+                    <th style="text-align: right; width: 100px;">Batch</th>
+                    <th style="min-width: 220px;">Current Stage &amp; Progress</th>
+                    <th style="min-width: 140px;">Target Due Date</th>
+                    <th style="text-align: right; width: 90px;">Action</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for order in recentOrders %}
+                <tr>
+                    <td><b style="font-size: 13px; color: var(--tx);">#PO-{{ order.orderID }}</b></td>
+                    <td><b>{{ order.furnitureName }}</b></td>
+                    <td style="text-align: right; font-weight: 600; white-space: nowrap;">
+                        {{ order.plannedQuantity }} {{ 'unit' if order.plannedQuantity == 1 else 'units' }}
+                    </td>
+                    <td>
+                        {% if order.status == 'Draft' %}
+                        <span style="font-size: 12px; color: var(--mt); font-weight: 500;">Not started</span>
+                        {% else %}
+                        <div style="display: flex; flex-direction: column; gap: 4px; max-width: 260px;">
+                            <div style="display: flex; justify-content: space-between; font-size: 11.5px;">
+                                <span style="font-weight: 600; color: var(--tx);">{{ order.stageLabel }}</span>
+                                <span style="font-weight: 700; color: var(--p);">{{ order.progress }}%</span>
+                            </div>
+                            <div style="height: 5px; background: rgba(0, 0, 0, 0.06); border-radius: 3px; overflow: hidden;">
+                                <div style="height: 100%; width: {{ order.progress }}%; background: var(--p); border-radius: 3px;"></div>
+                            </div>
+                        </div>
+                        {% endif %}
+                    </td>
+                    <td>
+                        {% if order.hasDueDate %}
+                            {% if order.urgency == 'overdue' %}
+                            <span style="font-size: 12.5px; color: var(--rd); font-weight: 600; cursor: help;" title="{{ order.urgencyText }}">{{ order.dueDateStr }}</span>
+                            {% elif order.urgency == 'today' %}
+                            <span style="font-size: 12.5px; color: #8c5d12; font-weight: 600; cursor: help;" title="Due Today">{{ order.dueDateStr }}</span>
+                            {% else %}
+                            <span style="font-size: 12.5px; color: var(--tx);">{{ order.dueDateStr }}</span>
+                            {% endif %}
+                        {% else %}
+                        <span style="font-size: 12px; color: var(--mt);">Unscheduled</span>
+                        {% endif %}
+                    </td>
+                    <td style="text-align: right;">
+                        {% if order.hasDueDate %}
+                        <a href="/production/orders/{{ order.orderID }}" class="actionButton secondary"
+                            style="padding: 4px 12px; font-size: 11.5px; text-decoration: none;">View</a>
+                        {% else %}
+                        <a href="/production/orders/{{ order.orderID }}" class="actionButton secondary"
+                            style="padding: 4px 12px; font-size: 11.5px; text-decoration: none; border-color: rgba(102, 117, 76, 0.4); color: var(--p);">Set Date</a>
+                        {% endif %}
+                    </td>
+                </tr>
+                {% else %}
+                <tr>
+                    <td colspan="6" style="text-align: center; color: var(--mt); padding: 24px 0;">No production orders created yet.</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
 
-<div class="dashboardMiddleGrid">
-    <div class="dashboardCard activityChartCard" id="weeklyActivityCard">
+<div class="dashboardSecondaryGrid">
+    {% if isManager %}
+    <div class="dashboardCard stockoutsCard">
+        <div class="dashboardCardHeader">
+            <div style="display: flex; align-items: center; gap: 8px;">
+                <h3 class="dashboardCardTitle">Inventory Stockouts</h3>
+                {% if metrics.stockoutTotal and metrics.stockoutTotal > 0 %}
+                <span class="dashboardBadge" style="background: rgba(154, 74, 58, 0.1); color: var(--rd); font-weight: 700;">
+                    {{ metrics.stockoutTotal }}
+                </span>
+                {% endif %}
+            </div>
+            <a href="/production/orders?stockouts=1" style="font-size: 11.5px; color: var(--p); text-decoration: none; font-weight: 700;">View All</a>
+        </div>
+        <div style="display: flex; flex-direction: column; gap: 10px;">
+            {% for item in metrics.stockouts %}
+            <div class="stockoutItem">
+                <div style="min-width: 0; flex: 1;">
+                    <b style="font-size: 13.5px; display: block; color: var(--tx); font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">
+                        {{ item.furniture_name }}
+                    </b>
+                    <span style="font-size: 11.5px; color: var(--mt); white-space: nowrap; display: block;">
+                        {{ item.furniture_type }} &bull; <span style="color: var(--rd); font-weight: 600;">0 in warehouse</span>
+                    </span>
+                </div>
+                {% if item.active_order_id %}
+                <a href="/production/orders/{{ item.active_order_id }}" class="stockoutBadge inProgress" title="View Active Order #PO-{{ item.active_order_id }}">
+                    In Progress
+                </a>
+                {% elif item.bom_item_count == 0 %}
+                <a href="/production/bom?furniture_id={{ item.furniture_id }}" class="stockoutBadge needBom" title="Configure BOM">
+                    BOM not configured
+                </a>
+                {% else %}
+                <a href="/production/orders?stockouts=1" class="stockoutBadge noStock" title="Create Restock Order">
+                    no stock
+                </a>
+                {% endif %}
+            </div>
+            {% else %}
+            <div style="text-align: center; color: var(--mt); padding: 18px 0; font-size: 12.5px;">
+                No finished goods stockout alerts.
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+    {% endif %}
+
+    <div class="dashboardCard activityChartCard" id="weeklyActivityCard" style="{{ '' if isManager else 'grid-column: span 2;' }}">
         <div class="dashboardCardHeader">
             <h3 class="dashboardCardTitle">Weekly Production Activity</h3>
             <div class="weekNavControls">
@@ -131,12 +171,13 @@
                     onclick="window.navigateActivityWeek({{ weekOffset - 1 }}, event);" class="weekNavBtn"
                     title="Previous Week">&larr;</a>
                 <span class="dashboardBadge">{{ weekDateRange }}</span>
-                {% if weekOffset < 0 %} <a href="/production/?week_offset={{ weekOffset + 1 }}"
+                {% if weekOffset < 0 %}
+                <a href="/production/?week_offset={{ weekOffset + 1 }}"
                     onclick="window.navigateActivityWeek({{ weekOffset + 1 }}, event);" class="weekNavBtn"
                     title="Next Week">&rarr;</a>
-                    {% else %}
-                    <span class="weekNavBtn disabled" title="Current Week">&rarr;</span>
-                    {% endif %}
+                {% else %}
+                <span class="weekNavBtn disabled" title="Current Week">&rarr;</span>
+                {% endif %}
             </div>
         </div>
         <div class="activityBarChartWrapper">
@@ -144,8 +185,7 @@
                 {% for day in weekActivity %}
                 <div class="activityBarCol {{ 'isToday' if day.isToday else '' }} {{ 'isFuture' if day.isFuture else '' }}"
                     title="{{ day.dayName }}, {{ day.dateStr }}: {{ day.orders }} batch(es), {{ day.units }} units">
-                    <div class="activityBarValue">{{ day.orders if day.orders > 0 else ('' if day.isFuture else '0') }}
-                    </div>
+                    <div class="activityBarValue">{{ day.orders if day.orders > 0 else ('' if day.isFuture else '0') }}</div>
                     <div class="activityBarTrack">
                         {% if day.heightPct > 0 %}
                         <div class="activityBarFill" style="height: {{ day.heightPct }}%;"></div>
@@ -164,242 +204,10 @@
                 <span>● <b>Today:</b> {{ todayDateStr }}</span>
                 {% else %}
                 <span><a href="/production/?week_offset=0" onclick="window.navigateActivityWeek(0, event);"
-                        style="color: var(--p); text-decoration: none; font-weight: 700;">&bull; Back to Current
-                        Week</a></span>
+                        style="color: var(--p); text-decoration: none; font-weight: 700;">&bull; Back to Current Week</a></span>
                 {% endif %}
-                <span>Prev: <b>{{ prevWeeklyBatches }}</b> batch{{ 'es' if prevWeeklyBatches != 1 else '' }} &bull;
-                    Total: <b>{{ totalWeeklyBatches }}</b> ({{ totalWeeklyUnits }}u)</span>
+                <span>Weekly Total: <b>{{ totalWeeklyBatches }}</b> batch{{ 'es' if totalWeeklyBatches != 1 else '' }} ({{ totalWeeklyUnits }} {{ 'unit' if totalWeeklyUnits == 1 else 'units' }})</span>
             </div>
-        </div>
-    </div>
-
-    <div class="dashboardCard scheduleCard">
-        <div class="dashboardCardHeader">
-            <h3 class="dashboardCardTitle">Order Deadlines</h3>
-            {% if scheduleTracker.overdue > 0 %}
-            <span class="dashboardBadge"
-                style="background: rgba(154, 74, 58, 0.12); color: var(--rd); font-weight: 700; white-space: nowrap;">{{
-                scheduleTracker.overdue }} Overdue</span>
-            {% elif scheduleTracker.dueToday > 0 %}
-            <span class="dashboardBadge"
-                style="background: rgba(196, 137, 39, 0.12); color: #8c5d12; font-weight: 700; white-space: nowrap;">{{
-                scheduleTracker.dueToday }} Due Today</span>
-            {% else %}
-            <span class="dashboardBadge"
-                style="background: rgba(102, 117, 76, 0.12); color: var(--p); font-weight: 600; white-space: nowrap;">On
-                Schedule</span>
-            {% endif %}
-        </div>
-
-        <div class="scheduleStatusStrip">
-            <div class="scheduleStatPill {{ 'alert' if scheduleTracker.overdue > 0 else '' }}">
-                <b class="scheduleStatNum">{{ scheduleTracker.overdue }}</b>
-                <span class="scheduleStatLabel">Overdue</span>
-            </div>
-            <div class="scheduleStatPill {{ 'today' if scheduleTracker.dueToday > 0 else '' }}">
-                <b class="scheduleStatNum">{{ scheduleTracker.dueToday }}</b>
-                <span class="scheduleStatLabel">Due Today</span>
-            </div>
-            <div class="scheduleStatPill">
-                <b class="scheduleStatNum">{{ scheduleTracker.dueThisWeek }}</b>
-                <span class="scheduleStatLabel">This Week</span>
-            </div>
-        </div>
-
-        <div class="scheduleUpcomingList">
-            {% for item in scheduleTracker.upcoming %}
-            <div class="scheduleUpcomingItem">
-                <div class="scheduleUpcomingInfo">
-                    <div class="scheduleUpcomingOrder">
-                        <a href="/production/orders/{{ item.orderID }}">#PO-{{ item.orderID }}</a>
-                        <span>&bull; {{ item.furnitureName }} ({{ item.plannedQuantity }}u)</span>
-                    </div>
-                    <div class="scheduleUpcomingMeta">
-                        <span class="statusBadge {{ item.statusClass }}">{{ item.status }}</span>
-                        {% if item.hasDueDate %}
-                        <span class="scheduleMetaDate">Due {{ item.dueDateStr }}</span>
-                        {% else %}
-                        <span class="scheduleMetaDate">Awaiting schedule date</span>
-                        {% endif %}
-                    </div>
-                </div>
-                {% if item.hasDueDate %}
-                <span class="scheduleUrgencyTag {{ item.urgency }}">{{ item.tag }}</span>
-                {% else %}
-                <a href="/production/orders/{{ item.orderID }}" class="scheduleActionBtn" title="Set Target Date">Set
-                    Date &rarr;</a>
-                {% endif %}
-            </div>
-            {% else %}
-            <div class="scheduleEmptyState">
-                {% if scheduleTracker.totalPending == 0 %}
-                <span>No pending production orders in queue.</span>
-                {% else %}
-                <span>No upcoming order deadlines recorded.</span>
-                {% endif %}
-            </div>
-            {% endfor %}
-        </div>
-
-        <div class="scheduleFooterNote">
-            {% if scheduleTracker.overdue > 0 %}
-            <span style="color: var(--rd); font-weight: 600;">Action required: {{ scheduleTracker.overdue }} batch{{
-                'es' if scheduleTracker.overdue != 1 else '' }} past target due date.</span>
-            {% elif scheduleTracker.dueToday > 0 %}
-            <span style="color: #8c5d12; font-weight: 600;">{{ scheduleTracker.dueToday }} batch{{ 'es' if
-                scheduleTracker.dueToday != 1 else '' }} scheduled for completion today.</span>
-            {% elif scheduleTracker.needsDateCount > 0 %}
-            <a href="/production/orders" style="color: var(--p); text-decoration: none; font-weight: 600;">{{
-                scheduleTracker.needsDateCount }} draft batch{{ 'es' if scheduleTracker.needsDateCount != 1 else '' }}
-                awaiting schedule dates &rarr;</a>
-            {% else %}
-            <span style="color: var(--mt);">All active batches are currently on schedule.</span>
-            {% endif %}
-        </div>
-    </div>
-
-    <div class="dashboardCard">
-        <div class="dashboardCardHeader">
-            <h3 class="dashboardCardTitle">Stage Readiness</h3>
-            {% if activeStageBatches > 0 %}
-            <span class="dashboardBadge">{{ activeStageBatches }} Active</span>
-            {% else %}
-            <span class="dashboardBadge" style="background: rgba(213, 199, 170, 0.35); color: #705f42;">0 Active</span>
-            {% endif %}
-        </div>
-        <div class="progressBarGroup">
-            {% for stage in stageReadiness %}
-            <div class="progressBarItem">
-                <div class="progressBarHeader">
-                    <b>{{ stage.name }}</b>
-                    <span>{{ stage.percent }}%</span>
-                </div>
-                <div class="progressBarTrack">
-                    <div class="progressBarFill" style="width: {{ stage.percent }}%;"></div>
-                </div>
-            </div>
-            {% endfor %}
-        </div>
-        {% if activeStageBatches == 0 %}
-        <div
-            style="text-align: center; color: var(--mt); font-size: 11px; padding-top: 10px; margin-top: auto; border-top: 1px solid var(--bd);">
-            No active batches on workshop.
-        </div>
-        {% endif %}
-    </div>
-</div>
-
-<div class="dashboardBottomGrid" style="{{ '' if isManager else 'grid-template-columns: 1.6fr 1fr;' }}">
-    {% if isManager %}
-    <div class="dashboardCard">
-        <div class="dashboardCardHeader">
-            <div style="display: flex; align-items: center; gap: 8px;">
-                <h3 class="dashboardCardTitle">Warehouse Stockouts</h3>
-                {% if metrics.stockoutTotal and metrics.stockoutTotal > 0 %}
-                <span class="dashboardBadge"
-                    style="background: rgba(154, 74, 58, 0.1); color: var(--rd); font-weight: 700;">{{
-                    metrics.stockoutTotal }}</span>
-                {% endif %}
-            </div>
-            <a href="/production/orders?stockouts=1"
-                style="font-size: 11.5px; color: var(--p); text-decoration: none; font-weight: 700;">View All</a>
-        </div>
-        <div style="display: flex; flex-direction: column; gap: 10px;">
-            {% for item in metrics.stockouts %}
-            <div
-                style="display: flex; justify-content: space-between; align-items: center; gap: 12px; background: rgba(246, 238, 218, 0.35); border: 1px solid var(--bd); border-radius: 10px; padding: 10px 14px;">
-                <div style="min-width: 0; flex: 1;">
-                    <b
-                        style="font-size: 13.5px; display: block; color: var(--tx); font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">{{
-                        item.furniture_name }}</b>
-                    <span style="font-size: 11.5px; color: var(--mt); white-space: nowrap; display: block;">{{
-                        item.furniture_type }} &bull; <span style="color: var(--rd); font-weight: 600;">0 in
-                            warehouse</span></span>
-                </div>
-                {% if item.active_order_id %}
-                <a href="/production/orders/{{ item.active_order_id }}"
-                    style="display: inline-flex; align-items: center; padding: 3px 9px; border-radius: 12px; font-size: 11px; font-weight: 600; background: rgba(102, 117, 76, 0.12); color: var(--p); border: 1px solid rgba(102, 117, 76, 0.28); white-space: nowrap; flex-shrink: 0; text-decoration: none;"
-                    title="View Active Order #PO-{{ item.active_order_id }}">Restock Set</a>
-                {% elif item.bom_item_count == 0 %}
-                <a href="/production/bom?furniture_id={{ item.furniture_id }}"
-                    style="display: inline-flex; align-items: center; padding: 3px 9px; border-radius: 12px; font-size: 11px; font-weight: 600; background: rgba(213, 199, 170, 0.35); color: #705f42; border: 1px solid var(--bd); white-space: nowrap; flex-shrink: 0; text-decoration: none;"
-                    title="Configure BOM">Need BOM</a>
-                {% else %}
-                <a href="/production/orders?stockouts=1"
-                    style="display: inline-flex; align-items: center; padding: 3px 9px; border-radius: 12px; font-size: 11px; font-weight: 600; background: rgba(154, 74, 58, 0.1); color: var(--rd); border: 1px solid rgba(154, 74, 58, 0.25); white-space: nowrap; flex-shrink: 0; text-decoration: none;">Urgent</a>
-                {% endif %}
-            </div>
-            {% else %}
-            <div style="text-align: center; color: var(--mt); padding: 18px 0; font-size: 12.5px;">
-                No finished goods stockout alerts.
-            </div>
-            {% endfor %}
-        </div>
-    </div>
-    {% endif %}
-
-    <div class="dashboardCard">
-        <div class="dashboardCardHeader">
-            <h3 class="dashboardCardTitle">Active Production Pipeline</h3>
-            <a href="/production/orders"
-                style="font-size: 11.5px; color: var(--p); text-decoration: none; font-weight: 700;">View All</a>
-        </div>
-        <div class="tableContainer">
-            <table>
-                <thead>
-                    <tr>
-                        <th>Order</th>
-                        <th>Product</th>
-                        <th style="text-align: right;">Batch</th>
-                        <th>Status</th>
-                        <th style="text-align: right;">Action</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    {% for order in recentOrders %}
-                    <tr>
-                        <td><b>#PO-{{ order.orderID }}</b></td>
-                        <td>{{ order.furnitureName }}</td>
-                        <td style="text-align: right;">{{ order.plannedQuantity }}u</td>
-                        <td>
-                            <span
-                                class="statusBadge {{ 'completed' if order.status == 'Completed' else ('inProgress' if order.status == 'In Progress' else ('released' if order.status == 'Released' else 'draft')) }}"
-                                style="font-size: 10.5px;">
-                                {{ order.status }}
-                            </span>
-                        </td>
-                        <td style="text-align: right;">
-                            <a href="/production/orders/{{ order.orderID }}"
-                                style="font-size: 11.5px; color: var(--p); text-decoration: none; font-weight: 700;">View</a>
-                        </td>
-                    </tr>
-                    {% else %}
-                    <tr>
-                        <td colspan="5" style="text-align: center; color: var(--mt); padding: 18px 0;">No production
-                            orders created yet.</td>
-                    </tr>
-                    {% endfor %}
-                </tbody>
-            </table>
-        </div>
-    </div>
-
-    <div class="dashboardCard">
-        <div class="dashboardCardHeader">
-            <h3 class="dashboardCardTitle">Activity Timeline</h3>
-            <span class="dashboardBadge">Recent</span>
-        </div>
-        <div class="timelineFeed">
-            {% for item in activityTimeline %}
-            <div class="timelineFeedItem">
-                <div class="timelineFeedTitle">{{ item.title }}</div>
-                <div class="timelineFeedTime">{{ item.meta }}</div>
-            </div>
-            {% else %}
-            <div style="text-align: center; color: var(--mt); padding: 18px 0; font-size: 12.5px;">
-                No recent workshop activity recorded.
-            </div>
-            {% endfor %}
         </div>
     </div>
 </div>

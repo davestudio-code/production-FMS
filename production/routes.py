@@ -1,7 +1,7 @@
 import os
 from flask import Blueprint, render_template, request, redirect, url_for, flash, session, jsonify, send_from_directory
 from decimal import Decimal, InvalidOperation
-from datetime import date, timedelta
+from datetime import datetime, date, timedelta
 from psycopg2.errors import UniqueViolation
 from .db import openTransaction
 from .auth import (
@@ -364,8 +364,8 @@ def index():
         {"name": "Cutting & Sizing", "threshold": 25},
         {"name": "Joinery & Assembly", "threshold": 50},
         {"name": "Sanding & Finishing", "threshold": 75},
-        {"name": "Ready for QA", "threshold": 90},
-        {"name": "Quality Inspection (QC)", "threshold": 100}
+        {"name": "Ready for QC", "threshold": 90},
+        {"name": "QC Passed & Completed", "threshold": 100}
     ]
 
     stageReadiness = []
@@ -537,7 +537,64 @@ def index():
         })
 
     weekDateRangeStr = f"{monday.strftime('%b %d')} – {sunday.strftime('%b %d')}"
-    recentOrdersList = allOrders[:6]
+    monitoringMap = {m.orderID: m for m in allMonitoring}
+    recentOrdersList = []
+    for o in allOrders[:6]:
+        mon = monitoringMap.get(o.orderID)
+        rawProg = mon.progress if (mon and mon.progress is not None) else 0.0
+        prog = float(rawProg)
+
+        if o.status == "Completed":
+            stageLabel = "QC Passed & Stocked"
+            prog = 100.0
+        elif o.status == "Draft":
+            stageLabel = "Draft · Unscheduled" if not o.dueDate else "Draft · Scheduled"
+            prog = 0.0
+        elif o.status == "Released":
+            stageLabel = "Released to Floor"
+            prog = 0.0
+        elif prog <= 25.0:
+            stageLabel = "Stage 1: Cutting & Sizing"
+        elif prog <= 50.0:
+            stageLabel = "Stage 2: Joinery & Assembly"
+        elif prog <= 75.0:
+            stageLabel = "Stage 3: Sanding & Finishing"
+        elif prog <= 90.0:
+            stageLabel = "Stage 4: Ready for QC"
+        else:
+            stageLabel = "QC Inspection"
+
+        daysLeft = (o.dueDate - today).days if o.dueDate else None
+        if daysLeft is not None:
+            if daysLeft < 0:
+                urgency = "overdue"
+                urgencyText = f"{abs(daysLeft)} Days Overdue"
+            elif daysLeft == 0:
+                urgency = "today"
+                urgencyText = "Due Today"
+            elif daysLeft <= 3:
+                urgency = "urgent"
+                urgencyText = f"Due in {daysLeft}d"
+            else:
+                urgency = "normal"
+                urgencyText = f"Due {o.dueDate.strftime('%b %d')}"
+        else:
+            urgency = "unscheduled"
+            urgencyText = "Unscheduled"
+
+        recentOrdersList.append({
+            "orderID": o.orderID,
+            "furnitureName": o.furnitureName,
+            "plannedQuantity": o.plannedQuantity,
+            "status": o.status,
+            "dueDate": o.dueDate,
+            "dueDateStr": o.dueDate.strftime("%b %d, %Y") if o.dueDate else "",
+            "stageLabel": stageLabel,
+            "progress": int(round(prog)),
+            "urgency": urgency,
+            "urgencyText": urgencyText,
+            "hasDueDate": bool(o.dueDate)
+        })
     integrationEventsList = []
 
     def _safeEventDate(val):
@@ -572,7 +629,7 @@ def index():
         if mon.progress and mon.progress > 0:
             stageLabel = "Cutting & Sizing" if mon.progress <= 25 else (
                 "Joinery & Assembly" if mon.progress <= 50 else (
-                    "Sanding & Finishing" if mon.progress <= 75 else "Ready for QA"
+                    "Sanding & Finishing" if mon.progress <= 75 else "Ready for QC"
                 )
             )
             activityTimeline.append({
@@ -608,6 +665,19 @@ def index():
     activityTimeline.sort(key=lambda x: x["sortKey"], reverse=True)
     activityTimeline = activityTimeline[:4]
 
+    now = datetime.now()
+    hour = now.hour
+    if 5 <= hour < 12:
+        greetingText = "Good morning"
+    elif 12 <= hour < 18:
+        greetingText = "Good afternoon"
+    else:
+        greetingText = "Good evening"
+
+    empName = session.get("employee_name", "Operator")
+    firstName = empName.split()[0] if empName else "Operator"
+    lastUpdatedTime = now.strftime("%I:%M %p").lstrip("0")
+
     return render_template(
         "production/dashboard/dashboard.html",
         activeTab="dashboard",
@@ -626,7 +696,10 @@ def index():
         weekOffset=weekOffset,
         stageReadiness=stageReadiness,
         activeStageBatches=activeStageBatches,
-        scheduleTracker=scheduleTracker
+        scheduleTracker=scheduleTracker,
+        greetingText=greetingText,
+        firstName=firstName,
+        lastUpdatedTime=lastUpdatedTime
     )
 
 @productionBlueprint.route("/furniture")
@@ -1508,8 +1581,8 @@ def updateMonitoringProgress(monitoringID):
         25: "Stage 1: Cutting & Sizing",
         50: "Stage 2: Joinery & Assembly",
         75: "Stage 3: Sanding & Finishing",
-        90: "Stage 4: Ready for QA Inspection",
-        100: "QA Passed & Completed"
+        90: "Stage 4: Ready for QC",
+        100: "QC Passed & Completed"
     }
     progressRaw = request.form.get("progress", "").strip()
     stageNote = request.form.get("stageNote", "").strip()
@@ -1559,7 +1632,7 @@ def updateMonitoringProgress(monitoringID):
         isRollback = progressVal < existing.progress
         isAdvancingToQA = (stageInt >= 90 and not isRollback)
         if isAdvancingToQA and not rawBytes:
-            flash("A proof is required when submitting Stage 4 (Ready for QA Inspection).", "error")
+            flash("A proof is required when submitting Stage 4 (Ready for QC).", "error")
             return redirect(url_for("production.monitoringList"))
 
         uploadedFileUrl = None
@@ -1795,7 +1868,7 @@ def recordInspection(orderID):
                         msg += f", {failedQty} {unitWord} scrapped"
                     flash(msg + ".", "success")
                 else:
-                    msg = f"Order #PO-{orderID} QA submitted: {passedQty} passed, {reworkQty} returned to workshop (Rework #{currentReworks + 1}/2 at {int(ProductionMonitoring.REWORK_STAGE_PROGRESS)}%)"
+                    msg = f"Order #PO-{orderID} QC submitted: {passedQty} passed, {reworkQty} returned to workshop (Rework #{currentReworks + 1}/2 at {int(ProductionMonitoring.REWORK_STAGE_PROGRESS)}%)"
                     if failedQty > 0:
                         msg += f", {failedQty} {unitWord} scrapped"
                     flash(msg + ".", "warning")

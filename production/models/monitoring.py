@@ -7,8 +7,8 @@ class ProductionMonitoring:
         25: "Stage 1: Cutting & Sizing",
         50: "Stage 2: Joinery & Assembly",
         75: "Stage 3: Sanding & Finishing",
-        90: "Stage 4: Ready for QA Inspection",
-        100: "QA Passed & Completed"
+        90: "Stage 4: Ready for QC",
+        100: "QC Passed & Completed"
     }
     REWORK_STAGE_PROGRESS = 75.0
 

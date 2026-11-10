@@ -101,7 +101,7 @@
                 {% if order.status == 'Completed' %}
                 {{ qaSummary.passed }} Stocked
                 {% elif monitoring and monitoring.progress >= 90 %}
-                Awaiting QA →
+                Awaiting QC &rarr;
                 {% else %}
                 Pending Inspection
                 {% endif %}
@@ -176,7 +176,7 @@
                 <b style="font-size: 14.5px; color: var(--tx);">{{ progVal }}%</b>
             </div>
             <span style="font-size: 11.5px; color: var(--mt);">
-                {% if progVal >= 100 %}QA Passed &amp; Stocked{% elif progVal >= 90 %}Stage 4: Ready for QA{% elif progVal >= 75 %}Stage 3: Sanding &amp; Finishing{% elif progVal >= 50 %}Stage 2: Joinery &amp; Assembly{% elif progVal >= 25 %}Stage 1: Cutting &amp; Sizing{% else %}Dispatched to Workshop{% endif %}
+                {% if progVal >= 100 %}QC Passed &amp; Stocked{% elif progVal >= 90 %}Stage 4: Ready for QC{% elif progVal >= 75 %}Stage 3: Sanding &amp; Finishing{% elif progVal >= 50 %}Stage 2: Joinery &amp; Assembly{% elif progVal >= 25 %}Stage 1: Cutting &amp; Sizing{% else %}Dispatched to Workshop{% endif %}
                 {% if monitoring and monitoring.reworkCount > 0 %} &middot; Rework {{ monitoring.reworkCount }}/2{% endif %}
             </span>
             {% endif %}
@@ -206,7 +206,7 @@
                 <span class="workspaceTabCount">{{ requirements|length }}</span>
             </button>
             <button type="button" class="workspaceTabBtn" data-dossiertab="history" onclick="setOrderDossierTab('history')">
-                <span>Execution &amp; QA Log</span>
+                <span>Execution &amp; QC Log</span>
                 <span class="workspaceTabCount">{{ activityCount }}</span>
             </button>
         </div>
@@ -377,7 +377,7 @@
             </div>
 
             <div>
-                <h4 style="margin: 0 0 8px; font-size: 13.5px; color: var(--tx);">Quality Inspection Outcomes ({{ qaRecords|length }})</h4>
+                <h4 style="margin: 0 0 8px; font-size: 13.5px; color: var(--tx);">Quality Check (QC) Outcomes ({{ qaRecords|length }})</h4>
                 <div class="tableContainer">
                     <table>
                         <thead>
@@ -402,7 +402,7 @@
                             </tr>
                             {% else %}
                             <tr>
-                                <td colspan="5" style="text-align: center; color: var(--mt); padding: 18px;">No quality inspection records logged for this order yet.</td>
+                                <td colspan="5" style="text-align: center; color: var(--mt); padding: 18px;">No quality check records logged for this order yet.</td>
                             </tr>
                             {% endfor %}
                         </tbody>

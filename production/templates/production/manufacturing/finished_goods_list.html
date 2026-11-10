@@ -10,7 +10,7 @@
 <div class="headerRow">
     <div>
         <h2>Finished Goods</h2>
-        <span style="color: var(--mt); font-size: 13.5px;">Once an order passes quality inspection, it will marked as
+        <span style="color: var(--mt); font-size: 13.5px;">Once an order passes quality check (QC), it will marked as
             finished goods and trasnferred to inventory stock</span>
     </div>
 </div>
@@ -21,7 +21,7 @@
             <button type="button" class="workspaceTabBtn active" data-qatab="pending"
                 onclick="setQAWorkspaceTab('pending')">
                 <span class="tabStatusDot inProgress"></span>
-                <span>Awaiting QA</span>
+                <span>Awaiting QC</span>
                 <span class="workspaceTabCount">{{ summary.pending }}</span>
             </button>
             <span class="workspaceTabDivider"></span>
@@ -72,7 +72,7 @@
             <div
                 style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; gap: 10px; flex-wrap: wrap;">
                 <div>
-                    <b style="color: #a25622; font-size: 13.5px;">Orders Needing Attention (0 Units Pending QA)</b>
+                    <b style="color: #a25622; font-size: 13.5px;">Orders Needing Attention (0 Units Pending QC)</b>
                     <div style="color: var(--mt); font-size: 12px;">Marked 'In Progress' at 90%+ with all planned units
                         already inspected. Review to finalize status.</div>
                 </div>
@@ -105,7 +105,7 @@
                         <th>Furniture Product</th>
                         <th>Assembly Progress</th>
                         <th>Target Due Date</th>
-                        <th>Pending QA</th>
+                        <th>Pending QC</th>
                         <th>Reworks</th>
                         <th style="text-align: right;">Action</th>
                     </tr>
@@ -176,7 +176,7 @@
                                 data-proof-by="{{ ord.latestProof.submittedBy if ord.latestProof else '' }}"
                                 data-proof-time="{{ ord.latestProof.formattedCreatedAt if ord.latestProof else '' }}"
                                 data-proof-note="{{ ord.latestProof.note if ord.latestProof else '' }}"
-                                data-proof-stage="{{ ord.latestProof.stageLabel if ord.latestProof else 'Stage 4: Ready for QA' }}"
+                                data-proof-stage="{{ ord.latestProof.stageLabel if ord.latestProof else 'Stage 4: Ready for QC' }}"
                                 data-pending-qty="{{ ord.pendingInspectionQty }}"
                                 data-passed-qty="{{ ord.alreadyPassed }}" data-failed-qty="{{ ord.alreadyFailed }}"
                                 data-rework-count="{{ ord.reworkCount or 0 }}"
@@ -192,14 +192,14 @@
                     {% else %}
                     <tr>
                         <td colspan="7" style="text-align: center; color: var(--mt); padding: 28px;">
-                            No orders currently awaiting quality inspection. Orders reach QA here once updated to 90% in
+                            No orders currently awaiting quality check. Orders reach QC here once updated to 90% in
                             Production Monitoring.
                         </td>
                     </tr>
                     {% endfor %}
                     <tr id="qaPendingEmptyRow" style="display: none;">
                         <td colspan="7" style="text-align: center; color: var(--mt); padding: 28px;">
-                            No awaiting QA orders match your search criteria.
+                            No awaiting QC orders match your search criteria.
                         </td>
                     </tr>
                 </tbody>
@@ -299,7 +299,7 @@
     <div class="qaModalCard">
         <div class="qaModalHeader">
             <div>
-                <h3 id="qaModalTitle" class="qaModalTitle">Quality Inspection</h3>
+                <h3 id="qaModalTitle" class="qaModalTitle">Quality Check (QC)</h3>
                 <div id="qaModalSubtitle" class="qaModalSubtitle"></div>
             </div>
             <button type="button" id="qaModalCloseBtn" class="qaModalClose" aria-label="Close modal">&times;</button>
@@ -364,7 +364,7 @@
 
             <div class="qaModalActions">
                 <button type="button" id="qaModalCancelBtn" class="btn btnSecondary">Cancel</button>
-                <button type="submit" id="qaModalSubmitBtn" class="btn btnPrimary" disabled>Submit QA</button>
+                <button type="submit" id="qaModalSubmitBtn" class="btn btnPrimary" disabled>Submit QC</button>
             </div>
         </form>
     </div>
@@ -441,7 +441,7 @@
         var proofBy = btn.dataset.proofBy || staffName || 'Workshop Staff';
         var proofTime = btn.dataset.proofTime || '';
         var proofNote = btn.dataset.proofNote || '';
-        var proofStage = btn.dataset.proofStage || 'Stage 4: Ready for QA';
+        var proofStage = btn.dataset.proofStage || 'Stage 4: Ready for QC';
         currentPendingQty = parseInt(btn.dataset.pendingQty || 0, 10);
         var alreadyPassed = parseInt(btn.dataset.passedQty || 0, 10);
         var alreadyFailed = parseInt(btn.dataset.failedQty || 0, 10);
@@ -449,7 +449,7 @@
 
         qaModalForm.action = btn.dataset.inspectUrl;
         qaModalForm.dataset.submitting = 'false';
-        qaModalTitle.textContent = 'Quality Inspection - Order #PO-' + orderID;
+        qaModalTitle.textContent = 'Quality Check (QC) - Order #PO-' + orderID;
         qaModalSubtitle.textContent = staffName ? (furnitureName + ' · Assigned: ' + staffName) : furnitureName;
         qaSummaryLine.textContent = currentPendingQty + ' pending, ' + alreadyPassed + ' passed, ' + alreadyFailed + ' scrapped so far';
 
@@ -588,7 +588,7 @@
 
     window.addEventListener('pageshow', function () {
         if (qaModalSubmitBtn) {
-            qaModalSubmitBtn.textContent = 'Submit QA';
+            qaModalSubmitBtn.textContent = 'Submit QC';
             updateModalState();
         }
     });
@@ -617,7 +617,7 @@
             if (activeInput) activeInput.value = 'pending';
             if (pendingSection) pendingSection.style.display = 'block';
             if (historySection) historySection.style.display = 'none';
-            if (qInput) qInput.placeholder = 'Search orders awaiting QA (#PO or product)...';
+            if (qInput) qInput.placeholder = 'Search orders awaiting QC (#PO or product)...';
         } else {
             const outcome = key.startsWith('history:') ? key.slice(8) : '';
             if (activeInput) activeInput.value = 'history';

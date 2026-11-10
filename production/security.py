@@ -180,7 +180,7 @@ def record_failed_login(ip=None):
         return {
             "action": "failed",
             "attempts_left": attempts_left,
-            "message": f"Invalid email or password. ({attempts_left} attempt{'s' if attempts_left != 1 else ''} remaining before temporary block)"
+            "message": f"Invalid email or password. ({attempts_left} attempt{'s' if attempts_left != 1 else ''} left)"
         }
 
 def record_successful_login(ip=None):

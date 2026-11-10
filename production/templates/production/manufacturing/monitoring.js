@@ -22,11 +22,11 @@ window.syncStageProofRequirement = function() {
         photoLabel.textContent = isStage4 ? 'Stage 4 Photo Proof *' : 'Workshop Photo Proof';
     }
     if (reqBadge) {
-        reqBadge.textContent = isStage4 ? 'Required for QA Sign-Off' : 'Optional on Stages 1–3';
+        reqBadge.textContent = isStage4 ? 'Required for QC Sign-Off' : 'Optional on Stages 1–3';
         reqBadge.style.color = isStage4 ? 'var(--rd)' : 'var(--mt)';
     }
     if (submitBtn && submitBtn.textContent !== 'Optimizing photo...') {
-        submitBtn.textContent = isStage4 ? 'Submit for QA' : 'Save Milestone';
+        submitBtn.textContent = isStage4 ? 'Submit for QC' : 'Save Milestone';
     }
 };
 
