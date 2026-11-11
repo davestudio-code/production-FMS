@@ -7,45 +7,128 @@
 </div>
 {% endif %}
 
-<div class="dashboardHeroCard" style="margin-bottom: 20px;">
-    <div style="flex: 1; z-index: 2;">
-        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
-            <span class="dashboardHeroBadge">Quick Overview</span>
-            <span style="font-size: 11.5px; color: var(--mt); font-weight: 500;">
-                <i class="fas fa-clock" style="font-size: 11px; margin-right: 4px; opacity: 0.7;"></i>Last updated {{ lastUpdatedTime }}
-            </span>
+<div class="headerRow" style="margin-bottom: 20px;">
+    <div>
+        <h2>Dashboard</h2>
+        <span style="color: var(--mt); font-size: 13.5px;">{{ greetingText }}, {{ firstName }}. Here's how the
+            production stands.</span>
+    </div>
+    <span style="font-size: 12px; color: var(--mt);">Updated {{ lastUpdatedTime }}</span>
+</div>
+
+<div class="dashGridRings dashRow">
+    {% for ring in dashRings %}
+    <div class="card dashRingCard">
+        <svg width="56" height="56" viewBox="0 0 36 36">
+            <circle cx="18" cy="18" r="15.915" fill="none" stroke="#ece4d0" stroke-width="3.2"></circle>
+            {% if ring.dash %}
+            <circle cx="18" cy="18" r="15.915" fill="none" stroke="{{ ring.color }}" stroke-width="3.2"
+                stroke-dasharray="{{ ring.dash }}" stroke-linecap="round" transform="rotate(-90 18 18)"></circle>
+            {% endif %}
+        </svg>
+        <div>
+            <div class="label">{{ ring.label }}</div>
+            <div class="value">{{ ring.value }}</div>
+            <div class="note">{{ ring.note }}</div>
         </div>
-        <h2 class="dashboardHeroTitle">{{ greetingText }}, {{ firstName }}</h2>
-        <p class="dashboardHeroSubtitle" style="margin: 0 0 16px;">Here's how the manufacturing operations stand today.</p>
-        
-        <div class="heroKpiStrip">
-            <a href="/production/orders?status=In+Progress" class="heroKpiItem" title="View In Progress Orders">
-                <div class="heroKpiNum">{{ metrics.inProgressOrders }}</div>
-                <span class="heroKpiLabel">Active Work Orders</span>
-            </a>
-            <a href="/production/finished-goods" class="heroKpiItem" title="View Completed Finished Goods">
-                <div class="heroKpiNum">{{ metrics.completedOrders }}</div>
-                <span class="heroKpiLabel">Completed</span>
-            </a>
-            <a href="/production/orders" class="heroKpiItem" title="View All Production Orders">
-                <div class="heroKpiNum">{{ metrics.totalOrders }}</div>
-                <span class="heroKpiLabel">Total Production Orders</span>
-            </a>
+    </div>
+    {% endfor %}
+</div>
+
+<div class="dashGridTop dashRow">
+    <div class="card">
+        <div class="dashCardHead">
+            <h3>Production Output</h3>
+            <div class="dashLegend">
+                <span><i style="background:#66754C"></i>Units completed</span>
+                <span><i style="background:#c48927"></i>Orders created</span>
+            </div>
+        </div>
+        <svg viewBox="0 0 560 186" width="100%" height="200" style="display:block;">
+            <g stroke="#ece4d0" stroke-width="1">
+                {% for t in lineChart.ticks %}
+                <line x1="36" y1="{{ t.y }}" x2="526" y2="{{ t.y }}"></line>
+                {% endfor %}
+            </g>
+            <g fill="#8a917a" font-size="10" text-anchor="end">
+                {% for t in lineChart.ticks %}
+                <text x="28" y="{{ t.y + 3 }}">{{ t.v }}</text>
+                {% endfor %}
+            </g>
+            {% if lineChart.unitArea %}
+            <polygon fill="rgba(102,117,76,0.08)" points="{{ lineChart.unitArea }}"></polygon>
+            {% endif %}
+            {% if lineChart.unitLine %}
+            <polyline fill="none" stroke="#66754C" stroke-width="2.2" stroke-linejoin="round"
+                points="{{ lineChart.unitLine }}"></polyline>
+            {% endif %}
+            {% if lineChart.orderLine %}
+            <polyline fill="none" stroke="#c48927" stroke-width="2" stroke-dasharray="5 4" stroke-linejoin="round"
+                points="{{ lineChart.orderLine }}"></polyline>
+            {% endif %}
+            <g fill="#66754C">
+                {% for d in lineChart.unitDots %}
+                <circle cx="{{ d.x }}" cy="{{ d.y }}" r="3">
+                    <title>{{ d.label }}: {{ d.v }} units completed</title>
+                </circle>
+                {% endfor %}
+            </g>
+            <g fill="#c48927">
+                {% for d in lineChart.orderDots %}
+                <circle cx="{{ d.x }}" cy="{{ d.y }}" r="2.5">
+                    <title>{{ d.label }}: {{ d.v }} orders created</title>
+                </circle>
+                {% endfor %}
+            </g>
+            <g fill="#8a917a" font-size="10" text-anchor="middle">
+                {% for l in lineChart.labels %}
+                <text x="{{ l.x }}" y="178">{{ l.text }}</text>
+                {% endfor %}
+            </g>
+        </svg>
+        <div style="font-size: 12px; color: var(--mt); margin-top: 6px;">Last 8 weeks &middot; units completed are
+            batches that passed QC</div>
+    </div>
+
+    <div class="card">
+        <div class="dashCardHead">
+            <h3>Orders by Status</h3>
+            <a href="/production/orders">View all &rarr;</a>
+        </div>
+        <div class="dashDonutWrap">
+            <svg width="132" height="132" viewBox="0 0 42 42">
+                <circle cx="21" cy="21" r="15.915" fill="none" stroke="#ece4d0" stroke-width="5"></circle>
+                {% for seg in donutSegments %}
+                {% if seg.show %}
+                <circle cx="21" cy="21" r="15.915" fill="none" stroke="{{ seg.color }}" stroke-width="5"
+                    stroke-dasharray="{{ seg.dash }}" stroke-dashoffset="{{ seg.offset }}"></circle>
+                {% endif %}
+                {% endfor %}
+                <text x="21" y="21" text-anchor="middle" font-size="8" font-weight="700" fill="#242c17">{{
+                    recentOrders|length }}</text>
+                <text x="21" y="27" text-anchor="middle" font-size="3.4" fill="#6b7557">orders</text>
+            </svg>
+            <div class="dashDonutList">
+                {% for seg in donutSegments %}
+                <div>
+                    <span><span class="dashDot" style="background:{{ seg.color }}"></span>{{ seg.label }}</span>
+                    <b>{{ seg.count }}</b>
+                </div>
+                {% endfor %}
+            </div>
         </div>
     </div>
 </div>
 
-<div class="dashboardCard ordersCard" style="margin-bottom: 20px;">
-    <div class="dashboardCardHeader">
+<div class="card dashRow">
+    <div class="dashCardHead">
         <div style="display: flex; align-items: center; gap: 10px;">
-            <h3 class="dashboardCardTitle">Production Orders</h3>
-            {% if scheduleTracker.overdue > 0 %}
-            <span class="dashboardBadge" style="background: rgba(154, 74, 58, 0.12); color: var(--rd); font-weight: 700;">
-                {{ scheduleTracker.overdue }} Overdue
+            <h3>Active Workshop Orders</h3>
+            <span class="statusBadge released" style="font-size: 11.5px; padding: 2px 8px;">
+                {{ activeOrdersList|length }} Active
             </span>
-            {% endif %}
         </div>
-        <a href="/production/orders" style="font-size: 12px; color: var(--p); text-decoration: none; font-weight: 700;">View All</a>
+        <a href="/production/orders">View all orders &rarr;</a>
     </div>
     <div class="tableContainer">
         <table>
@@ -53,61 +136,61 @@
                 <tr>
                     <th style="width: 90px;">Order</th>
                     <th>Product</th>
-                    <th style="text-align: right; width: 100px;">Batch</th>
+                    <th style="width: 140px;">Assigned Staff</th>
                     <th style="min-width: 220px;">Current Stage &amp; Progress</th>
-                    <th style="min-width: 140px;">Target Due Date</th>
-                    <th style="text-align: right; width: 90px;">Action</th>
+                    <th style="min-width: 130px;">Timeline &amp; Due</th>
+                    <th style="width: 110px;">Status</th>
+                    <th style="text-align: right; width: 130px;">Action</th>
                 </tr>
             </thead>
             <tbody>
-                {% for order in recentOrders %}
+                {% for order in activeOrdersList %}
                 <tr>
                     <td><b style="font-size: 13px; color: var(--tx);">#PO-{{ order.orderID }}</b></td>
-                    <td><b>{{ order.furnitureName }}</b></td>
-                    <td style="text-align: right; font-weight: 600; white-space: nowrap;">
-                        {{ order.plannedQuantity }} {{ 'unit' if order.plannedQuantity == 1 else 'units' }}
+                    <td>
+                        <b style="font-size: 13px; color: var(--tx);">{{ order.furnitureName }}</b>
+                        <span style="display: block; font-size: 11.5px; color: var(--mt);">
+                            {{ order.furnitureType }}{% if order.furnitureType %} &bull; {% endif %}{{
+                            order.plannedQuantity }} {{ 'unit' if order.plannedQuantity == 1 else 'units' }}
+                        </span>
                     </td>
                     <td>
-                        {% if order.status == 'Draft' %}
-                        <span style="font-size: 12px; color: var(--mt); font-weight: 500;">Not started</span>
-                        {% else %}
-                        <div style="display: flex; flex-direction: column; gap: 4px; max-width: 260px;">
-                            <div style="display: flex; justify-content: space-between; font-size: 11.5px;">
-                                <span style="font-weight: 600; color: var(--tx);">{{ order.stageLabel }}</span>
-                                <span style="font-weight: 700; color: var(--p);">{{ order.progress }}%</span>
-                            </div>
-                            <div style="height: 5px; background: rgba(0, 0, 0, 0.06); border-radius: 3px; overflow: hidden;">
-                                <div style="height: 100%; width: {{ order.progress }}%; background: var(--p); border-radius: 3px;"></div>
-                            </div>
+                        <span style="font-size: 12.5px; color: var(--tx);">{{ order.staffName }}</span>
+                    </td>
+                    <td>
+                        <div style="display: flex; align-items: center; gap: 8px;">
+                            <span style="font-size: 12.5px; font-weight: 600; color: var(--tx);">{{ order.progress
+                                }}%</span>
+                            <span style="font-size: 11.5px; color: var(--mt);">&middot; {{ order.stageText }}</span>
                         </div>
+                        <div class="dashMiniBar">
+                            <div style="width: {{ order.progress }}%;"></div>
+                        </div>
+                    </td>
+                    <td>
+                        {% if order.isOverdue %}
+                        <span class="statusBadge alert" style="font-size: 11px; padding: 2px 7px;">{{ order.dueDateStr
+                            }} &bull; Overdue</span>
+                        {% else %}
+                        <span style="font-size: 12.5px; font-weight: 600; color: var(--tx);">{{ order.dueDateStr
+                            }}</span>
                         {% endif %}
                     </td>
                     <td>
-                        {% if order.hasDueDate %}
-                            {% if order.urgency == 'overdue' %}
-                            <span style="font-size: 12.5px; color: var(--rd); font-weight: 600; cursor: help;" title="{{ order.urgencyText }}">{{ order.dueDateStr }}</span>
-                            {% elif order.urgency == 'today' %}
-                            <span style="font-size: 12.5px; color: #8c5d12; font-weight: 600; cursor: help;" title="Due Today">{{ order.dueDateStr }}</span>
-                            {% else %}
-                            <span style="font-size: 12.5px; color: var(--tx);">{{ order.dueDateStr }}</span>
-                            {% endif %}
-                        {% else %}
-                        <span style="font-size: 12px; color: var(--mt);">Unscheduled</span>
-                        {% endif %}
+                        <span class="statusBadge {{ order.statusClass }}">{{ order.status }}</span>
                     </td>
                     <td style="text-align: right;">
-                        {% if order.hasDueDate %}
-                        <a href="/production/orders/{{ order.orderID }}" class="actionButton secondary"
-                            style="padding: 4px 12px; font-size: 11.5px; text-decoration: none;">View</a>
-                        {% else %}
-                        <a href="/production/orders/{{ order.orderID }}" class="actionButton secondary"
-                            style="padding: 4px 12px; font-size: 11.5px; text-decoration: none; border-color: rgba(102, 117, 76, 0.4); color: var(--p);">Set Date</a>
-                        {% endif %}
+                        <a href="{{ order.actionUrl }}" class="actionButton secondary"
+                            style="padding: 4px 10px; font-size: 12px; text-decoration: none; display: inline-block;">
+                            {{ order.actionText }}
+                        </a>
                     </td>
                 </tr>
                 {% else %}
                 <tr>
-                    <td colspan="6" style="text-align: center; color: var(--mt); padding: 24px 0;">No production orders created yet.</td>
+                    <td colspan="7" style="text-align: center; color: var(--mt); padding: 28px 0; font-size: 13px;">
+                        No active production orders.
+                    </td>
                 </tr>
                 {% endfor %}
             </tbody>
@@ -115,140 +198,110 @@
     </div>
 </div>
 
-<div class="dashboardSecondaryGrid">
-    {% if isManager %}
-    <div class="dashboardCard stockoutsCard">
-        <div class="dashboardCardHeader">
+<div class="dashGridBottom">
+    <div class="card">
+        <div class="dashCardHead">
             <div style="display: flex; align-items: center; gap: 8px;">
-                <h3 class="dashboardCardTitle">Inventory Stockouts</h3>
-                {% if metrics.stockoutTotal and metrics.stockoutTotal > 0 %}
-                <span class="dashboardBadge" style="background: rgba(154, 74, 58, 0.1); color: var(--rd); font-weight: 700;">
-                    {{ metrics.stockoutTotal }}
+                <h3>Inventory Stockouts</h3>
+                {% if warehouseStockouts|length > 0 %}
+                <span class="statusBadge alert" style="font-size: 11px; padding: 2px 7px;">
+                    {{ warehouseStockouts|length }} Stockouts
                 </span>
                 {% endif %}
             </div>
-            <a href="/production/orders?stockouts=1" style="font-size: 11.5px; color: var(--p); text-decoration: none; font-weight: 700;">View All</a>
+            <a href="/production/furniture">View all products &rarr;</a>
         </div>
-        <div style="display: flex; flex-direction: column; gap: 10px;">
-            {% for item in metrics.stockouts %}
-            <div class="stockoutItem">
-                <div style="min-width: 0; flex: 1;">
-                    <b style="font-size: 13.5px; display: block; color: var(--tx); font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">
-                        {{ item.furniture_name }}
-                    </b>
-                    <span style="font-size: 11.5px; color: var(--mt); white-space: nowrap; display: block;">
-                        {{ item.furniture_type }} &bull; <span style="color: var(--rd); font-weight: 600;">0 in warehouse</span>
-                    </span>
-                </div>
-                {% if item.active_order_id %}
-                <a href="/production/orders/{{ item.active_order_id }}" class="stockoutBadge inProgress" title="View Active Order #PO-{{ item.active_order_id }}">
-                    In Progress
-                </a>
-                {% elif item.bom_item_count == 0 %}
-                <a href="/production/bom?furniture_id={{ item.furniture_id }}" class="stockoutBadge needBom" title="Configure BOM">
-                    BOM not configured
-                </a>
-                {% else %}
-                <a href="/production/orders?stockouts=1" class="stockoutBadge noStock" title="Create Restock Order">
-                    no stock
-                </a>
-                {% endif %}
-            </div>
-            {% else %}
-            <div style="text-align: center; color: var(--mt); padding: 18px 0; font-size: 12.5px;">
-                No finished goods stockout alerts.
-            </div>
-            {% endfor %}
+        {% if warehouseStockouts|length > 0 %}
+        <div class="tableContainer">
+            <table>
+                <thead>
+                    <tr>
+                        <th>Product</th>
+                        <th style="text-align: right; width: 100px;">Inventory</th>
+                        <th style="width: 130px;">BOM Status</th>
+                        <th style="text-align: right; width: 130px;">Action</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for item in warehouseStockouts %}
+                    <tr>
+                        <td>
+                            <b style="font-size: 12.5px; color: var(--tx);">{{ item.furniture_name }}</b>
+                            <span style="display: block; font-size: 11px; color: var(--mt);">
+                                {{ item.furniture_type }}
+                            </span>
+                        </td>
+                        <td style="text-align: right;">
+                            <span style="font-weight: 700; color: var(--rd); font-size: 12px;">{{ item.current_stock }}
+                                units</span>
+                        </td>
+                        <td>
+                            {% if item.bom_item_count > 0 %}
+                            <span class="statusBadge completed" style="font-size: 10.5px; padding: 2px 6px;">
+                                BOM Ready ({{ item.bom_item_count }})
+                            </span>
+                            {% else %}
+                            <span class="statusBadge draft" style="font-size: 10.5px; padding: 2px 6px;">
+                                No BOM
+                            </span>
+                            {% endif %}
+                        </td>
+                        <td style="text-align: right;">
+                            {% if item.active_order_id %}
+                            <a href="/production/orders/{{ item.active_order_id }}" class="statusBadge inProgress"
+                                style="text-decoration: none; font-size: 11px; padding: 2px 7px; display: inline-block;">
+                                #PO-{{ item.active_order_id }} ({{ item.active_order_status }})
+                            </a>
+                            {% elif item.bom_item_count == 0 %}
+                            <a href="/production/bom?furniture_id={{ item.furniture_id }}"
+                                class="actionButton secondary"
+                                style="padding: 3px 8px; font-size: 11px; text-decoration: none; display: inline-block;">
+                                Configure BOM
+                            </a>
+                            {% else %}
+                            <a href="/production/orders?stockouts=1" class="actionButton secondary"
+                                style="padding: 3px 8px; font-size: 11px; text-decoration: none; display: inline-block;">
+                                Create Order
+                            </a>
+                            {% endif %}
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
         </div>
+        {% else %}
+        <div style="text-align: center; color: var(--mt); padding: 28px 0; font-size: 12.5px;">
+            <i class="fas fa-circle-check"
+                style="color: var(--p); font-size: 20px; display: block; margin-bottom: 6px;"></i>
+            All catalog furniture products are currently stocked in inventory.
+        </div>
+        {% endif %}
     </div>
-    {% endif %}
 
-    <div class="dashboardCard activityChartCard" id="weeklyActivityCard" style="{{ '' if isManager else 'grid-column: span 2;' }}">
-        <div class="dashboardCardHeader">
-            <h3 class="dashboardCardTitle">Weekly Production Activity</h3>
-            <div class="weekNavControls">
-                <a href="/production/?week_offset={{ weekOffset - 1 }}"
-                    onclick="window.navigateActivityWeek({{ weekOffset - 1 }}, event);" class="weekNavBtn"
-                    title="Previous Week">&larr;</a>
-                <span class="dashboardBadge">{{ weekDateRange }}</span>
-                {% if weekOffset < 0 %}
-                <a href="/production/?week_offset={{ weekOffset + 1 }}"
-                    onclick="window.navigateActivityWeek({{ weekOffset + 1 }}, event);" class="weekNavBtn"
-                    title="Next Week">&rarr;</a>
-                {% else %}
-                <span class="weekNavBtn disabled" title="Current Week">&rarr;</span>
-                {% endif %}
-            </div>
+    <div class="card">
+        <div class="dashCardHead">
+            <h3>Recent Activity</h3>
         </div>
-        <div class="activityBarChartWrapper">
-            <div class="activityBarChartGrid">
-                {% for day in weekActivity %}
-                <div class="activityBarCol {{ 'isToday' if day.isToday else '' }} {{ 'isFuture' if day.isFuture else '' }}"
-                    title="{{ day.dayName }}, {{ day.dateStr }}: {{ day.orders }} batch(es), {{ day.units }} units">
-                    <div class="activityBarValue">{{ day.orders if day.orders > 0 else ('' if day.isFuture else '0') }}</div>
-                    <div class="activityBarTrack">
-                        {% if day.heightPct > 0 %}
-                        <div class="activityBarFill" style="height: {{ day.heightPct }}%;"></div>
-                        {% endif %}
+        {% if activityTimeline|length > 0 %}
+        <div class="dashActivityScroll">
+            <ul class="dashActivity">
+                {% for act in activityTimeline %}
+                <li>
+                    <div class="when">{{ act.dateStr }}</div>
+                    <div class="what">
+                        {{ act.title }}
+                        <span>{{ act.meta }}</span>
                     </div>
-                    <span class="activityBarDay">{{ day.dayName }}</span>
-                    <span class="activityBarDate">{{ day.dayNumber }}</span>
-                    {% if day.isToday %}
-                    <span class="todayDotIndicator" title="Today"></span>
-                    {% endif %}
-                </div>
+                </li>
                 {% endfor %}
-            </div>
-            <div class="activityBarChartFooter">
-                {% if weekOffset == 0 %}
-                <span>● <b>Today:</b> {{ todayDateStr }}</span>
-                {% else %}
-                <span><a href="/production/?week_offset=0" onclick="window.navigateActivityWeek(0, event);"
-                        style="color: var(--p); text-decoration: none; font-weight: 700;">&bull; Back to Current Week</a></span>
-                {% endif %}
-                <span>Weekly Total: <b>{{ totalWeeklyBatches }}</b> batch{{ 'es' if totalWeeklyBatches != 1 else '' }} ({{ totalWeeklyUnits }} {{ 'unit' if totalWeeklyUnits == 1 else 'units' }})</span>
-            </div>
+            </ul>
         </div>
+        {% else %}
+        <div style="text-align: center; color: var(--mt); padding: 28px 0; font-size: 13px;">
+            No recent activity
+        </div>
+        {% endif %}
     </div>
 </div>
-
-<script>
-    if (typeof window.navigateActivityWeek !== 'function') {
-        window.navigateActivityWeek = async function (offset, event) {
-            if (event) {
-                event.preventDefault();
-                event.stopPropagation();
-            }
-            const card = document.getElementById('weeklyActivityCard');
-            if (!card || card.classList.contains('isCardLoading')) return;
-
-            card.classList.add('isCardLoading');
-            const targetUrl = '/production/?week_offset=' + encodeURIComponent(offset);
-            try {
-                const response = await fetch(targetUrl, {
-                    headers: { 'X-Requested-With': 'XMLHttpRequest' }
-                });
-                if (!response.ok) {
-                    window.location.href = targetUrl;
-                    return;
-                }
-                const html = await response.text();
-                const doc = new DOMParser().parseFromString(html, 'text/html');
-                const freshCard = doc.getElementById('weeklyActivityCard');
-                if (freshCard) {
-                    card.innerHTML = freshCard.innerHTML;
-                    if (window.history && window.history.replaceState) {
-                        const cleanUrl = offset === 0 ? '/production/' : targetUrl;
-                        window.history.replaceState({ weekOffset: offset }, '', cleanUrl);
-                    }
-                }
-            } catch (err) {
-                console.log(`error message: ${err.message}`);
-                console.error('[Activity Card Navigation]', err);
-            } finally {
-                card.classList.remove('isCardLoading');
-            }
-        };
-    }
-</script>
 {% endblock %}

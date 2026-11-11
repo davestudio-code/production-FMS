@@ -76,6 +76,9 @@ def getProductionStaffRoster(conn=None):
 def _resolveSupabaseBaseUrl():
     explicitUrl = os.getenv("SUPABASE_URL", "").strip().rstrip("/")
     if explicitUrl:
+        for suffix in ("/storage/v1", "/storage", "/rest/v1", "/rest", "/auth/v1", "/auth"):
+            if suffix in explicitUrl:
+                explicitUrl = explicitUrl.split(suffix)[0].rstrip("/")
         return explicitUrl
     dbUser = os.getenv("DB_USER", "").strip()
     if dbUser.startswith("postgres.") and len(dbUser.split(".", 1)[1]) >= 8:
@@ -96,7 +99,10 @@ def uploadToSupabaseStorage(rawBytes, mimeType="image/jpeg", entityType="stage_p
         or os.getenv("SUPABASE_KEY")
         or ""
     ).strip()
-    bucketName = os.getenv("SUPABASE_STORAGE_BUCKET", "prod-attachments").strip() or "prod-attachments"
+    bucketName = (
+        os.getenv("SUPABASE_STORAGE_BUCKET")
+        or "Attachments"
+    ).strip().strip('"\'/').rstrip("/") or "Attachments"
 
     if not baseUrl or not serviceKey:
         raise RuntimeError(
@@ -119,16 +125,16 @@ def uploadToSupabaseStorage(rawBytes, mimeType="image/jpeg", entityType="stage_p
     else:
         objectPath = f"{folder}/{stamp}-{token}.{ext}"
 
-    encodedBucket = urllib.parse.quote(bucketName, safe="")
+    objectPath = objectPath.lstrip("/")
+    encodedBucket = urllib.parse.quote(bucketName.strip("/"), safe="")
     uploadUrl = f"{baseUrl}/storage/v1/object/{encodedBucket}/{objectPath}"
     headers = {
         "apikey": serviceKey,
+        "Authorization": f"Bearer {serviceKey}",
         "Content-Type": mimeType or "image/jpeg",
         "x-upsert": "true",
         "User-Agent": "VelmoraERP-Server/1.0"
     }
-    if not serviceKey.startswith("sb_"):
-        headers["Authorization"] = f"Bearer {serviceKey}"
 
     req = urllib.request.Request(uploadUrl, data=rawBytes, headers=headers, method="POST")
     try:

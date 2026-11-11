@@ -1,4 +1,5 @@
 import os
+import re
 from flask import Blueprint, render_template, request, redirect, url_for, flash, session, jsonify, send_from_directory
 from decimal import Decimal, InvalidOperation
 from datetime import datetime, date, timedelta
@@ -119,6 +120,15 @@ def login():
 
         email = request.form.get("email", "").strip()
         password = request.form.get("password", "")
+
+        email_pattern = r"^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$"
+        if not email or not re.match(email_pattern, email):
+            err_msg = "Please enter a valid email address."
+            if request.headers.get("X-Requested-With") == "XMLHttpRequest" or request.is_json:
+                return jsonify({"success": False, "error": err_msg}), 400
+            flash(err_msg, "danger")
+            return render_template("production/loginpage/login.html", ban_status=ban_status), 400
+
         try:
             user_record, error_message = authenticate_credentials(email, password)
         except Exception as err:
@@ -384,20 +394,77 @@ def index():
 
     utilizationPercent = min(100, (inProgressOrders * 35) + (releasedOrders * 20) + (draftOrders * 10))
 
+    activeWipUnits = sum(int(o.plannedQuantity or 0) for o in allOrders if o.status == "In Progress")
+    readyForIssuanceUnits = sum(int(o.plannedQuantity or 0) for o in allOrders if o.status == "Released")
+    awaitingQCOrders = sum(1 for m in allMonitoring if m.orderStatus == "In Progress" and m.progress and m.progress >= 90)
+    needsPlanCount = sum(1 for o in allOrders if o.status == "Draft" and (not o.dueDate or not o.assignedTo))
+
+    today = date.today()
+    datedOrdersTotal = sum(1 for o in allOrders if o.dueDate)
+    onTimeOrders = sum(1 for o in allOrders if o.dueDate and (o.status == "Completed" or o.dueDate >= today))
+    otdRate = int(round((onTimeOrders / datedOrdersTotal) * 100)) if datedOrdersTotal > 0 else 100
+
     metricsData = {
         "totalOrders": len(allOrders),
         "draftOrders": draftOrders,
         "releasedOrders": releasedOrders,
         "inProgressOrders": inProgressOrders,
         "completedOrders": completedOrders,
+        "activeWipUnits": activeWipUnits,
+        "readyForIssuanceUnits": readyForIssuanceUnits,
+        "awaitingQCCount": awaitingQCOrders,
+        "needsPlanCount": needsPlanCount,
+        "otdRate": otdRate,
         "lowStockCount": len(lowStockMaterials),
-        "lowStockItems": lowStockMaterials[:4],
+        "lowStockItems": lowStockMaterials[:5],
         "stockouts": stockouts[:4],
         "stockoutTotal": len(stockouts),
         "utilizationPercent": utilizationPercent
     }
 
-    today = date.today()
+    pipelineFunnel = [
+        {
+            "step": 1,
+            "title": "Draft Intake",
+            "count": draftOrders,
+            "subtitle": f"{needsPlanCount} need planning" if needsPlanCount > 0 else "All planned",
+            "url": "/production/orders?status=Draft",
+            "icon": "fa-file-invoice"
+        },
+        {
+            "step": 2,
+            "title": "Ready for Issuance",
+            "count": releasedOrders,
+            "subtitle": f"{readyForIssuanceUnits} units to dispatch",
+            "url": "/production/issuance",
+            "icon": "fa-dolly"
+        },
+        {
+            "step": 3,
+            "title": "Shop Floor WIP",
+            "count": inProgressOrders,
+            "subtitle": f"{activeWipUnits} units in assembly",
+            "url": "/production/monitoring",
+            "icon": "fa-screwdriver-wrench"
+        },
+        {
+            "step": 4,
+            "title": "Quality Gate (QC)",
+            "count": awaitingQCOrders,
+            "subtitle": "Pending Stage 4 sign-off" if awaitingQCOrders > 0 else "Clear",
+            "url": "/production/finished-goods",
+            "icon": "fa-clipboard-check"
+        },
+        {
+            "step": 5,
+            "title": "Stock Credited",
+            "count": completedOrders,
+            "subtitle": "Transferred to inventory",
+            "url": "/production/finished-goods",
+            "icon": "fa-boxes-stacked"
+        }
+    ]
+
     uncompletedOrders = [o for o in allOrders if o.status != "Completed"]
     overdueOrders = [o for o in uncompletedOrders if o.dueDate and o.dueDate < today]
     dueTodayOrders = [o for o in uncompletedOrders if o.dueDate and o.dueDate == today]
@@ -453,10 +520,12 @@ def index():
                 "statusClass": statusClass
             })
 
+    onScheduleCount = len([o for o in uncompletedOrders if o.dueDate and o.dueDate >= today])
     scheduleTracker = {
         "overdue": len(overdueOrders),
         "dueToday": len(dueTodayOrders),
         "dueThisWeek": len(dueThisWeekOrders),
+        "onSchedule": onScheduleCount,
         "totalPending": len(uncompletedOrders),
         "needsDateCount": len(undatedOrders),
         "upcoming": upcomingDeadlines
@@ -582,9 +651,52 @@ def index():
             urgency = "unscheduled"
             urgencyText = "Unscheduled"
 
+        smartAction = {
+            "label": "View",
+            "url": f"/production/orders/{o.orderID}",
+            "cls": "secondary",
+            "icon": "fa-eye"
+        }
+        if o.status == "Completed":
+            smartAction = {
+                "label": "View QC",
+                "url": "/production/finished-goods",
+                "cls": "secondary",
+                "icon": "fa-certificate"
+            }
+        elif prog >= 90.0:
+            smartAction = {
+                "label": "Inspect QC",
+                "url": "/production/finished-goods",
+                "cls": "primary",
+                "icon": "fa-microscope"
+            }
+        elif o.status == "In Progress":
+            smartAction = {
+                "label": "Update Stage",
+                "url": "/production/monitoring",
+                "cls": "secondary",
+                "icon": "fa-sliders"
+            }
+        elif o.status == "Released":
+            smartAction = {
+                "label": "Issue Materials",
+                "url": "/production/issuance",
+                "cls": "primary",
+                "icon": "fa-dolly"
+            }
+        elif o.status == "Draft" and (not o.dueDate or not getattr(o, "assignedTo", None)):
+            smartAction = {
+                "label": "Plan & Assign",
+                "url": "/production/planning",
+                "cls": "warning",
+                "icon": "fa-calendar-plus"
+            }
+
         recentOrdersList.append({
             "orderID": o.orderID,
             "furnitureName": o.furnitureName,
+            "furnitureType": getattr(o, "furnitureType", "") or "Furniture",
             "plannedQuantity": o.plannedQuantity,
             "status": o.status,
             "dueDate": o.dueDate,
@@ -593,7 +705,10 @@ def index():
             "progress": int(round(prog)),
             "urgency": urgency,
             "urgencyText": urgencyText,
-            "hasDueDate": bool(o.dueDate)
+            "hasDueDate": bool(o.dueDate),
+            "assignedStaffName": getattr(o, "assignedStaffName", "") or "Unassigned",
+            "hasProof": bool(mon and mon.progress and mon.progress >= 90),
+            "smartAction": smartAction
         })
     integrationEventsList = []
 
@@ -607,23 +722,24 @@ def index():
         return today
 
     activityTimeline = []
+    allOutputs = []
     try:
-        recentOutputs = ProductionOutput.getAll()
-        for out in recentOutputs[:4]:
+        allOutputs = ProductionOutput.getAll()
+        for out in allOutputs:
             if out.qualityStatus == "Passed":
                 activityTimeline.append({
-                    "title": f"Order #PO-{out.orderID} passed Quality Inspection (QC)",
-                    "meta": "Transferred to finished goods",
+                    "title": f"#PO-{out.orderID} passed QC",
+                    "meta": f"{out.quantity} units added to finished goods",
                     "sortKey": (_safeEventDate(out.inspectionDate), 4, int(out.outputID or 0))
                 })
             elif out.qualityStatus == "Rework":
                 activityTimeline.append({
-                    "title": f"Order #PO-{out.orderID} flagged for rework ({out.furnitureName})",
-                    "meta": "Returned to workshop",
+                    "title": f"#PO-{out.orderID} sent back for rework",
+                    "meta": out.reason or out.furnitureName,
                     "sortKey": (_safeEventDate(out.inspectionDate), 4, int(out.outputID or 0))
                 })
     except Exception:
-        pass
+        allOutputs = []
 
     for mon in activeMonitoring:
         if mon.progress and mon.progress > 0:
@@ -633,8 +749,8 @@ def index():
                 )
             )
             activityTimeline.append({
-                "title": f"Order #PO-{mon.orderID} advanced to {int(mon.progress)}% ({stageLabel})",
-                "meta": "Active in workshop",
+                "title": f"#PO-{mon.orderID} moved to {int(mon.progress)}% · {stageLabel}",
+                "meta": "Workshop update",
                 "sortKey": (_safeEventDate(mon.startDate), 3, int(mon.monitoringID or 0))
             })
 
@@ -645,25 +761,210 @@ def index():
             if iss.orderID not in seenIssuanceOrders:
                 seenIssuanceOrders.add(iss.orderID)
                 activityTimeline.append({
-                    "title": f"Raw materials dispatched for Order #PO-{iss.orderID}",
-                    "meta": "Transferred to workshop",
+                    "title": f"Materials issued for #PO-{iss.orderID}",
+                    "meta": "Stock deducted from inventory",
                     "sortKey": (_safeEventDate(iss.issueDate), 2, int(iss.issuanceID or 0))
                 })
-                if len(seenIssuanceOrders) >= 4:
-                    break
     except Exception:
         pass
 
-    for o in allOrders[:4]:
-        dateStr = f"Scheduled · Target {o.dueDate.strftime('%b. %d')}" if o.dueDate else "Draft · Awaiting schedule"
+    for o in allOrders:
+        dueText = f"due {o.dueDate.strftime('%b. %d')}" if o.dueDate else "not scheduled"
         activityTimeline.append({
-            "title": f"Order #PO-{o.orderID} registered for {o.furnitureName} ({o.plannedQuantity} units)",
-            "meta": dateStr,
+            "title": f"#PO-{o.orderID} created · {o.furnitureName}",
+            "meta": f"{o.plannedQuantity} units · {dueText}",
             "sortKey": (_safeEventDate(o.orderDate), 1, int(o.orderID or 0))
         })
 
     activityTimeline.sort(key=lambda x: x["sortKey"], reverse=True)
-    activityTimeline = activityTimeline[:4]
+    for act in activityTimeline:
+        act["dateStr"] = act["sortKey"][0].strftime("%b. %d")
+
+    def _ringDash(pct):
+        pct = max(0, min(100, int(round(pct))))
+        return f"{pct} {100 - pct}"
+
+    datedActive = [o for o in uncompletedOrders if o.dueDate]
+    datedOnTrack = [o for o in datedActive if o.dueDate >= today]
+    onSchedulePct = int(round(len(datedOnTrack) / len(datedActive) * 100)) if datedActive else None
+
+    progressValues = [float(m.progress or 0) for m in activeMonitoring]
+    avgProgressPct = int(round(sum(progressValues) / len(progressValues))) if progressValues else None
+
+    inspectedOutputs = [out for out in allOutputs if out.qualityStatus in ("Passed", "Rework", "Failed")]
+    inspectedUnits = sum(int(out.quantity or 0) for out in inspectedOutputs)
+    passedUnits = sum(int(out.quantity or 0) for out in inspectedOutputs if out.qualityStatus == "Passed")
+    qcPassPct = int(round(passedUnits / inspectedUnits * 100)) if inspectedUnits > 0 else None
+
+    try:
+        allFurniture = Furniture.getAll()
+    except Exception:
+        allFurniture = []
+
+    totalProducts = len(allFurniture)
+    stockoutFurnitureIDs = {s["furniture_id"] for s in stockouts}
+    productsInStockCount = max(0, totalProducts - len(stockoutFurnitureIDs))
+    productsInStockPct = int(round(productsInStockCount / totalProducts * 100)) if totalProducts > 0 else None
+
+    dashRings = [
+        {
+            "label": "On Schedule",
+            "value": f"{onSchedulePct}%" if onSchedulePct is not None else "—",
+            "note": f"{len(datedOnTrack)} of {len(datedActive)} dated orders" if datedActive else "No scheduled orders",
+            "dash": _ringDash(onSchedulePct) if onSchedulePct is not None else "",
+            "color": "#66754C" if not overdueOrders else "#9a4a3a"
+        },
+        {
+            "label": "Avg. Workshop Progress",
+            "value": f"{avgProgressPct}%" if avgProgressPct is not None else "—",
+            "note": f"{len(activeMonitoring)} order{'s' if len(activeMonitoring) != 1 else ''} in progress" if activeMonitoring else "Nothing in the workshop",
+            "dash": _ringDash(avgProgressPct) if avgProgressPct is not None else "",
+            "color": "#c48927"
+        },
+        {
+            "label": "QC Pass Rate",
+            "value": f"{qcPassPct}%" if qcPassPct is not None else "—",
+            "note": f"{passedUnits} of {inspectedUnits} units passed" if inspectedUnits > 0 else "No inspections yet",
+            "dash": _ringDash(qcPassPct) if qcPassPct is not None else "",
+            "color": "#66754C"
+        },
+        {
+            "label": "Products in Inventory",
+            "value": f"{productsInStockCount} / {totalProducts}" if totalProducts > 0 else "—",
+            "note": f"{len(stockouts)} stockout{'s' if len(stockouts) != 1 else ''} in warehouse" if stockouts else "All products stocked",
+            "dash": _ringDash(productsInStockPct) if productsInStockPct is not None else "",
+            "color": "#4a7a94" if productsInStockCount > 0 else "#9a4a3a"
+        }
+    ]
+
+    currentMonday = today - timedelta(days=today.weekday())
+    weekStarts = [currentMonday - timedelta(weeks=7 - i) for i in range(8)]
+    ordersPerWeek = [0] * 8
+    unitsPerWeek = [0] * 8
+    for o in allOrders:
+        od = _safeEventDate(o.orderDate) if o.orderDate else None
+        if od is None:
+            continue
+        idx = (od - weekStarts[0]).days // 7
+        if 0 <= idx < 8:
+            ordersPerWeek[idx] += 1
+    for out in allOutputs:
+        if out.qualityStatus != "Passed":
+            continue
+        idx = (_safeEventDate(out.inspectionDate) - weekStarts[0]).days // 7
+        if 0 <= idx < 8:
+            unitsPerWeek[idx] += int(out.quantity or 0)
+
+    chartMax = max(ordersPerWeek + unitsPerWeek + [3])
+    chartMax = int(((chartMax + 2) // 3) * 3)
+    chartLeft, chartRight, chartTop, chartBottom = 36.0, 526.0, 12.0, 156.0
+    stepX = (chartRight - chartLeft) / 7
+
+    def _chartPoint(i, v):
+        x = round(chartLeft + i * stepX, 1)
+        y = round(chartBottom - (v / chartMax) * (chartBottom - chartTop), 1)
+        return x, y
+
+    unitPts = [_chartPoint(i, v) for i, v in enumerate(unitsPerWeek)]
+    orderPts = [_chartPoint(i, v) for i, v in enumerate(ordersPerWeek)]
+    unitLine = " ".join(f"{x},{y}" for x, y in unitPts)
+    lineChart = {
+        "unitLine": unitLine,
+        "unitArea": f"{chartLeft},{chartBottom} {unitLine} {chartRight},{chartBottom}",
+        "orderLine": " ".join(f"{x},{y}" for x, y in orderPts),
+        "unitDots": [{"x": x, "y": y, "v": unitsPerWeek[i], "label": weekStarts[i].strftime("%b %d")} for i, (x, y) in enumerate(unitPts)],
+        "orderDots": [{"x": x, "y": y, "v": ordersPerWeek[i], "label": weekStarts[i].strftime("%b %d")} for i, (x, y) in enumerate(orderPts)],
+        "labels": [{"x": round(chartLeft + i * stepX, 1), "text": ws.strftime("%b %d")} for i, ws in enumerate(weekStarts)],
+        "ticks": [{"v": int(chartMax * k / 3), "y": round(chartBottom - (k / 3) * (chartBottom - chartTop), 1)} for k in range(4)],
+        "totalUnits": sum(unitsPerWeek),
+        "totalOrders": sum(ordersPerWeek)
+    }
+
+    statusSegmentsRaw = [
+        ("Draft", draftOrders, "#b58f55"),
+        ("Released", releasedOrders, "#4a7a94"),
+        ("In Progress", inProgressOrders, "#c48927"),
+        ("Completed", completedOrders, "#66754C")
+    ]
+    statusTotal = sum(s[1] for s in statusSegmentsRaw)
+    donutSegments = []
+    cumulative = 0.0
+    for label, count, color in statusSegmentsRaw:
+        pct = (count / statusTotal * 100) if statusTotal > 0 else 0
+        donutSegments.append({
+            "label": label,
+            "count": count,
+            "color": color,
+            "dash": f"{round(pct, 2)} {round(100 - pct, 2)}",
+            "offset": round((25 - cumulative) % 100, 2),
+            "show": count > 0
+        })
+        cumulative += pct
+
+    activeOrdersList = []
+    for o in uncompletedOrders[:6]:
+        mon = monitoringMap.get(o.orderID)
+        prog = int(round(float(mon.progress))) if (mon and mon.progress is not None) else 0
+        if o.status == "In Progress":
+            if prog >= 90:
+                stageText = "Stage 4: Ready for QC"
+                actionText = "Inspect QC"
+                actionUrl = url_for("production.finishedGoodsList")
+            elif prog >= 75:
+                stageText = "Stage 3: Sanding & Finishing"
+                actionText = "Update Progress"
+                actionUrl = url_for("production.monitoringList")
+            elif prog >= 50:
+                stageText = "Stage 2: Joinery & Assembly"
+                actionText = "Update Progress"
+                actionUrl = url_for("production.monitoringList")
+            elif prog >= 25:
+                stageText = "Stage 1: Cutting & Sizing"
+                actionText = "Update Progress"
+                actionUrl = url_for("production.monitoringList")
+            else:
+                stageText = "Not Started"
+                actionText = "Start Assembly"
+                actionUrl = url_for("production.monitoringList")
+        elif o.status == "Released":
+            stageText = "Released to Floor"
+            actionText = "Issue Materials"
+            actionUrl = url_for("production.issuanceList")
+        else:
+            stageText = "Draft Intake" if not o.dueDate else "Planned"
+            actionText = "Plan Order"
+            actionUrl = url_for("production.planningDashboard")
+        activeOrdersList.append({
+            "orderID": o.orderID,
+            "furnitureName": o.furnitureName,
+            "furnitureType": o.furnitureType or "",
+            "plannedQuantity": o.plannedQuantity,
+            "status": o.status,
+            "statusClass": "inProgress" if o.status == "In Progress" else ("released" if o.status == "Released" else "draft"),
+            "progress": prog,
+            "stageText": stageText,
+            "staffName": o.assignedStaffName or "Unassigned",
+            "dueDate": o.dueDate,
+            "dueDateStr": o.dueDate.strftime("%b. %d, %Y") if o.dueDate else "Not set",
+            "isOverdue": bool(o.dueDate and o.dueDate < today),
+            "actionText": actionText,
+            "actionUrl": actionUrl
+        })
+
+    def _fmtQty(val):
+        txt = f"{val:f}".rstrip("0").rstrip(".") if "." in f"{val:f}" else f"{val:f}"
+        return txt or "0"
+
+    lowStockList = [
+        {
+            "materialID": m.materialID,
+            "itemCode": getattr(m, "itemCode", "") or str(m.materialID),
+            "name": m.materialName,
+            "onHand": f"{_fmtQty(m.currentStock)} {m.unit or ''}".strip(),
+            "unitCost": m.unitCost
+        }
+        for m in materials if m.currentStock <= Decimal("0.000")
+    ][:5]
 
     now = datetime.now()
     hour = now.hour
@@ -697,9 +998,16 @@ def index():
         stageReadiness=stageReadiness,
         activeStageBatches=activeStageBatches,
         scheduleTracker=scheduleTracker,
+        pipelineFunnel=pipelineFunnel,
         greetingText=greetingText,
         firstName=firstName,
-        lastUpdatedTime=lastUpdatedTime
+        lastUpdatedTime=lastUpdatedTime,
+        dashRings=dashRings,
+        lineChart=lineChart,
+        donutSegments=donutSegments,
+        activeOrdersList=activeOrdersList,
+        lowStockList=lowStockList,
+        warehouseStockouts=stockouts
     )
 
 @productionBlueprint.route("/furniture")

@@ -7,7 +7,7 @@ function toggleRollbackForm(elementId) {
     }
 }
 
-window.syncStageProofRequirement = function() {
+window.syncStageProofRequirement = function () {
     var selectEl = document.getElementById('stageModalProgress');
     var photoInput = document.getElementById('stageModalPhoto');
     var photoLabel = document.getElementById('stagePhotoLabel');
@@ -22,7 +22,7 @@ window.syncStageProofRequirement = function() {
         photoLabel.textContent = isStage4 ? 'Stage 4 Photo Proof *' : 'Workshop Photo Proof';
     }
     if (reqBadge) {
-        reqBadge.textContent = isStage4 ? 'Required for QC Sign-Off' : 'Optional on Stages 1–3';
+        reqBadge.textContent = isStage4 ? 'Required' : 'Optional on Stages 1–3';
         reqBadge.style.color = isStage4 ? 'var(--rd)' : 'var(--mt)';
     }
     if (submitBtn && submitBtn.textContent !== 'Optimizing photo...') {
@@ -30,7 +30,7 @@ window.syncStageProofRequirement = function() {
     }
 };
 
-window.openStageUpdateModal = function(btn) {
+window.openStageUpdateModal = function (btn) {
     if (!btn) return;
     var monId = btn.getAttribute('data-monitoring-id') || '';
     var orderId = btn.getAttribute('data-order-id') || '';
@@ -77,14 +77,14 @@ window.openStageUpdateModal = function(btn) {
     }
 };
 
-window.handleStagePhotoChange = function(input) {
+window.handleStagePhotoChange = function (input) {
     var previewWrap = document.getElementById('stagePhotoPreviewWrap');
     var previewImg = document.getElementById('stagePhotoPreviewImg');
     var previewMeta = document.getElementById('stagePhotoPreviewMeta');
     var submitBtn = document.getElementById('stageModalSubmitBtn');
 
     if (stagePreviewObjectUrl) {
-        try { URL.revokeObjectURL(stagePreviewObjectUrl); } catch (e) {}
+        try { URL.revokeObjectURL(stagePreviewObjectUrl); } catch (e) { }
         stagePreviewObjectUrl = null;
     }
 
@@ -131,7 +131,7 @@ window.handleStagePhotoChange = function(input) {
         window.syncStageProofRequirement();
     }
 
-    img.onload = function() {
+    img.onload = function () {
         try {
             var maxDim = 1100;
             var w = img.naturalWidth || img.width;
@@ -153,8 +153,8 @@ window.handleStagePhotoChange = function(input) {
             ctx.fillRect(0, 0, w, h);
             ctx.drawImage(img, 0, 0, w, h);
 
-            canvas.toBlob(function(blob) {
-                try { URL.revokeObjectURL(rawUrl); } catch (e) {}
+            canvas.toBlob(function (blob) {
+                try { URL.revokeObjectURL(rawUrl); } catch (e) { }
                 if (blob && typeof DataTransfer !== 'undefined') {
                     var baseName = (file.name || 'stage_proof').replace(/\.[^/.]+$/, '');
                     var compFile = new File([blob], baseName + '.jpg', {
@@ -169,7 +169,7 @@ window.handleStagePhotoChange = function(input) {
                             stagePreviewObjectUrl = URL.createObjectURL(compFile);
                             finishPrep(compFile, stagePreviewObjectUrl);
                             return;
-                        } catch (dtErr) {}
+                        } catch (dtErr) { }
                     }
                 }
                 stagePreviewObjectUrl = URL.createObjectURL(file);
@@ -181,8 +181,8 @@ window.handleStagePhotoChange = function(input) {
         }
     };
 
-    img.onerror = function() {
-        try { URL.revokeObjectURL(rawUrl); } catch (e) {}
+    img.onerror = function () {
+        try { URL.revokeObjectURL(rawUrl); } catch (e) { }
         stagePreviewObjectUrl = URL.createObjectURL(file);
         finishPrep(file, stagePreviewObjectUrl);
     };
@@ -190,14 +190,14 @@ window.handleStagePhotoChange = function(input) {
     img.src = rawUrl;
 };
 
-window.setMonitoringTab = function(stateVal) {
+window.setMonitoringTab = function (stateVal) {
     var nextVal = stateVal || '';
     var stateInput = document.getElementById('monitoringStateSelect');
     if (stateInput) {
         stateInput.value = nextVal;
     }
     var tabs = document.querySelectorAll('.workspaceFilterTabs .workspaceTabBtn[data-state]');
-    tabs.forEach(function(tab) {
+    tabs.forEach(function (tab) {
         if ((tab.getAttribute('data-state') || '') === nextVal) {
             tab.classList.add('active');
         } else {
@@ -207,14 +207,14 @@ window.setMonitoringTab = function(stateVal) {
     window.filterMonitoringTable();
 };
 
-window.filterMonitoringTable = function() {
+window.filterMonitoringTable = function () {
     var searchEl = document.getElementById('globalTabSearchInput');
     var q = (searchEl ? searchEl.value : '').toLowerCase().trim();
     var stateEl = document.getElementById('monitoringStateSelect');
     var state = (stateEl ? stateEl.value : '').trim();
     var rows = document.querySelectorAll('tr.monitoringRow');
     var visibleCount = 0;
-    rows.forEach(function(row) {
+    rows.forEach(function (row) {
         var rowState = row.dataset.state || '';
         var rowMine = row.dataset.mine || '0';
         var rowSearch = row.dataset.search || '';
@@ -239,7 +239,7 @@ window.filterMonitoringTable = function() {
 };
 
 if (document.readyState === 'loading') {
-    document.addEventListener('DOMContentLoaded', function() {
+    document.addEventListener('DOMContentLoaded', function () {
         window.filterMonitoringTable();
     });
 } else {

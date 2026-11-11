@@ -21,6 +21,28 @@ function startBlockCountdown(remainingSeconds, alertBox) {
 const submit = async (event) => {
     event.preventDefault();
     const form = event.target;
+    const emailInput = form.querySelector('#loginEmail');
+    const email = (emailInput ? emailInput.value : '').trim();
+    const emailPattern = /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/;
+
+    if (!email || !emailPattern.test(email)) {
+        let alertBox = document.getElementById('loginFlashAlert');
+        if (!alertBox) {
+            alertBox = document.createElement('div');
+            alertBox.id = 'loginFlashAlert';
+            form.parentNode.insertBefore(alertBox, form);
+        }
+        if (countdownTimer) clearInterval(countdownTimer);
+        alertBox.className = 'flash-alert flash-danger';
+        alertBox.style.cssText = '';
+        alertBox.innerHTML = '<i class="fas fa-exclamation-circle"></i><span>Please enter a valid email address.</span>';
+        alertBox.style.display = 'flex';
+        if (emailInput) {
+            emailInput.focus();
+        }
+        return;
+    }
+
     const submitBtn = form.querySelector('.btn-submit');
     const formData = new FormData(form);
     let isSuccess = false;

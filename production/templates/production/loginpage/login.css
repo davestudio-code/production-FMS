@@ -164,6 +164,15 @@ body {
   margin-bottom: 18px;
 }
 
+.input-label {
+  display: block;
+  font-size: 0.82rem;
+  font-weight: 600;
+  color: var(--text-main);
+  margin-bottom: 6px;
+  margin-left: 14px;
+}
+
 .input-pill {
   position: relative;
   display: flex;
