@@ -44,7 +44,7 @@ window.openStageUpdateModal = function (btn) {
     }
     var titleEl = document.getElementById('stageModalTitle');
     if (titleEl) {
-        titleEl.textContent = 'Log Stage: Order #PO-' + orderId;
+        titleEl.textContent = 'Update Progress: Order #PO-' + orderId;
     }
     var subEl = document.getElementById('stageModalSubtitle');
     if (subEl) {

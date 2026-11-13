@@ -409,7 +409,7 @@ def getLiveNotificationsForUser(employeeID=None, isManager=False, isProdStaff=Fa
                                 "title": f"Workshop Assembly — Order #PO-{oid}",
                                 "message": f"Materials dispatched for {fname} ({qty} units) · Currently at {int(round(prog))}%.",
                                 "targetUrl": "/production/monitoring",
-                                "timeLabel": f"Due {dueFmt} · Log Stage →"
+                                "timeLabel": f"Due {dueFmt} · Update Progress →"
                             })
                         elif status in ("Draft", "Released"):
                             items.append({

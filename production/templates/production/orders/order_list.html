@@ -1,7 +1,7 @@
 {% extends "production/base.html" %}
 
 {% block content %}
-{% set showStockoutsTab = (request.args.get('stockouts') == '1') %}
+{% set showStockoutsTab = (request.args.get('stockouts') == '1' and isManager) %}
 <div class="headerRow">
     <div>
         <h2>Production Orders</h2>
@@ -36,12 +36,14 @@
                 <span>Completed</span>
                 <span class="workspaceTabCount">{{ summary.completed }}</span>
             </button>
+            {% if isManager %}
             <span class="workspaceTabDivider"></span>
             <button type="button" class="workspaceTabBtn stockoutTab {{ 'hasAlerts' if stockoutAlerts|length > 0 else '' }} {{ 'active' if showStockoutsTab else '' }}" data-status="__stockouts__" onclick="setOrderStatusTab('__stockouts__')">
                 <span class="stockoutExclaim">!</span>
                 <span>Stockouts</span>
                 <span class="workspaceTabCount">{{ stockoutAlerts|length }}</span>
             </button>
+            {% endif %}
         </div>
 
         {% if isManager %}
@@ -135,6 +137,7 @@
     </div>
     </div>
 
+    {% if isManager %}
     <div id="stockoutsWorkspaceSection" style="{{ '' if showStockoutsTab else 'display: none;' }}">
         <div class="tableContainer">
             <table>
@@ -169,22 +172,18 @@
                             {% endif %}
                         </td>
                         <td>
-                            {% if isManager %}
-                                {% if alert.active_order_id %}
-                                <a href="/production/orders/{{ alert.active_order_id }}" class="actionButton secondary" style="padding: 5px 11px; font-size: 12px; text-decoration: none; white-space: nowrap;">
-                                    View Order &rarr;
-                                </a>
-                                {% elif alert.bom_item_count == 0 %}
-                                <a href="/production/bom?furniture_id={{ alert.furniture_id }}" class="actionButton secondary" style="padding: 5px 11px; font-size: 12px; text-decoration: none; white-space: nowrap;">
-                                    + Configure BOM
-                                </a>
-                                {% else %}
-                                <button type="button" class="actionButton" style="padding: 5px 12px; font-size: 12px; white-space: nowrap;" onclick="openRestockModal('{{ alert.furniture_id }}')">
-                                    + Restock Order
-                                </button>
-                                {% endif %}
+                            {% if alert.active_order_id %}
+                            <a href="/production/orders/{{ alert.active_order_id }}" class="actionButton secondary" style="padding: 5px 11px; font-size: 12px; text-decoration: none; white-space: nowrap;">
+                                View Order &rarr;
+                            </a>
+                            {% elif alert.bom_item_count == 0 %}
+                            <a href="/production/bom?furniture_id={{ alert.furniture_id }}" class="actionButton secondary" style="padding: 5px 11px; font-size: 12px; text-decoration: none; white-space: nowrap;">
+                                + Configure BOM
+                            </a>
                             {% else %}
-                                <span style="font-size: 12px; color: var(--mt); font-style: italic;">Awaiting Manager</span>
+                            <button type="button" class="actionButton" style="padding: 5px 12px; font-size: 12px; white-space: nowrap;" onclick="openRestockModal('{{ alert.furniture_id }}')">
+                                + Restock Order
+                            </button>
                             {% endif %}
                         </td>
                     </tr>
@@ -204,8 +203,10 @@
             </table>
         </div>
     </div>
+    {% endif %}
 </div>
 
+{% if isManager %}
 <div id="createOrderModal" class="modalOverlay">
     <div class="modalCard" style="max-width: 520px; width: 100%; box-sizing: border-box; overflow-x: hidden;">
         <div class="modalHeader">
@@ -243,6 +244,7 @@
         </form>
     </div>
 </div>
+{% endif %}
 
 <script>
     window.furnitureBomMap = {{ furnitureBomMap|tojson }};

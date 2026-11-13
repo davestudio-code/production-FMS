@@ -24,7 +24,7 @@
                 <option value="">No Products Registered Yet</option>
                 {% endfor %}
             </select>
-            {% if not furnitureItems %}
+            {% if not furnitureItems and isManager %}
             <a href="/production/furniture" class="actionButton secondary"
                 style="padding: 6px 12px; font-size: 12.5px; text-decoration: none;">+ Add Product in Product Master</a>
             {% endif %}

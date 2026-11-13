@@ -53,8 +53,8 @@
                     <th>Order Reference</th>
                     <th>Assigned Staff</th>
                     <th>Timeline &amp; Due</th>
-                    <th>Assembly Progress</th>
-                    <th class="updateCell">Update Workshop Status</th>
+                    <th>Progress</th>
+                    <th class="updateCell">Actions</th>
                 </tr>
             </thead>
             <tbody>
@@ -111,7 +111,7 @@
                             {% endif %}
                         </div>
                         <div style="font-size: 11px; color: var(--mt); margin-top: 2px;">
-                            Started {{ mon.formattedStartDate }}
+                            Planned {{ mon.formattedStartDate }}
                         </div>
                     </td>
                     <td data-label="Progress">
@@ -184,7 +184,7 @@
                                     </select>
                                     <button type="submit" class="actionButton"
                                         style="height: 32px; padding: 0 10px; font-size: 11.5px;">Rollback</button>
-                                    </form>
+                                </form>
                             </div>
                             {% endif %}
                             {% else %}

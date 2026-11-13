@@ -210,6 +210,8 @@ nav {
 }
 
 .navLinksContainer a svg {
+    width: 16px;
+    height: 16px;
     flex-shrink: 0;
     opacity: 0.85;
     transition: opacity 0.15s ease;
@@ -3683,8 +3685,12 @@ button.accountModalTabBtn.active {
     display: grid;
     grid-template-columns: 1.75fr 1fr;
     gap: 16px;
-    margin-bottom: 18px;
+    margin-bottom: 16px;
     align-items: stretch;
+}
+
+.dashGridTop > .card {
+    margin-bottom: 0;
 }
 
 .dashCommandCard {
@@ -3706,19 +3712,18 @@ button.accountModalTabBtn.active {
 .dashTelemetryRibbon {
     display: grid;
     grid-template-columns: repeat(4, 1fr);
-    background: linear-gradient(135deg, #56643f 0%, #66754C 100%);
-    color: #F6EEDA;
-    border-bottom: 1px solid rgba(213, 199, 170, 0.35);
+    background: rgba(246, 238, 218, 0.4);
+    border-bottom: 1px solid var(--bd);
 }
 
 .dashTelemetryItem {
     display: flex;
     flex-direction: column;
-    justify-content: space-between;
-    padding: 13px 14px;
+    justify-content: flex-start;
+    padding: 13px 18px;
     text-decoration: none;
     color: inherit;
-    border-right: 1px solid rgba(246, 238, 218, 0.16);
+    border-right: 1px solid var(--bd);
     transition: background 0.16s ease;
     min-width: 0;
 }
@@ -3729,7 +3734,7 @@ button.accountModalTabBtn.active {
 
 .dashTelemetryItem:hover,
 .dashTelemetryItem:focus-visible {
-    background: rgba(246, 238, 218, 0.1);
+    background: rgba(246, 238, 218, 0.85);
     outline: none;
 }
 
@@ -3737,113 +3742,178 @@ button.accountModalTabBtn.active {
     display: flex;
     align-items: center;
     justify-content: space-between;
-    gap: 6px;
+    gap: 8px;
     margin-bottom: 4px;
 }
 
 .dashTelemetryLabel {
-    font-size: 10px;
-    font-weight: 700;
-    text-transform: uppercase;
-    letter-spacing: 0.04em;
-    color: rgba(246, 238, 218, 0.8);
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: 0.01em;
+    color: var(--mt);
     white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
 }
 
-.dashTelemetryArrow {
-    font-size: 13px;
-    line-height: 1;
-    color: rgba(246, 238, 218, 0.55);
-    transition: transform 0.15s ease, color 0.15s ease;
+.dashTelemetryDot {
+    width: 7px;
+    height: 7px;
+    border-radius: 999px;
+    flex-shrink: 0;
+    transition: transform 0.15s ease;
 }
 
-.dashTelemetryItem:hover .dashTelemetryArrow {
-    color: #F6EEDA;
-    transform: translateX(2px);
+.dashTelemetryDot.isOk {
+    background: var(--p);
+}
+
+.dashTelemetryDot.isAlert {
+    background: var(--rd);
+}
+
+.dashTelemetryItem:hover .dashTelemetryDot {
+    transform: scale(1.2);
 }
 
 .dashTelemetryVal {
     font-size: 21px;
-    font-weight: 800;
-    line-height: 1.15;
-    color: #ffffff;
+    font-weight: 700;
+    line-height: 1.2;
+    color: var(--tx);
     font-variant-numeric: tabular-nums;
     letter-spacing: -0.02em;
-    margin-bottom: 7px;
-}
-
-.dashTelemetryMeter {
-    height: 3.5px;
-    border-radius: 999px;
-    background: rgba(246, 238, 218, 0.18);
-    overflow: hidden;
-    margin-bottom: 6px;
-}
-
-.dashTelemetryFill {
-    height: 100%;
-    border-radius: 999px;
-    background: #F6EEDA;
-    transition: width 0.25s ease;
-}
-
-.dashTelemetryFill.isAlert {
-    background: #E9A999;
+    margin-bottom: 2px;
 }
 
 .dashTelemetryNote {
-    font-size: 11px;
-    color: rgba(246, 238, 218, 0.8);
+    font-size: 11.5px;
+    font-weight: 500;
+    color: var(--mt);
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
 }
 
 .dashTelemetryChartBody {
-    padding: 16px 20px 16px 20px;
+    padding: 16px 20px 14px 20px;
     flex: 1;
     display: flex;
     flex-direction: column;
     justify-content: space-between;
 }
 
+.dashChartHead {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 12px;
+    margin-bottom: 12px;
+}
+
+.dashChartHeadLeft {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    flex-wrap: wrap;
+}
+
+.dashChartTitle {
+    margin: 0;
+    font-size: 14px;
+    font-weight: 700;
+    color: var(--tx);
+    letter-spacing: -0.01em;
+}
+
+.dashLegend {
+    display: inline-flex;
+    align-items: center;
+    gap: 12px;
+    font-size: 11px;
+    font-weight: 500;
+    color: var(--mt);
+}
+
+.dashLegendItem {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+}
+
+.dashLegendLine {
+    display: inline-block;
+    width: 14px;
+    vertical-align: middle;
+}
+
+.dashLegendLine.qc {
+    height: 2.5px;
+    background: #66754C;
+    border-radius: 2px;
+}
+
+.dashLegendLine.order {
+    height: 0;
+    border-top: 2px dashed #9C8354;
+}
+
 .dashWeekNav {
     display: inline-flex;
     align-items: center;
-    gap: 6px;
+    background: #FAF7F0;
+    border: 1px solid var(--bd);
+    border-radius: 6px;
+    padding: 2px 4px;
+    gap: 2px;
 }
 
-.dashNavBtn {
+.dashNavArrow {
     display: inline-flex;
     align-items: center;
-    padding: 3px 9px;
-    border-radius: 6px;
-    border: 1px solid var(--bd);
-    background: #ffffff;
+    justify-content: center;
+    width: 22px;
+    height: 22px;
+    border-radius: 4px;
     color: var(--tx);
-    font-size: 11.5px;
-    font-weight: 600;
+    font-size: 14px;
+    font-weight: 700;
+    line-height: 1;
     text-decoration: none;
-    transition: background 0.15s ease, border-color 0.15s ease;
+    transition: background 0.15s ease;
 }
 
-.dashNavBtn:hover {
-    background: #F6F1E5;
-    border-color: #D5C7AA;
-}
-
-.dashNavToday {
-    background: rgba(102, 117, 76, 0.12);
-    color: var(--p);
-    border-color: rgba(102, 117, 76, 0.25);
+.dashNavArrow:hover {
+    background: #EFE7D4;
 }
 
 .dashWeekBadge {
-    font-size: 11.5px;
-    font-weight: 700;
+    font-size: 11px;
+    font-weight: 600;
     color: var(--tx);
-    padding: 0 4px;
+    padding: 0 6px;
     font-variant-numeric: tabular-nums;
+    white-space: nowrap;
+}
+
+.dashNavToday {
+    display: inline-flex;
+    align-items: center;
+    padding: 2px 6px;
+    border-radius: 4px;
+    background: #66754C;
+    color: #ffffff;
+    font-size: 10px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.03em;
+    text-decoration: none;
+    margin-left: 2px;
+    transition: background 0.15s ease;
+}
+
+.dashNavToday:hover {
+    background: #56643f;
 }
 
 .dashGridRings {
@@ -3857,7 +3927,11 @@ button.accountModalTabBtn.active {
     display: grid;
     grid-template-columns: 1fr 1fr;
     gap: 16px;
-    margin-bottom: 18px;
+    margin-bottom: 16px;
+}
+
+.dashGridBottom > .card {
+    margin-bottom: 0;
 }
 
 @media (max-width: 1024px) {
@@ -3871,7 +3945,7 @@ button.accountModalTabBtn.active {
     }
 
     .dashTelemetryItem:nth-child(-n+2) {
-        border-bottom: 1px solid rgba(246, 238, 218, 0.16);
+        border-bottom: 1px solid var(--bd);
     }
 
     .dashGridTop,
@@ -3880,7 +3954,7 @@ button.accountModalTabBtn.active {
     }
 }
 
-@media (max-width: 560px) {
+@media (max-width: 640px) {
     .dashGridRings,
     .dashTelemetryRibbon {
         grid-template-columns: 1fr;
@@ -3888,7 +3962,7 @@ button.accountModalTabBtn.active {
 
     .dashTelemetryItem {
         border-right: none;
-        border-bottom: 1px solid rgba(246, 238, 218, 0.16);
+        border-bottom: 1px solid var(--bd);
     }
 
     .dashTelemetryItem:last-child {
@@ -4156,20 +4230,37 @@ svg text {
     opacity: 1;
 }
 
+.dashChartCursor {
+    stroke: #C5BA9E;
+    stroke-width: 1;
+    stroke-dasharray: 3 3;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.15s ease;
+}
+
+.dashChartWeek:hover .dashChartCursor,
+.dashChartWeek:focus-within .dashChartCursor {
+    opacity: 1;
+}
+
 .dashChartDot {
     pointer-events: none;
-    transition: r 0.15s ease, stroke-width 0.15s ease;
+    transition: opacity 0.15s ease, r 0.15s ease, stroke-width 0.15s ease;
+}
+
+.dashChartDot.isZero {
+    opacity: 0;
+}
+
+.dashChartDot.hasVal {
+    opacity: 1;
 }
 
 .dashChartHitRect {
     cursor: pointer;
     outline: none;
-    transition: fill 0.15s ease;
-}
-
-.dashChartHitRect:hover,
-.dashChartHitRect:focus-visible {
-    fill: rgba(102, 117, 76, 0.05);
+    fill: transparent;
 }
 
 .dashChartHitRect:focus-visible {
@@ -4183,18 +4274,23 @@ svg text {
     transition: stroke-width 0.15s ease;
 }
 
+.dashChartWeek:hover .dashChartDot,
+.dashChartWeek:focus-within .dashChartDot {
+    opacity: 1;
+}
+
 .dashChartWeek:hover .dashChartUnitDot,
 .dashChartWeek:focus-within .dashChartUnitDot {
-    r: 5.5;
+    r: 5;
     stroke: #ffffff;
-    stroke-width: 2;
+    stroke-width: 1.8;
 }
 
 .dashChartWeek:hover .dashChartOrderDot,
 .dashChartWeek:focus-within .dashChartOrderDot {
-    r: 5;
+    r: 4.5;
     stroke: #ffffff;
-    stroke-width: 2;
+    stroke-width: 1.8;
 }
 
 .dashDonutSegment:hover {

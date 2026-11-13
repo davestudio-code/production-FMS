@@ -857,7 +857,7 @@ def index():
                 "url": url_for("production.finishedGoodsList")
             },
             {
-                "label": "Catalog Stock",
+                "label": "Inventory Products",
                 "value": f"{productsInStockCount} / {totalProducts}" if totalProducts > 0 else "0 / 0",
                 "note": fgNote,
                 "dash": _ringDash(productsInStockPct) if productsInStockPct is not None else "",
@@ -926,7 +926,7 @@ def index():
                 "pct": 100 if myReadyQC else 0,
                 "isAlert": False,
                 "color": "#66754C",
-                "url": url_for("production.finishedGoodsList")
+                "url": url_for("production.monitoringList")
             },
             {
                 "label": "Next Deadline",
@@ -997,6 +997,8 @@ def index():
             "unitY": unitPts[i][1],
             "orderX": orderPts[i][0],
             "orderY": orderPts[i][1],
+            "unitsPassed": unitsPassedPerDay[i],
+            "ordersCreated": ordersPerDay[i],
             "tooltip": tooltipText,
             "isToday": isToday
         })
@@ -1173,6 +1175,7 @@ def index():
     )
 
 @productionBlueprint.route("/furniture")
+@manager_required
 def furnitureList():
     searchQuery = request.args.get("q", "").strip()
     selectedCategory = request.args.get("category", "").strip()
@@ -1282,6 +1285,7 @@ def deleteFurniture(furnitureID):
     return redirect(url_for("production.furnitureList"))
 
 @productionBlueprint.route("/materials")
+@manager_required
 def materialList():
     rawMaterialList = []
     return render_template(
@@ -1293,6 +1297,7 @@ def materialList():
     )
 
 @productionBlueprint.route("/bom")
+@manager_required
 def bomList():
     try:
         furnitureItemList = Furniture.getAll()
@@ -1493,6 +1498,18 @@ def orderList():
     except Exception:
         stockoutAlerts = []
 
+    currentEmpID = session.get("employee_id")
+    if not is_manager_session():
+        productionOrderList = [o for o in productionOrderList if currentEmpID and getattr(o, "assignedTo", None) == currentEmpID]
+        summary = {
+            "total": len(productionOrderList),
+            "draft": sum(1 for o in productionOrderList if o.status == "Draft"),
+            "released": sum(1 for o in productionOrderList if o.status == "Released"),
+            "inProgress": sum(1 for o in productionOrderList if o.status == "In Progress"),
+            "completed": sum(1 for o in productionOrderList if o.status == "Completed")
+        }
+        stockoutAlerts = []
+
     furnitureBomMap = {}
     for f in furnitureItemList:
         try:
@@ -1531,6 +1548,11 @@ def orderDetail(orderID):
         order = ProductionOrder.getByID(orderID)
         if not order:
             flash("Production order not found.", "error")
+            return redirect(url_for("production.orderList"))
+
+        currentEmpID = session.get("employee_id")
+        if not is_manager_session() and (not currentEmpID or getattr(order, "assignedTo", None) != currentEmpID):
+            flash("You can only view production orders assigned to you.", "warning")
             return redirect(url_for("production.orderList"))
 
         bom = BillOfMaterials.getByFurnitureID(order.furnitureID, autoCreate=False)
@@ -1787,6 +1809,7 @@ def updateOrderSchedule(orderID):
 
 @productionBlueprint.route("/requirements")
 @productionBlueprint.route("/requirement")
+@manager_required
 def requirementList():
     try:
         allOrders = ProductionOrder.getAll()
@@ -1949,6 +1972,7 @@ def releaseOrder(orderID):
     return redirect(url_for("production.requirementList", order_id=orderID))
 
 @productionBlueprint.route("/issuance")
+@manager_required
 def issuanceList():
     try:
         allOrders = ProductionOrder.getAll(useCache=False)
@@ -2184,6 +2208,7 @@ def updateMonitoringProgress(monitoringID):
     return redirect(url_for("production.monitoringList"))
 
 @productionBlueprint.route("/finished-goods")
+@manager_required
 def finishedGoodsList():
     try:
         allMonitoring = ProductionMonitoring.getAll()

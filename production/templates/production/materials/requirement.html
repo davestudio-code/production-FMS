@@ -39,7 +39,7 @@
                 {% endfor %}
             </select>
 
-            {% if not displayedOrders %}
+            {% if not displayedOrders and isManager %}
             <a href="/production/orders" class="actionButton secondary"
                 style="padding: 6px 12px; font-size: 12.5px; text-decoration: none;">+ Create Order</a>
             {% endif %}

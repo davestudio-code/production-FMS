@@ -206,6 +206,7 @@
     </div>
 </div>
 
+{% if isManager %}
 <div id="scheduleModal" class="modalOverlay">
     <div class="modalCard" style="max-width: 480px;">
         <div class="modalHeader">
@@ -252,6 +253,7 @@
         </form>
     </div>
 </div>
+{% endif %}
 
 <script src="/production/feature-static/planning/planning.js?v=20261113h"></script>
 {% endblock %}
