@@ -43,7 +43,7 @@
 .progressTrack {
     width: 110px;
     height: 10px;
-    background: #e2d8bd;
+    background: #EFE7D4;
     border: 1px solid var(--bd);
     border-radius: 6px;
     overflow: hidden;
@@ -54,7 +54,7 @@
 .progressFill {
     display: block;
     height: 100%;
-    background: #526638;
+    background: var(--p);
     border-radius: 6px;
     transition: width 0.3s ease;
 }

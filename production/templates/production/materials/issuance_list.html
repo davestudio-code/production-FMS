@@ -4,75 +4,326 @@
 <div class="headerRow">
     <div>
         <h2>Material Issuance</h2>
-        <span style="color: var(--mt); font-size: 13.5px;">Dispatch approved raw materials from inventory to
-            production orders</span>
+        <span style="color: var(--mt); font-size: 13.5px;">After releasing an production order, this is where you issue
+            the materials.</span>
     </div>
 </div>
 
 <div class="card">
-    <div class="headerRow" style="margin-bottom: 14px;">
-        <div>
-            <h3 style="margin: 0;">Orders Awaiting Material Issuance</h3>
-            <small style="color: var(--mt);">Approved orders in 'Released' status ready to receive materials and start
-                production</small>
+    <div class="workspaceToolbar">
+        <div class="workspaceFilterTabs" role="tablist" id="issuanceFilterTabs">
+            <button type="button" class="workspaceTabBtn active" data-issuance-tab="all"
+                onclick="setIssuanceTab(this, 'all')">
+                <span>Awaiting Dispatch</span>
+                <span class="workspaceTabCount">{{ issuanceSummary.queueCount }}</span>
+            </button>
+            <button type="button" class="workspaceTabBtn" data-issuance-tab="ready"
+                onclick="setIssuanceTab(this, 'ready')">
+                <span class="tabStatusDot completed"></span>
+                <span>Ready to Issue</span>
+                <span class="workspaceTabCount">{{ issuanceSummary.readyCount }}</span>
+            </button>
+            <button type="button"
+                class="workspaceTabBtn stockoutTab {{ 'hasAlerts' if issuanceSummary.shortageCount > 0 else '' }}"
+                data-issuance-tab="shortage" onclick="setIssuanceTab(this, 'shortage')">
+                <span class="stockoutExclaim">!</span>
+                <span>Stock Alerts</span>
+                <span class="workspaceTabCount">{{ issuanceSummary.shortageCount }}</span>
+            </button>
+            <span class="workspaceTabDivider" aria-hidden="true"></span>
+            <button type="button" class="workspaceTabBtn" data-issuance-tab="history"
+                onclick="setIssuanceTab(this, 'history')">
+                <span class="tabStatusDot released"></span>
+                <span>Dispatch History</span>
+                <span class="workspaceTabCount">{{ issuanceSummary.historyCount }}</span>
+            </button>
         </div>
-        <span class="statusBadge released">{{ releasedOrders|length }} Ready</span>
+
+        <div class="workspaceMetaGroup">
+            <span class="workspaceMetaPill">Queued: <b>{{ issuanceSummary.totalUnits }} {{ 'unit' if
+                    issuanceSummary.totalUnits == 1 else 'units' }}</b></span>
+        </div>
     </div>
 
-    {% if releasedOrders %}
-    <div style="display: flex; flex-direction: column; gap: 16px;">
-        {% for order in releasedOrders %}
-        <div style="border: 1px solid var(--bd); border-radius: 10px; padding: 18px 20px; background: #faf8f2;">
-            <div
-                style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 12px; flex-wrap: wrap; gap: 10px;">
-                <div>
-                    <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 4px;">
-                        <b style="font-size: 16px;">Order #PO-{{ order.orderID }} &middot; {{ order.furnitureName }}</b>
-                        <span class="statusBadge released">Released</span>
+    <div id="issuanceQueueSection">
+        {% if releasedOrders %}
+        <div class="issueQueueList">
+            {% for order in releasedOrders %}
+            <div class="issueOrderCard" data-issuance-state="{{ 'shortage' if order.hasShortage else 'ready' }}"
+                data-search="po-{{ order.orderID }} {{ order.furnitureName|lower }} {{ (order.furnitureType or '')|lower }} {{ (order.assignedStaffName or 'unassigned')|lower }} {% for req in order.requirements %}{{ req.materialName|lower }} {% endfor %}">
+                <div class="issueCardHeader">
+                    <div class="issueCardTitleGroup">
+                        <a href="/production/orders/{{ order.orderID }}" class="issueOrderRef">#PO-{{ order.orderID
+                            }}</a>
+                        <span class="issueProductTitle">{{ order.furnitureName }}</span>
+                        {% if order.furnitureType %}
+                        <span class="issueTypeChip">{{ order.furnitureType }}</span>
+                        {% endif %}
+                        {% if not order.requirements %}
+                        <span class="statusBadge draft">No BOM</span>
+                        {% elif order.hasShortage %}
+                        <span class="statusBadge alert">{{ order.shortageCount }} Shortage{{ '' if order.shortageCount
+                            == 1 else 's' }}</span>
+                        {% else %}
+                        <span class="statusBadge released">Ready to Dispatch</span>
+                        {% endif %}
                     </div>
-                    <span style="color: var(--mt); font-size: 13px;">Batch Size: <b>{{ order.plannedQuantity }}
-                            units</b> &middot; Ordered: {{ order.orderDate|date_fmt }}</span>
-                </div>
-                {% if isManager %}
-                <form method="POST" action="/production/issuance/issue/{{ order.orderID }}"
-                    onsubmit="return confirm('Deduct required materials from inventory and start workshop production for Order #PO-{{ order.orderID }}?');">
-                    <button type="submit" class="actionButton" style="padding: 9px 18px; font-size: 13px;">
-                        Issue Materials &amp; Start Assembly &rarr;
-                    </button>
-                </form>
-                {% else %}
-                <span style="font-size: 12.5px; color: var(--mt); font-style: italic;">Awaiting Manager Dispatch</span>
-                {% endif %}
-            </div>
 
-            <div style="background: var(--cd); border: 1px solid var(--bd); border-radius: 8px; padding: 12px 16px;">
-                <small
-                    style="color: var(--mt); font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px; display: block; margin-bottom: 8px;">Materials
-                    to be Dispatched from Inventory:</small>
-                <div style="display: flex; flex-wrap: wrap; gap: 10px;">
-                    {% for req in order.requirements %}
-                    <div
-                        style="background: #f0ebe1; border: 1px solid #ddd6c7; border-radius: 6px; padding: 6px 12px; font-size: 13px;">
-                        <b>{{ req.materialName }}</b>: {{ "{:,.3f}".format(req.batchQuantity).rstrip('0').rstrip('.') }}
-                        {{ req.unit }}
+                    <div class="issueCardActions">
+                        <a href="/production/orders/{{ order.orderID }}" class="actionButton secondary"
+                            style="padding: 7px 12px; font-size: 12.5px; text-decoration: none;">
+                            View Order
+                        </a>
+                        {% if isManager %}
+                        {% if not order.requirements %}
+                        <a href="/production/bom?furniture_id={{ order.furnitureID }}" class="actionButton secondary"
+                            style="padding: 7px 14px; font-size: 12.5px; text-decoration: none;">
+                            + Configure BOM
+                        </a>
+                        {% elif order.hasShortage %}
+                        <a href="/production/requirement?order_id={{ order.orderID }}" class="actionButton secondary"
+                            style="padding: 7px 14px; font-size: 12.5px; text-decoration: none;">
+                            Resolve in MRP &rarr;
+                        </a>
+                        {% else %}
+                        <form method="POST" action="/production/issuance/issue/{{ order.orderID }}"
+                            onsubmit="return window.confirmIssueDispatch(this, {{ order.orderID }});">
+                            <button type="submit" class="actionButton" style="padding: 8px 16px; font-size: 12.5px;">
+                                Issue Materials &amp; Start Assembly &rarr;
+                            </button>
+                        </form>
+                        {% endif %}
+                        {% else %}
+                        <span style="font-size: 12px; color: var(--mt); font-style: italic;">Awaiting Manager
+                            Dispatch</span>
+                        {% endif %}
+                    </div>
+                </div>
+
+                <div class="issueMetaStrip">
+                    <div class="issueMetaCell">
+                        <span class="issueMetaLabel">Batch Size</span>
+                        <span class="issueMetaValue">{{ order.plannedQuantity }} {{ 'unit' if order.plannedQuantity == 1
+                            else 'units' }}</span>
+                    </div>
+                    <div class="issueMetaCell">
+                        <span class="issueMetaLabel">Assigned Staff</span>
+                        <span class="issueMetaValue"
+                            style="color: {{ 'var(--tx)' if order.assignedStaffName else '#5c513b' }};">{{
+                            order.assignedStaffName or 'Unassigned' }}</span>
+                    </div>
+                    <div class="issueMetaCell">
+                        <span class="issueMetaLabel">Schedule</span>
+                        {% if order.plannedStartDate or order.dueDate %}
+                        <span class="issueMetaValue">{{ order.plannedStartDate|date_fmt or '—' }} &rarr; {{
+                            order.dueDate|date_fmt or '—' }}</span>
+                        {% else %}
+                        <span class="issueMetaValue" style="color: #5c513b;">Not Scheduled</span>
+                        {% endif %}
+                    </div>
+                    <div class="issueMetaCell">
+                        <span class="issueMetaLabel">Est. Material Cost</span>
+                        <span class="issueMetaValue" style="color: var(--p);">₱{{
+                            "{:,.2f}".format(order.estimatedMaterialCost) }}</span>
+                    </div>
+                </div>
+
+                <div class="issuePickBody">
+                    <div class="issuePickTitleRow">
+                        <span class="issuePickHeading">Inventory Stock Check</span>
+                    </div>
+                    {% if order.requirements %}
+                    <div class="issuePickTableWrap">
+                        <table class="issuePickTable">
+                            <thead>
+                                <tr>
+                                    <th>Component</th>
+                                    <th style="text-align: right;">Per Unit</th>
+                                    <th style="text-align: right;">To Issue</th>
+                                    <th style="text-align: right;">On Hand</th>
+                                    <th style="text-align: right;">Line Cost</th>
+                                    <th style="text-align: right;">Stock Status</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for req in order.requirements %}
+                                {% set perUnitStr = "{:,.3f}".format(req.quantityRequired).rstrip('0').rstrip('.') or
+                                '0' %}
+                                {% set batchStr = "{:,.3f}".format(req.batchQuantity).rstrip('0').rstrip('.') or '0' %}
+                                {% set onHandStr = "{:,.3f}".format(req.onHand).rstrip('0').rstrip('.') or '0' %}
+                                {% set deficitStr = "{:,.3f}".format(req.deficit).rstrip('0').rstrip('.') or '0' %}
+                                <tr>
+                                    <td>
+                                        <b>{{ req.materialName }}</b>
+                                        {% if req.itemCode %}
+                                        <span class="issueCodeChip">{{ req.itemCode }}</span>
+                                        {% endif %}
+                                    </td>
+                                    <td style="text-align: right; color: var(--mt);">{{ perUnitStr }} {{ req.unit }}
+                                    </td>
+                                    <td style="text-align: right; font-weight: 700; color: var(--p);">{{ batchStr }} {{
+                                        req.unit }}</td>
+                                    <td
+                                        style="text-align: right; font-weight: 600; color: {{ 'var(--p)' if req.sufficient else 'var(--rd)' }};">
+                                        {{ onHandStr }} {{ req.unit }}</td>
+                                    <td style="text-align: right;">₱{{ "{:,.2f}".format(req.batchCost) }}</td>
+                                    <td style="text-align: right;">
+                                        {% if req.sufficient %}
+                                        <span class="statusBadge completed" style="height: 21px; font-size: 11px;">In
+                                            Stock</span>
+                                        {% else %}
+                                        <span class="statusBadge alert" style="height: 21px; font-size: 11px;">Short {{
+                                            deficitStr }} {{ req.unit }}</span>
+                                        {% endif %}
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
                     </div>
                     {% else %}
-                    <span style="color: var(--mt); font-size: 13px;">No BOM components defined for this product.</span>
-                    {% endfor %}
+                    <div
+                        style="padding: 12px 14px; border-radius: 8px; background: #F6EEDA; border: 1px solid #D5C7AA; color: #5c513b; font-size: 12.5px;">
+                        No BOM components defined for {{ order.furnitureName }}. Configure components in Bill of
+                        Materials before dispatching.
+                    </div>
+                    {% endif %}
                 </div>
             </div>
+            {% endfor %}
+            <div id="issuanceQueueEmptyFilter"
+                style="display: none; text-align: center; padding: 32px 16px; color: var(--mt); font-size: 13px;">
+                No orders in this filter match your criteria.
+            </div>
         </div>
-        {% endfor %}
+        {% else %}
+        <div style="text-align: center; padding: 36px 16px; color: var(--mt);">
+            <p style="margin: 0 0 8px 0; font-size: 14px; font-weight: 600; color: var(--tx);">No orders awaiting
+                material issuance.</p>
+            <span style="font-size: 12.5px;">Orders must first be verified and released in <a
+                    href="/production/requirement" style="color: var(--p); font-weight: 600;">Material Requirement</a>
+                to appear here.</span>
+        </div>
+        {% endif %}
     </div>
-    {% else %}
-    <div style="text-align: center; padding: 32px 16px; color: var(--mt);">
-        <p style="margin: 0 0 8px 0; font-size: 14px;">No production orders are currently waiting for material issuance.
-        </p>
-        <span style="font-size: 12.5px;">Orders must first be verified and approved in <a href="/production/requirement"
-                style="color: var(--p); font-weight: 600;">Material
-                Requirement</a> to transition from Draft &rarr; Released.</span>
+
+    <div id="issuanceHistorySection" style="display: none;">
+        <div class="tableContainer">
+            <table>
+                <thead>
+                    <tr>
+                        <th style="width: 95px;">Issuance</th>
+                        <th>Order &amp; Product</th>
+                        <th>Material</th>
+                        <th style="text-align: right;">Qty Issued</th>
+                        <th>Date Issued</th>
+                        <th>Recorded By</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for iss in issuances %}
+                    {% set issuedStr = "{:,.3f}".format(iss.quantityIssued).rstrip('0').rstrip('.') or '0' %}
+                    <tr class="issueHistoryRow"
+                        data-search="iss-{{ iss.issuanceID }} po-{{ iss.orderID }} {{ iss.furnitureName|lower }} {{ iss.materialName|lower }} {{ iss.recordedBy|lower }}">
+                        <td><b style="color: var(--tx);">#ISS-{{ iss.issuanceID }}</b></td>
+                        <td>
+                            <a href="/production/orders/{{ iss.orderID }}" class="issueOrderRef">#PO-{{ iss.orderID
+                                }}</a>
+                            <span style="color: var(--tx); font-weight: 600; margin-left: 4px;">{{ iss.furnitureName
+                                }}</span>
+                        </td>
+                        <td><b>{{ iss.materialName }}</b></td>
+                        <td style="text-align: right; font-weight: 700; color: var(--p);">{{ issuedStr }} {{ iss.unit }}
+                        </td>
+                        <td>{{ iss.formattedIssueDate }}</td>
+                        <td style="color: var(--mt);">{{ iss.recordedBy }}</td>
+                    </tr>
+                    {% else %}
+                    <tr>
+                        <td colspan="6" style="text-align: center; color: var(--mt); padding: 28px; font-size: 13px;">
+                            No material issuances recorded yet.
+                        </td>
+                    </tr>
+                    {% endfor %}
+                    <tr id="issuanceHistoryEmptyFilter" style="display: none;">
+                        <td colspan="6" style="text-align: center; color: var(--mt); padding: 26px; font-size: 13px;">
+                            No dispatch records match your search.
+                        </td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
     </div>
-    {% endif %}
 </div>
 
+<script>
+    window._issuanceActiveTab = 'all';
+
+    window.confirmIssueDispatch = function (form, orderID) {
+        if (form.dataset.submitting === '1') return false;
+        if (!confirm('Deduct required materials from inventory and start workshop production for Order #PO-' + orderID + '?')) {
+            return false;
+        }
+        form.dataset.submitting = '1';
+        if (window.tabHtmlCache) {
+            window.tabHtmlCache.clear();
+        }
+        var btn = form.querySelector('button[type="submit"]');
+        if (btn) {
+            btn.disabled = true;
+            btn.textContent = 'Dispatching...';
+        }
+        return true;
+    };
+
+    window.setIssuanceTab = function (btn, tab) {
+        window._issuanceActiveTab = tab || 'all';
+        document.querySelectorAll('#issuanceFilterTabs .workspaceTabBtn').forEach(function (b) {
+            b.classList.toggle('active', b === btn);
+        });
+        var queueSec = document.getElementById('issuanceQueueSection');
+        var histSec = document.getElementById('issuanceHistorySection');
+        if (window._issuanceActiveTab === 'history') {
+            if (queueSec) queueSec.style.display = 'none';
+            if (histSec) histSec.style.display = '';
+        } else {
+            if (queueSec) queueSec.style.display = '';
+            if (histSec) histSec.style.display = 'none';
+        }
+        window.filterIssuanceWorkspace();
+    };
+
+    window.filterIssuanceWorkspace = function () {
+        var q = (document.getElementById('globalTabSearchInput')?.value || '').toLowerCase().trim();
+        if (window._issuanceActiveTab === 'history') {
+            var hRows = document.querySelectorAll('.issueHistoryRow');
+            var visibleHist = 0;
+            hRows.forEach(function (row) {
+                var match = !q || (row.getAttribute('data-search') || '').includes(q);
+                row.style.display = match ? '' : 'none';
+                if (match) visibleHist++;
+            });
+            var emptyHist = document.getElementById('issuanceHistoryEmptyFilter');
+            if (emptyHist && hRows.length > 0) {
+                emptyHist.style.display = visibleHist === 0 ? '' : 'none';
+            }
+            return;
+        }
+
+        var cards = document.querySelectorAll('.issueOrderCard');
+        var visibleCards = 0;
+        cards.forEach(function (card) {
+            var st = card.getAttribute('data-issuance-state') || '';
+            var matchTab = (window._issuanceActiveTab === 'all') || (st === window._issuanceActiveTab);
+            var matchQ = !q || (card.getAttribute('data-search') || '').includes(q);
+            var show = matchTab && matchQ;
+            card.style.display = show ? '' : 'none';
+            if (show) visibleCards++;
+        });
+        var emptyQueue = document.getElementById('issuanceQueueEmptyFilter');
+        if (emptyQueue && cards.length > 0) {
+            emptyQueue.style.display = visibleCards === 0 ? '' : 'none';
+        }
+    };
+</script>
 {% endblock %}

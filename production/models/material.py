@@ -22,8 +22,8 @@ class Material:
             self.currentStock = Decimal("0.000")
 
     @classmethod
-    def getAll(cls, conn=None):
-        if conn is None:
+    def getAll(cls, conn=None, useCache=True):
+        if conn is None and useCache:
             cached = getCached("materials_all")
             if cached is not None:
                 return cached
@@ -45,7 +45,7 @@ class Material:
                 )
                 rows = cursor.fetchall()
                 result = [cls(row) for row in rows]
-                if conn is None:
+                if conn is None and useCache:
                     setCached("materials_all", result)
                 return result
 

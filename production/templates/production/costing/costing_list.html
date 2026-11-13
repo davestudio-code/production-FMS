@@ -74,7 +74,7 @@
                         <div>
                             <b>₱{{ "{:,.2f}".format(ord.materialCost) }}</b>
                         </div>
-                        <div style="font-size: 11px; color: #8e622a;">materials only</div>
+                        <div style="font-size: 11px; color: var(--mt);">materials only</div>
                     </td>
                     <td data-label="Labor">
                         <form id="costForm_{{ ord.orderID }}" method="POST"
@@ -94,7 +94,7 @@
                     </td>
                     <td data-label="Finished Unit Cost">
                         {% if ord.costPerGoodUnit is not none %}
-                        <span style="font-weight: 700; color: #526638;">₱{{ "{:,.2f}".format(ord.costPerGoodUnit)
+                        <span style="font-weight: 700; color: var(--p);">₱{{ "{:,.2f}".format(ord.costPerGoodUnit)
                             }}</span>
                         <small style="display: block; font-size: 11px; color: var(--mt);">({{ ord.passedUnits }}
                             passed)</small>

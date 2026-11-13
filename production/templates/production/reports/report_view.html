@@ -140,7 +140,7 @@
                                 <div class="progressTrack">
                                     <span class="progressFill" style="width: {{ r.progress | round | int }}%;"></span>
                                 </div>
-                                <span style="font-size: 12px; font-weight: 700; color: #526638;">{{ r.progress | round |
+                                <span style="font-size: 12px; font-weight: 700; color: var(--p);">{{ r.progress | round |
                                     int }}%</span>
                             </div>
                         </td>
@@ -159,7 +159,7 @@
                             <b style="color: var(--tx); font-size: 13.5px;">₱{{ "{:,.2f}".format(r.effectiveCost) }}</b>
                             {% elif r.effectiveCost > 0 %}
                             <b style="color: var(--tx); font-size: 13.5px;">₱{{ "{:,.2f}".format(r.effectiveCost) }}</b>
-                            <div style="font-size: 11px; color: #8e622a;">materials only</div>
+                            <div style="font-size: 11px; color: var(--mt);">materials only</div>
                             {% else %}
                             <span style="color: var(--mt); font-size: 12px;">No Materials Issued</span>
                             {% endif %}

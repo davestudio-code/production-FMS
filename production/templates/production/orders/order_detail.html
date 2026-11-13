@@ -51,40 +51,40 @@
             {% if order.scheduleHealth == 'Overdue' %}
             <span style="color: #9a4a3a; font-weight: 700;">! Overdue Schedule</span>
             {% elif order.scheduleHealth == 'On Schedule' %}
-            <span style="color: #357a58; font-weight: 600;">&bull; On Schedule</span>
+            <span style="color: var(--p); font-weight: 600;">&bull; On Schedule</span>
             {% elif order.status == 'Completed' %}
-            <span style="color: #357a58; font-weight: 600;">&checkmark; Order Finalized</span>
+            <span style="color: var(--p); font-weight: 600;">&checkmark; Order Finalized</span>
             {% else %}
-            <span style="color: #8e622a; font-weight: 600;">{{ order.planGapLabel }}</span>
+            <span style="color: #5c513b; font-weight: 600;">{{ order.planGapLabel }}</span>
             {% endif %}
         </span>
     </div>
 
     <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(135px, 1fr)); gap: 8px;">
-        <div style="border-radius: 7px; padding: 8px 11px; background: rgba(53, 122, 88, 0.10); border: 1px solid rgba(53, 122, 88, 0.28);">
-            <span style="font-size: 10.5px; font-weight: 700; color: #357a58; display: block;">1. Order Created</span>
+        <div style="border-radius: 7px; padding: 8px 11px; background: rgba(102, 117, 76, 0.12); border: 1px solid rgba(102, 117, 76, 0.30);">
+            <span style="font-size: 10.5px; font-weight: 700; color: var(--p); display: block;">1. Order Created</span>
             <span style="font-size: 12px; font-weight: 600; color: var(--tx);">{{ order.orderDate|date_fmt }}</span>
         </div>
-        <div style="border-radius: 7px; padding: 8px 11px; background: {% if order.isFullyPlanned %}rgba(53, 122, 88, 0.10){% elif order.status == 'Draft' %}rgba(181, 143, 85, 0.14){% else %}rgba(0,0,0,0.025){% endif %}; border: 1px solid {% if order.isFullyPlanned %}rgba(53, 122, 88, 0.28){% elif order.status == 'Draft' %}rgba(181, 143, 85, 0.36){% else %}var(--bd){% endif %};">
-            <span style="font-size: 10.5px; font-weight: 700; color: {% if order.isFullyPlanned %}#357a58{% else %}#8e622a{% endif %}; display: block;">2. Planning</span>
+        <div style="border-radius: 7px; padding: 8px 11px; background: {% if order.isFullyPlanned %}rgba(102, 117, 76, 0.12){% elif order.status == 'Draft' %}#F6EEDA{% else %}rgba(0,0,0,0.025){% endif %}; border: 1px solid {% if order.isFullyPlanned %}rgba(102, 117, 76, 0.30){% elif order.status == 'Draft' %}#D5C7AA{% else %}var(--bd){% endif %};">
+            <span style="font-size: 10.5px; font-weight: 700; color: {% if order.isFullyPlanned %}var(--p){% else %}#5c513b{% endif %}; display: block;">2. Planning</span>
             <a href="/production/planning" style="font-size: 12px; font-weight: 600; color: var(--tx); text-decoration: none;">
                 {{ 'Planned' if order.isFullyPlanned else (order.planGapLabel ~ ' →') }}
             </a>
         </div>
-        <div style="border-radius: 7px; padding: 8px 11px; background: {% if order.status in ['Released', 'In Progress', 'Completed'] %}rgba(53, 122, 88, 0.10){% elif order.status == 'Draft' and order.isFullyPlanned and shortageCount == 0 and requirements|length > 0 %}rgba(102, 117, 76, 0.14){% else %}rgba(0,0,0,0.025){% endif %}; border: 1px solid {% if order.status in ['Released', 'In Progress', 'Completed'] %}rgba(53, 122, 88, 0.28){% elif order.status == 'Draft' and order.isFullyPlanned and shortageCount == 0 and requirements|length > 0 %}rgba(102, 117, 76, 0.36){% else %}var(--bd){% endif %};">
-            <span style="font-size: 10.5px; font-weight: 700; color: {% if order.status in ['Released', 'In Progress', 'Completed'] %}#357a58{% else %}var(--mt){% endif %}; display: block;">3. MRP &amp; Release</span>
+        <div style="border-radius: 7px; padding: 8px 11px; background: {% if order.status in ['Released', 'In Progress', 'Completed'] %}rgba(102, 117, 76, 0.12){% elif order.status == 'Draft' and order.isFullyPlanned and shortageCount == 0 and requirements|length > 0 %}rgba(142, 155, 109, 0.16){% else %}rgba(0,0,0,0.025){% endif %}; border: 1px solid {% if order.status in ['Released', 'In Progress', 'Completed'] %}rgba(102, 117, 76, 0.30){% elif order.status == 'Draft' and order.isFullyPlanned and shortageCount == 0 and requirements|length > 0 %}#8E9B6D{% else %}var(--bd){% endif %};">
+            <span style="font-size: 10.5px; font-weight: 700; color: {% if order.status in ['Released', 'In Progress', 'Completed'] %}var(--p){% else %}var(--mt){% endif %}; display: block;">3. MRP &amp; Release</span>
             <a href="/production/requirement?order_id={{ order.orderID }}" style="font-size: 12px; font-weight: 600; color: var(--tx); text-decoration: none;">
                 {{ 'Released' if order.status in ['Released', 'In Progress', 'Completed'] else ('Awaiting Plan' if not order.isFullyPlanned else ('Shortage (' ~ shortageCount ~ ') →' if shortageCount > 0 else 'Ready to Release →')) }}
             </a>
         </div>
-        <div style="border-radius: 7px; padding: 8px 11px; background: {% if order.status in ['In Progress', 'Completed'] %}rgba(53, 122, 88, 0.10){% elif order.status == 'Released' %}rgba(102, 117, 76, 0.14){% else %}rgba(0,0,0,0.025){% endif %}; border: 1px solid {% if order.status in ['In Progress', 'Completed'] %}rgba(53, 122, 88, 0.28){% elif order.status == 'Released' %}rgba(102, 117, 76, 0.36){% else %}var(--bd){% endif %};">
-            <span style="font-size: 10.5px; font-weight: 700; color: {% if order.status in ['In Progress', 'Completed'] %}#357a58{% else %}var(--mt){% endif %}; display: block;">4. Material Issuance</span>
+        <div style="border-radius: 7px; padding: 8px 11px; background: {% if order.status in ['In Progress', 'Completed'] %}rgba(102, 117, 76, 0.12){% elif order.status == 'Released' %}rgba(142, 155, 109, 0.16){% else %}rgba(0,0,0,0.025){% endif %}; border: 1px solid {% if order.status in ['In Progress', 'Completed'] %}rgba(102, 117, 76, 0.30){% elif order.status == 'Released' %}#8E9B6D{% else %}var(--bd){% endif %};">
+            <span style="font-size: 10.5px; font-weight: 700; color: {% if order.status in ['In Progress', 'Completed'] %}var(--p){% else %}var(--mt){% endif %}; display: block;">4. Material Issuance</span>
             <a href="/production/issuance" style="font-size: 12px; font-weight: 600; color: var(--tx); text-decoration: none;">
                 {{ 'Dispatched' if order.status in ['In Progress', 'Completed'] else ('Dispatch Now →' if order.status == 'Released' else 'Pending Release') }}
             </a>
         </div>
-        <div style="border-radius: 7px; padding: 8px 11px; background: {% if order.status == 'Completed' %}rgba(53, 122, 88, 0.10){% elif order.status == 'In Progress' %}rgba(46, 98, 142, 0.12){% else %}rgba(0,0,0,0.025){% endif %}; border: 1px solid {% if order.status == 'Completed' %}rgba(53, 122, 88, 0.28){% elif order.status == 'In Progress' %}rgba(46, 98, 142, 0.34){% else %}var(--bd){% endif %};">
-            <span style="font-size: 10.5px; font-weight: 700; color: {% if order.status == 'Completed' %}#357a58{% elif order.status == 'In Progress' %}#2e628e{% else %}var(--mt){% endif %}; display: block;">5. Shop Floor</span>
+        <div style="border-radius: 7px; padding: 8px 11px; background: {% if order.status == 'Completed' %}rgba(102, 117, 76, 0.12){% elif order.status == 'In Progress' %}rgba(142, 155, 109, 0.16){% else %}rgba(0,0,0,0.025){% endif %}; border: 1px solid {% if order.status == 'Completed' %}rgba(102, 117, 76, 0.30){% elif order.status == 'In Progress' %}#8E9B6D{% else %}var(--bd){% endif %};">
+            <span style="font-size: 10.5px; font-weight: 700; color: {% if order.status == 'Completed' %}var(--p){% elif order.status == 'In Progress' %}#4b5735{% else %}var(--mt){% endif %}; display: block;">5. Shop Floor</span>
             <a href="/production/monitoring" style="font-size: 12px; font-weight: 600; color: var(--tx); text-decoration: none;">
                 {% if order.status == 'Completed' %}
                 100% Finished
@@ -95,8 +95,8 @@
                 {% endif %}
             </a>
         </div>
-        <div style="border-radius: 7px; padding: 8px 11px; background: {% if order.status == 'Completed' %}rgba(53, 122, 88, 0.10){% elif monitoring and monitoring.progress >= 90 %}rgba(196, 137, 39, 0.14){% else %}rgba(0,0,0,0.025){% endif %}; border: 1px solid {% if order.status == 'Completed' %}rgba(53, 122, 88, 0.28){% elif monitoring and monitoring.progress >= 90 %}rgba(196, 137, 39, 0.36){% else %}var(--bd){% endif %};">
-            <span style="font-size: 10.5px; font-weight: 700; color: {% if order.status == 'Completed' %}#357a58{% elif monitoring and monitoring.progress >= 90 %}#8e622a{% else %}var(--mt){% endif %}; display: block;">6. Finished Goods</span>
+        <div style="border-radius: 7px; padding: 8px 11px; background: {% if order.status == 'Completed' %}rgba(102, 117, 76, 0.12){% elif monitoring and monitoring.progress >= 90 %}#F6EEDA{% else %}rgba(0,0,0,0.025){% endif %}; border: 1px solid {% if order.status == 'Completed' %}rgba(102, 117, 76, 0.30){% elif monitoring and monitoring.progress >= 90 %}#D5C7AA{% else %}var(--bd){% endif %};">
+            <span style="font-size: 10.5px; font-weight: 700; color: {% if order.status == 'Completed' %}var(--p){% elif monitoring and monitoring.progress >= 90 %}#5c513b{% else %}var(--mt){% endif %}; display: block;">6. Finished Goods</span>
             <a href="/production/finished-goods" style="font-size: 12px; font-weight: 600; color: var(--tx); text-decoration: none;">
                 {% if order.status == 'Completed' %}
                 {{ qaSummary.passed }} Stocked
@@ -126,7 +126,7 @@
                 {% if order.plannedStartDate or order.dueDate %}
                 <b style="font-size: 14.5px;">{{ order.plannedStartDate|date_fmt or '—' }} &rarr; {{ order.dueDate|date_fmt or '—' }}</b>
                 {% else %}
-                <b style="font-size: 14.5px; color: #8e622a;">Not Scheduled</b>
+                <b style="font-size: 14.5px; color: #5c513b;">Not Scheduled</b>
                 {% endif %}
             </div>
             <span style="font-size: 11.5px; color: var(--mt);">
@@ -148,7 +148,7 @@
             <b style="font-size: 14.5px; color: var(--tx); display: block; margin-top: 2px;">{{ order.assignedStaffName }}</b>
             <span style="font-size: 11.5px; color: var(--mt);">Responsible workshop staff</span>
             {% else %}
-            <b style="font-size: 14.5px; color: #8e622a; display: block; margin-top: 2px;">Unassigned</b>
+            <b style="font-size: 14.5px; color: #5c513b; display: block; margin-top: 2px;">Unassigned</b>
             <span style="font-size: 11.5px; color: var(--mt);">Assign in Production Planning</span>
             {% endif %}
         </div>
@@ -157,21 +157,21 @@
             {% if order.status in ('Draft', 'Released') %}
             <span style="font-size: 11.5px; color: var(--mt); display: block; text-transform: uppercase; font-weight: 600;">Material Readiness</span>
             {% if not requirements %}
-            <b style="font-size: 15px; color: #8e622a; display: block; margin-top: 2px;">BOM Not Configured</b>
+            <b style="font-size: 15px; color: #5c513b; display: block; margin-top: 2px;">BOM Not Configured</b>
             <span style="font-size: 11.5px; color: var(--mt);">Configure components in BOM</span>
             {% elif shortageCount > 0 %}
             <b style="font-size: 15px; color: var(--rd); display: block; margin-top: 2px;">{{ shortageCount }} Component Shortage{{ 's' if shortageCount != 1 else '' }}</b>
             <span style="font-size: 11.5px; color: var(--mt);">{{ requirements|length - shortageCount }} of {{ requirements|length }} materials ready</span>
             {% else %}
-            <b style="font-size: 15px; color: #357a58; display: block; margin-top: 2px;">{{ requirements|length }}/{{ requirements|length }} Materials in Stock</b>
+            <b style="font-size: 15px; color: var(--p); display: block; margin-top: 2px;">{{ requirements|length }}/{{ requirements|length }} Materials in Stock</b>
             <span style="font-size: 11.5px; color: var(--mt);">Sufficient warehouse stock</span>
             {% endif %}
             {% else %}
             <span style="font-size: 11.5px; color: var(--mt); display: block; text-transform: uppercase; font-weight: 600;">Shop Floor Progress</span>
             {% set progVal = (monitoring.progress if monitoring else (100 if order.status == 'Completed' else 0))|round|int %}
             <div style="display: flex; align-items: center; gap: 8px; margin-top: 4px;">
-                <div style="flex: 1; max-width: 110px; height: 9px; background: #e2d8bd; border-radius: 6px; overflow: hidden;">
-                    <span style="display: block; height: 100%; width: {{ progVal }}%; background: #526638; border-radius: 6px;"></span>
+                <div style="flex: 1; max-width: 110px; height: 9px; background: #EFE7D4; border-radius: 6px; overflow: hidden;">
+                    <span style="display: block; height: 100%; width: {{ progVal }}%; background: var(--p); border-radius: 6px;"></span>
                 </div>
                 <b style="font-size: 14.5px; color: var(--tx);">{{ progVal }}%</b>
             </div>
@@ -186,7 +186,7 @@
         <div>
             {% if costRecord %}
             <span style="font-size: 11.5px; color: var(--mt); display: block; text-transform: uppercase; font-weight: 600;">Final Batch Cost</span>
-            <b style="font-size: 16px; color: #357a58; display: block; margin-top: 2px;">₱{{ "{:,.2f}".format(costRecord.totalCost) }}</b>
+            <b style="font-size: 16px; color: var(--p); display: block; margin-top: 2px;">₱{{ "{:,.2f}".format(costRecord.totalCost) }}</b>
             <span style="font-size: 11.5px; color: var(--mt);">₱{{ "{:,.2f}".format(costRecord.unitCost) }} / unit (Saved Sheet)</span>
             {% else %}
             <span style="font-size: 11.5px; color: var(--mt); display: block; text-transform: uppercase; font-weight: 600;">Est. Material Cost</span>
@@ -411,16 +411,16 @@
             </div>
 
             {% if costRecord and isManager %}
-            <div style="padding: 14px 16px; background: rgba(53, 122, 88, 0.06); border: 1px solid rgba(53, 122, 88, 0.24); border-radius: 8px; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 12px;">
+            <div style="padding: 14px 16px; background: rgba(102, 117, 76, 0.08); border: 1px solid rgba(102, 117, 76, 0.28); border-radius: 8px; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 12px;">
                 <div>
-                    <b style="font-size: 13.5px; color: #23553c;">Accredited Batch Cost Sheet (Recorded {{ costRecord.formattedCostDate }})</b>
+                    <b style="font-size: 13.5px; color: #3d5225;">Accredited Batch Cost Sheet (Recorded {{ costRecord.formattedCostDate }})</b>
                     <div style="font-size: 12.5px; color: var(--mt); margin-top: 2px;">
                         Materials: <b>₱{{ "{:,.2f}".format(costRecord.materialCost) }}</b> &middot;
                         Labor: <b>₱{{ "{:,.2f}".format(costRecord.laborCost) }}</b> &middot;
                         Overhead: <b>₱{{ "{:,.2f}".format(costRecord.overheadCost) }}</b>
                     </div>
                 </div>
-                <b style="font-size: 16px; color: #23553c;">Total: ₱{{ "{:,.2f}".format(costRecord.totalCost) }}</b>
+                <b style="font-size: 16px; color: #3d5225;">Total: ₱{{ "{:,.2f}".format(costRecord.totalCost) }}</b>
             </div>
             {% endif %}
         </div>

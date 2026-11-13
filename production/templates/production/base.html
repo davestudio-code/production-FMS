@@ -6,7 +6,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>Velmora Co. &middot; Production ERP</title>
     <link rel="icon" type="image/png" href="/production/static/images/velmora-logo.png">
-    <link rel="stylesheet" href="/production/static/css/style.css?v=20261111c">
+    <link rel="stylesheet" href="/production/static/css/style.css?v=20261113o">
 </head>
 
 <body>
@@ -30,6 +30,7 @@
                 </button>
             </div>
             <div id="navLinksContainer" class="navLinksContainer">
+                <div class="navSectionLabel navSectionFirst">Overview</div>
                 <a href="/production/" class="{{ 'active' if activeTab == 'dashboard' else '' }}">
                     <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
                         stroke-linecap="round" stroke-linejoin="round">
@@ -38,6 +39,7 @@
                     </svg>
                     <span>Dashboard</span>
                 </a>
+                <div class="navSectionLabel">Planning &amp; Master Data</div>
                 <a href="/production/furniture" class="{{ 'active' if activeTab == 'furniture' else '' }}">
                     <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
                         stroke-linecap="round" stroke-linejoin="round">
@@ -74,6 +76,7 @@
                     </svg>
                     <span>Production Planning</span>
                 </a>
+                <div class="navSectionLabel">Materials &amp; Operations</div>
                 <a href="/production/requirement" class="{{ 'active' if activeTab == 'requirement' else '' }}">
                     <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
                         stroke-linecap="round" stroke-linejoin="round">
@@ -109,6 +112,7 @@
                     <span>Finished Goods</span>
                 </a>
                 {% if isManager %}
+                <div class="navSectionLabel">Costing &amp; Reports</div>
                 <a href="/production/costing" class="{{ 'active' if activeTab == 'costing' else '' }}">
                     <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
                         stroke-linecap="round" stroke-linejoin="round">
@@ -668,11 +672,21 @@
         window.tabHtmlCache = tabHtmlCache;
         window.normalizeUrlKey = normalizeUrlKey;
 
+        function isLiveNoCacheTab(url) {
+            try {
+                const u = new URL(url, window.location.origin);
+                const p = u.pathname.replace(/\/+$/, '') || '/production';
+                return p === '/production/issuance' || p.startsWith('/production/issuance/');
+            } catch (e) {
+                return String(url || '').indexOf('/production/issuance') !== -1;
+            }
+        }
+
         function prefetchTab(targetUrl) {
-            if (!targetUrl || targetUrl.startsWith('#')) return;
+            if (!targetUrl || targetUrl.startsWith('#') || isLiveNoCacheTab(targetUrl)) return;
             const cacheKey = normalizeUrlKey(targetUrl);
             if (tabHtmlCache.has(cacheKey)) return;
-            fetch(targetUrl, { headers: { 'X-Requested-With': 'XMLHttpRequest' } })
+            fetch(targetUrl, { cache: 'no-store', headers: { 'X-Requested-With': 'XMLHttpRequest' } })
                 .then(function (res) { return res.ok ? res.text() : null; })
                 .then(function (html) {
                     if (html) tabHtmlCache.set(cacheKey, html);
@@ -891,10 +905,9 @@
                     return;
                 }
                 if (p === '/production/issuance') {
-                    const blocks = document.querySelectorAll('main .card > div > div[style*="border: 1px solid"]');
-                    blocks.forEach(function (block) {
-                        block.style.display = (!q || block.textContent.toLowerCase().includes(q)) ? '' : 'none';
-                    });
+                    if (typeof window.filterIssuanceWorkspace === 'function') {
+                        window.filterIssuanceWorkspace();
+                    }
                     return;
                 }
                 if (p === '/production' || p.startsWith('/production/orders/')) {
@@ -1367,14 +1380,17 @@
                 }
 
                 const cacheKey = normalizeUrlKey(targetUrl);
+                const skipCache = isLiveNoCacheTab(targetUrl);
 
-                if (tabHtmlCache.has(cacheKey)) {
+                if (skipCache) {
+                    tabHtmlCache.delete(cacheKey);
+                } else if (tabHtmlCache.has(cacheKey)) {
                     const cachedHtml = tabHtmlCache.get(cacheKey);
                     applyTabHtml(cachedHtml, targetUrl, shouldPushState);
                     syncActiveNavLink(targetUrl);
                     window.scrollTo({ top: 0, behavior: 'instant' });
 
-                    fetch(targetUrl, { headers: { 'X-Requested-With': 'XMLHttpRequest' } })
+                    fetch(targetUrl, { cache: 'no-store', headers: { 'X-Requested-With': 'XMLHttpRequest' } })
                         .then(function (res) { return res.ok ? res.text() : null; })
                         .then(function (freshHtml) {
                             if (freshHtml && freshHtml !== cachedHtml) {
@@ -1408,6 +1424,7 @@
                 try {
                     const response = await fetch(targetUrl, {
                         signal: controller.signal,
+                        cache: 'no-store',
                         headers: { 'X-Requested-With': 'XMLHttpRequest' }
                     });
                     if (!response.ok) {
@@ -1415,7 +1432,9 @@
                         return;
                     }
                     const pageHtml = await response.text();
-                    tabHtmlCache.set(cacheKey, pageHtml);
+                    if (!skipCache) {
+                        tabHtmlCache.set(cacheKey, pageHtml);
+                    }
                     applyTabHtml(pageHtml, targetUrl, shouldPushState);
                 } catch (loadError) {
                     if (loadError.name === 'AbortError') {
@@ -1524,6 +1543,10 @@
                 loadTabContent(targetUrl.href);
             });
 
+            document.addEventListener('submit', function () {
+                tabHtmlCache.clear();
+            });
+
             window.addEventListener('popstate', function (event) {
                 if (event.state && event.state.targetUrl) {
                     loadTabContent(event.state.targetUrl, false);
@@ -1536,9 +1559,11 @@
             window.syncGlobalSearchContext(window.location.href, !(initialSearchInput && initialSearchInput.value));
             window.syncLiveNotifState();
 
-            const initialDocHtml = document.documentElement.outerHTML;
-            if (initialDocHtml) {
-                tabHtmlCache.set(normalizeUrlKey(window.location.href), initialDocHtml);
+            if (!isLiveNoCacheTab(window.location.href)) {
+                const initialDocHtml = document.documentElement.outerHTML;
+                if (initialDocHtml) {
+                    tabHtmlCache.set(normalizeUrlKey(window.location.href), initialDocHtml);
+                }
             }
 
             const warmupTabs = [

@@ -1,4 +1,4 @@
-from datetime import date
+from datetime import date, timedelta
 from production.db import openTransaction
 
 class ProductionOutput:
@@ -58,10 +58,10 @@ class ProductionOutput:
                 return cls(row)
 
     @classmethod
-    def getAll(cls, conn=None):
+    def getAll(cls, conn=None, *, startDate=None, endDate=None, qualityStatus=None):
         with openTransaction(conn) as connection:
             with connection.cursor() as cursor:
-                cursor.execute("""
+                query = """
                     SELECT o.output_id,
                            o.order_id,
                            o.furniture_id,
@@ -75,8 +75,23 @@ class ProductionOutput:
                            f.furniture_type
                     FROM prod_productionoutput o
                     JOIN prod_furniture f ON o.furniture_id = f.furniture_id
-                    ORDER BY o.output_id DESC
-                """)
+                """
+                params = []
+                whereClauses = []
+                if startDate:
+                    whereClauses.append("o.inspection_date >= %s")
+                    params.append(startDate)
+                if endDate:
+                    nextDay = endDate + timedelta(days=1) if hasattr(endDate, "__add__") else endDate
+                    whereClauses.append("o.inspection_date < %s")
+                    params.append(nextDay)
+                if qualityStatus:
+                    whereClauses.append("o.quality_status = %s")
+                    params.append(qualityStatus)
+                if whereClauses:
+                    query += " WHERE " + " AND ".join(whereClauses)
+                query += " ORDER BY o.output_id DESC"
+                cursor.execute(query, tuple(params))
                 rows = cursor.fetchall()
                 return [cls(r) for r in rows]
 

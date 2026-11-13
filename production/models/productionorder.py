@@ -97,8 +97,8 @@ class ProductionOrder:
             return str(self.dueDate)
 
     @classmethod
-    def getAll(cls, statusFilter=None, searchQuery=None, conn=None):
-        if not statusFilter and not searchQuery and conn is None:
+    def getAll(cls, statusFilter=None, searchQuery=None, conn=None, useCache=True):
+        if not statusFilter and not searchQuery and conn is None and useCache:
             cached = getCached("orders_all")
             if cached is not None:
                 return cached
@@ -131,7 +131,7 @@ class ProductionOrder:
                 cursor.execute(query, tuple(params))
                 rows = cursor.fetchall()
                 result = [cls(row) for row in rows]
-                if not statusFilter and not searchQuery and conn is None:
+                if not statusFilter and not searchQuery and conn is None and useCache:
                     setCached("orders_all", result)
                 return result
 

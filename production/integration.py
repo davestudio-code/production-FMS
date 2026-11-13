@@ -111,6 +111,8 @@ def get_warehouse_stockouts(conn=None):
                            act.order_id AS active_order_id,
                            act.status AS active_order_status,
                            act.planned_quantity AS active_order_qty,
+                           COALESCE(act_agg.active_order_count, 0) AS active_order_count,
+                           COALESCE(act_agg.total_incoming_qty, 0) AS total_incoming_qty,
                            COALESCE(bom_stat.item_count, 0) AS bom_item_count
                     FROM prod_furniture f
                     LEFT JOIN LATERAL (
@@ -130,6 +132,13 @@ def get_warehouse_stockouts(conn=None):
                         ORDER BY po.order_id DESC
                         LIMIT 1
                     ) act ON true
+                    LEFT JOIN LATERAL (
+                        SELECT COUNT(*) AS active_order_count,
+                               COALESCE(SUM(po.planned_quantity), 0) AS total_incoming_qty
+                        FROM prod_productionorder po
+                        WHERE po.furniture_id = f.furniture_id
+                          AND po.status IN ('Draft', 'Released', 'In Progress')
+                    ) act_agg ON true
                     LEFT JOIN LATERAL (
                         SELECT COUNT(bi.bom_item_id) AS item_count
                         FROM prod_billofmaterials bom

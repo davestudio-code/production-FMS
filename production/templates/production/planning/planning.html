@@ -1,7 +1,7 @@
 {% extends "production/base.html" %}
 
 {% block content %}
-{% set initialView = 'timeline' if request.args.get('view') == 'timeline' else 'list' %}
+{% set initialView = 'list' if request.args.get('view') == 'list' else 'timeline' %}
 <div class="headerRow">
     <div>
         <h2>Production Planning</h2>
@@ -43,6 +43,17 @@
             <input type="hidden" id="planningCanEdit" value="{{ '1' if isManager else '0' }}">
 
             <div class="viewModeToggle" role="group" aria-label="Planning View Switcher">
+                <button type="button" class="viewModeBtn {{ 'active' if initialView == 'timeline' else '' }}"
+                    data-planview="timeline" onclick="setPlanningView('timeline')">
+                    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"
+                        stroke-linecap="round" stroke-linejoin="round">
+                        <rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect>
+                        <line x1="16" y1="2" x2="16" y2="6"></line>
+                        <line x1="8" y1="2" x2="8" y2="6"></line>
+                        <line x1="3" y1="10" x2="21" y2="10"></line>
+                    </svg>
+                    <span>Calendar</span>
+                </button>
                 <button type="button" class="viewModeBtn {{ 'active' if initialView == 'list' else '' }}"
                     data-planview="list" onclick="setPlanningView('list')">
                     <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"
@@ -55,17 +66,6 @@
                         <line x1="3" y1="18" x2="3.01" y2="18"></line>
                     </svg>
                     <span>List</span>
-                </button>
-                <button type="button" class="viewModeBtn {{ 'active' if initialView == 'timeline' else '' }}"
-                    data-planview="timeline" onclick="setPlanningView('timeline')">
-                    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"
-                        stroke-linecap="round" stroke-linejoin="round">
-                        <rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect>
-                        <line x1="16" y1="2" x2="16" y2="6"></line>
-                        <line x1="8" y1="2" x2="8" y2="6"></line>
-                        <line x1="3" y1="10" x2="21" y2="10"></line>
-                    </svg>
-                    <span>Calendar</span>
                 </button>
             </div>
 
@@ -133,17 +133,14 @@
                                 <span>{{ ord.assignedStaffName }}</span>
                             </span>
                             {% else %}
-                            <span style="color: #8e622a; font-size: 12.5px; font-weight: 600;">Unassigned</span>
+                            <span style="color: #5c513b; font-size: 12.5px; font-weight: 600;">Unassigned</span>
                             {% endif %}
                         </td>
                         <td>
                             {% if ord.scheduleHealth == 'Overdue' %}
-                            <span class="statusBadge"
-                                style="background: rgba(154, 74, 58, 0.12); color: #9a4a3a; border: 1px solid rgba(154, 74, 58, 0.3);">Overdue</span>
+                            <span class="statusBadge alert">Overdue</span>
                             {% elif ord.scheduleHealth == 'On Schedule' %}
-                            <span class="statusBadge"
-                                style="background: rgba(53, 122, 88, 0.12); color: #357a58; border: 1px solid rgba(53, 122, 88, 0.3);">On
-                                Schedule</span>
+                            <span class="statusBadge completed">On Schedule</span>
                             {% elif ord.scheduleHealth == 'Completed' %}
                             <span class="statusBadge completed">Completed</span>
                             {% else %}
@@ -233,7 +230,7 @@
                     {% endfor %}
                 </select>
                 {% if not staffRoster %}
-                <small style="display: block; margin-top: 5px; font-size: 11.5px; color: #8e622a;">No active Production
+                <small style="display: block; margin-top: 5px; font-size: 11.5px; color: #5c513b;">No active Production
                     Staff (Dept 6, Position 2) found in employee records yet.</small>
                 {% endif %}
             </div>
@@ -256,5 +253,5 @@
     </div>
 </div>
 
-<script src="/production/feature-static/planning/planning.js?v=20261027c"></script>
+<script src="/production/feature-static/planning/planning.js?v=20261113h"></script>
 {% endblock %}

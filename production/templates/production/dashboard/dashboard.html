@@ -7,87 +7,109 @@
 </div>
 {% endif %}
 
-<div class="headerRow" style="margin-bottom: 20px;">
+<div class="headerRow dashHeaderRow" style="margin-bottom: 18px;">
     <div>
         <h2>Dashboard</h2>
-        <span style="color: var(--mt); font-size: 13.5px;">{{ greetingText }}, {{ firstName }}. Here's how the
-            production stands.</span>
+        <span style="color: var(--mt); font-size: 13.5px;">{{ greetingText }}, {{ firstName }}. {% if isManager %}Here's where your plant schedule, WIP, and catalog stock stand.{% else %}Here's your assigned workshop queue and live assembly schedule.{% endif %}</span>
     </div>
-    <span style="font-size: 12px; color: var(--mt);">Updated {{ lastUpdatedTime }}</span>
-</div>
-
-<div class="dashGridRings dashRow">
-    {% for ring in dashRings %}
-    <div class="card dashRingCard">
-        <svg width="56" height="56" viewBox="0 0 36 36">
-            <circle cx="18" cy="18" r="15.915" fill="none" stroke="#ece4d0" stroke-width="3.2"></circle>
-            {% if ring.dash %}
-            <circle cx="18" cy="18" r="15.915" fill="none" stroke="{{ ring.color }}" stroke-width="3.2"
-                stroke-dasharray="{{ ring.dash }}" stroke-linecap="round" transform="rotate(-90 18 18)"></circle>
-            {% endif %}
-        </svg>
-        <div>
-            <div class="label">{{ ring.label }}</div>
-            <div class="value">{{ ring.value }}</div>
-            <div class="note">{{ ring.note }}</div>
-        </div>
+    <div style="display: flex; align-items: center;">
+        <span class="dashUpdatedText">Last updated {{ lastUpdatedTime }}</span>
     </div>
-    {% endfor %}
 </div>
 
 <div class="dashGridTop dashRow">
-    <div class="card">
-        <div class="dashCardHead">
-            <h3>Production Output</h3>
-            <div class="dashLegend">
-                <span><i style="background:#66754C"></i>Units completed</span>
-                <span><i style="background:#c48927"></i>Orders created</span>
-            </div>
+    <div class="card dashCommandCard">
+        <div class="dashTelemetryRibbon">
+            {% for ring in dashRings %}
+            <a class="dashTelemetryItem" href="{{ ring.url }}">
+                <div class="dashTelemetryTop">
+                    <span class="dashTelemetryLabel">{{ ring.label }}</span>
+                    <span class="dashTelemetryArrow" aria-hidden="true">&rsaquo;</span>
+                </div>
+                <div class="dashTelemetryVal">{{ ring.value }}</div>
+                <div class="dashTelemetryMeter">
+                    <div class="dashTelemetryFill {{ 'isAlert' if ring.isAlert else '' }}" style="width: {{ ring.pct }}%;"></div>
+                </div>
+                <div class="dashTelemetryNote">{{ ring.note }}</div>
+            </a>
+            {% endfor %}
         </div>
-        <svg viewBox="0 0 560 186" width="100%" height="200" style="display:block;">
-            <g stroke="#ece4d0" stroke-width="1">
-                {% for t in lineChart.ticks %}
-                <line x1="36" y1="{{ t.y }}" x2="526" y2="{{ t.y }}"></line>
-                {% endfor %}
-            </g>
-            <g fill="#8a917a" font-size="10" text-anchor="end">
-                {% for t in lineChart.ticks %}
-                <text x="28" y="{{ t.y + 3 }}">{{ t.v }}</text>
-                {% endfor %}
-            </g>
-            {% if lineChart.unitArea %}
-            <polygon fill="rgba(102,117,76,0.08)" points="{{ lineChart.unitArea }}"></polygon>
+
+        <div class="dashTelemetryChartBody">
+            <div class="dashCardHead" style="margin-bottom: 12px; flex-wrap: wrap; gap: 8px;">
+                <div style="display: flex; align-items: baseline; gap: 12px; flex-wrap: wrap;">
+                    <h3 style="margin: 0;">Weekly Production Output</h3>
+                    <div class="dashLegend">
+                        <span><i style="background:#66754C"></i>Units passed QC</span>
+                        <span><i style="background:#9C8354"></i>Orders created</span>
+                    </div>
+                </div>
+                <div class="dashWeekNav">
+                    <a href="/production/?week_offset={{ weekOffset - 1 }}" class="dashNavBtn" title="Previous Week">&larr; Prev</a>
+                    <span class="dashWeekBadge">{{ weekDateRange }}</span>
+                    {% if weekOffset != 0 %}
+                    <a href="/production/?week_offset=0" class="dashNavBtn dashNavToday" title="Current Week">Today</a>
+                    {% endif %}
+                    <a href="/production/?week_offset={{ weekOffset + 1 }}" class="dashNavBtn" title="Next Week">Next &rarr;</a>
+                </div>
+            </div>
+            {% if lineChart.hasError %}
+            <div
+                style="height: 220px; display: flex; align-items: center; justify-content: center; color: var(--mt); font-size: 13.5px;">
+                Chart data unavailable
+            </div>
+            {% elif lineChart.hasData %}
+            <svg viewBox="0 0 620 236" width="100%" height="225" style="display:block;">
+                <g stroke="#ece4d0" stroke-width="1">
+                    {% for t in lineChart.ticks %}
+                    <line x1="40" y1="{{ t.y }}" x2="580" y2="{{ t.y }}"></line>
+                    {% endfor %}
+                </g>
+                <g fill="#8a917a" font-size="10.5" text-anchor="end">
+                    {% for t in lineChart.ticks %}
+                    <text x="32" y="{{ t.y + 3.5 }}">{{ t.v }}</text>
+                    {% endfor %}
+                </g>
+                {% if lineChart.unitArea %}
+                <polygon fill="rgba(102,117,76,0.08)" points="{{ lineChart.unitArea }}"></polygon>
+                {% endif %}
+                {% if lineChart.unitLine %}
+                <polyline fill="none" stroke="#66754C" stroke-width="2.4" stroke-linejoin="round"
+                    points="{{ lineChart.unitLine }}"></polyline>
+                {% endif %}
+                {% if lineChart.orderLine %}
+                <polyline fill="none" stroke="#9C8354" stroke-width="2" stroke-dasharray="5 4" stroke-linejoin="round"
+                    points="{{ lineChart.orderLine }}"></polyline>
+                {% endif %}
+                <g class="dashChartWeeks">
+                    {% for w in lineChart.daysData %}
+                    <g class="dashChartWeek">
+                        <rect class="dashChartHitRect" x="{{ w.rectX }}" y="12" width="{{ w.rectW }}" height="185"
+                            fill="transparent" tabindex="0" role="graphics-symbol" aria-label="{{ w.tooltip }}"
+                            data-tooltip="{{ w.tooltip }}"></rect>
+                        <circle class="dashChartDot dashChartUnitDot" cx="{{ w.unitX }}" cy="{{ w.unitY }}" r="3.5"
+                            fill="#66754C" aria-hidden="true"></circle>
+                        <circle class="dashChartDot dashChartOrderDot" cx="{{ w.orderX }}" cy="{{ w.orderY }}" r="3"
+                            fill="#9C8354" aria-hidden="true"></circle>
+                    </g>
+                    {% endfor %}
+                </g>
+                <g fill="#8a917a" font-size="10.5" text-anchor="middle">
+                    {% for l in lineChart.labels %}
+                    <text x="{{ l.x }}" y="212" {% if l.isToday %}fill="#66754C" font-weight="700"{% endif %}>{{ l.text }}</text>
+                    {% if l.isToday %}
+                    <text x="{{ l.x }}" y="226" font-size="9" fill="#66754C" font-weight="700">(today)</text>
+                    {% endif %}
+                    {% endfor %}
+                </g>
+            </svg>
+            {% else %}
+            <div
+                style="height: 220px; display: flex; align-items: center; justify-content: center; color: var(--mt); font-size: 13.5px;">
+                No production activity in this period
+            </div>
             {% endif %}
-            {% if lineChart.unitLine %}
-            <polyline fill="none" stroke="#66754C" stroke-width="2.2" stroke-linejoin="round"
-                points="{{ lineChart.unitLine }}"></polyline>
-            {% endif %}
-            {% if lineChart.orderLine %}
-            <polyline fill="none" stroke="#c48927" stroke-width="2" stroke-dasharray="5 4" stroke-linejoin="round"
-                points="{{ lineChart.orderLine }}"></polyline>
-            {% endif %}
-            <g fill="#66754C">
-                {% for d in lineChart.unitDots %}
-                <circle cx="{{ d.x }}" cy="{{ d.y }}" r="3">
-                    <title>{{ d.label }}: {{ d.v }} units completed</title>
-                </circle>
-                {% endfor %}
-            </g>
-            <g fill="#c48927">
-                {% for d in lineChart.orderDots %}
-                <circle cx="{{ d.x }}" cy="{{ d.y }}" r="2.5">
-                    <title>{{ d.label }}: {{ d.v }} orders created</title>
-                </circle>
-                {% endfor %}
-            </g>
-            <g fill="#8a917a" font-size="10" text-anchor="middle">
-                {% for l in lineChart.labels %}
-                <text x="{{ l.x }}" y="178">{{ l.text }}</text>
-                {% endfor %}
-            </g>
-        </svg>
-        <div style="font-size: 12px; color: var(--mt); margin-top: 6px;">Last 8 weeks &middot; units completed are
-            batches that passed QC</div>
+        </div>
     </div>
 
     <div class="card">
@@ -97,15 +119,17 @@
         </div>
         <div class="dashDonutWrap">
             <svg width="132" height="132" viewBox="0 0 42 42">
-                <circle cx="21" cy="21" r="15.915" fill="none" stroke="#ece4d0" stroke-width="5"></circle>
+                <circle cx="21" cy="21" r="15.915" fill="none" stroke="#EFE7D4" stroke-width="5"></circle>
                 {% for seg in donutSegments %}
                 {% if seg.show %}
-                <circle cx="21" cy="21" r="15.915" fill="none" stroke="{{ seg.color }}" stroke-width="5"
-                    stroke-dasharray="{{ seg.dash }}" stroke-dashoffset="{{ seg.offset }}"></circle>
+                <circle class="dashDonutSegment" cx="21" cy="21" r="15.915" fill="none" stroke="{{ seg.color }}"
+                    stroke-width="5" stroke-dasharray="{{ seg.dash }}" stroke-dashoffset="{{ seg.offset }}" tabindex="0"
+                    role="graphics-symbol" aria-label="{{ seg.label }}: {{ seg.count }} orders"
+                    data-tooltip="{{ seg.label }}: {{ seg.count }} orders"></circle>
                 {% endif %}
                 {% endfor %}
                 <text x="21" y="21" text-anchor="middle" font-size="8" font-weight="700" fill="#242c17">{{
-                    recentOrders|length }}</text>
+                    metrics.totalOrders }}</text>
                 <text x="21" y="27" text-anchor="middle" font-size="3.4" fill="#6b7557">orders</text>
             </svg>
             <div class="dashDonutList">
@@ -120,111 +144,52 @@
     </div>
 </div>
 
-<div class="card dashRow">
-    <div class="dashCardHead">
-        <div style="display: flex; align-items: center; gap: 10px;">
-            <h3>Active Workshop Orders</h3>
-            <span class="statusBadge released" style="font-size: 11.5px; padding: 2px 8px;">
-                {{ activeOrdersList|length }} Active
-            </span>
-        </div>
-        <a href="/production/orders">View all orders &rarr;</a>
-    </div>
-    <div class="tableContainer">
-        <table>
-            <thead>
-                <tr>
-                    <th style="width: 90px;">Order</th>
-                    <th>Product</th>
-                    <th style="width: 140px;">Assigned Staff</th>
-                    <th style="min-width: 220px;">Current Stage &amp; Progress</th>
-                    <th style="min-width: 130px;">Timeline &amp; Due</th>
-                    <th style="width: 110px;">Status</th>
-                    <th style="text-align: right; width: 130px;">Action</th>
-                </tr>
-            </thead>
-            <tbody>
-                {% for order in activeOrdersList %}
-                <tr>
-                    <td><b style="font-size: 13px; color: var(--tx);">#PO-{{ order.orderID }}</b></td>
-                    <td>
-                        <b style="font-size: 13px; color: var(--tx);">{{ order.furnitureName }}</b>
-                        <span style="display: block; font-size: 11.5px; color: var(--mt);">
-                            {{ order.furnitureType }}{% if order.furnitureType %} &bull; {% endif %}{{
-                            order.plannedQuantity }} {{ 'unit' if order.plannedQuantity == 1 else 'units' }}
-                        </span>
-                    </td>
-                    <td>
-                        <span style="font-size: 12.5px; color: var(--tx);">{{ order.staffName }}</span>
-                    </td>
-                    <td>
-                        <div style="display: flex; align-items: center; gap: 8px;">
-                            <span style="font-size: 12.5px; font-weight: 600; color: var(--tx);">{{ order.progress
-                                }}%</span>
-                            <span style="font-size: 11.5px; color: var(--mt);">&middot; {{ order.stageText }}</span>
-                        </div>
-                        <div class="dashMiniBar">
-                            <div style="width: {{ order.progress }}%;"></div>
-                        </div>
-                    </td>
-                    <td>
-                        {% if order.isOverdue %}
-                        <span class="statusBadge alert" style="font-size: 11px; padding: 2px 7px;">{{ order.dueDateStr
-                            }} &bull; Overdue</span>
-                        {% else %}
-                        <span style="font-size: 12.5px; font-weight: 600; color: var(--tx);">{{ order.dueDateStr
-                            }}</span>
-                        {% endif %}
-                    </td>
-                    <td>
-                        <span class="statusBadge {{ order.statusClass }}">{{ order.status }}</span>
-                    </td>
-                    <td style="text-align: right;">
-                        <a href="{{ order.actionUrl }}" class="actionButton secondary"
-                            style="padding: 4px 10px; font-size: 12px; text-decoration: none; display: inline-block;">
-                            {{ order.actionText }}
-                        </a>
-                    </td>
-                </tr>
-                {% else %}
-                <tr>
-                    <td colspan="7" style="text-align: center; color: var(--mt); padding: 28px 0; font-size: 13px;">
-                        No active production orders.
-                    </td>
-                </tr>
-                {% endfor %}
-            </tbody>
-        </table>
-    </div>
-</div>
-
 <div class="dashGridBottom">
+    {% if isManager %}
     <div class="card">
-        <div class="dashCardHead">
-            <div style="display: flex; align-items: center; gap: 8px;">
-                <h3>Inventory Stockouts</h3>
-                {% if warehouseStockouts|length > 0 %}
-                <span class="statusBadge alert" style="font-size: 11px; padding: 2px 7px;">
-                    {{ warehouseStockouts|length }} Stockouts
-                </span>
-                {% endif %}
-            </div>
-            <a href="/production/furniture">View all products &rarr;</a>
+        <div class="dashCardHead" style="margin-bottom: 10px;">
+            <h3>Inventory Stockouts</h3>
+            <a href="/production/orders?stockouts=1">View stockouts &rarr;</a>
         </div>
         {% if warehouseStockouts|length > 0 %}
+        <div class="workspaceToolbar" style="margin-bottom: 10px;">
+            <div class="workspaceFilterTabs" role="tablist" id="dashStockoutTabs">
+                <button type="button" class="workspaceTabBtn active" onclick="filterDashStockouts(this, '')">
+                    <span>All</span>
+                    <span class="workspaceTabCount">{{ stockoutSummary.total }}</span>
+                </button>
+                <button type="button" class="workspaceTabBtn" onclick="filterDashStockouts(this, 'needsBom')">
+                    <span class="dashStatusDot draft"></span>
+                    <span>Needs BOM</span>
+                    <span class="workspaceTabCount">{{ stockoutSummary.needsBom }}</span>
+                </button>
+                <button type="button" class="workspaceTabBtn" onclick="filterDashStockouts(this, 'ready')">
+                    <span class="dashStatusDot inProgress"></span>
+                    <span>Ready</span>
+                    <span class="workspaceTabCount">{{ stockoutSummary.ready }}</span>
+                </button>
+                <button type="button" class="workspaceTabBtn" onclick="filterDashStockouts(this, 'restocking')">
+                    <span class="dashStatusDot completed"></span>
+                    <span>Restocking</span>
+                    <span class="workspaceTabCount">{{ stockoutSummary.restocking }}</span>
+                </button>
+            </div>
+        </div>
         <div class="tableContainer">
             <table>
                 <thead>
                     <tr>
                         <th>Product</th>
-                        <th style="text-align: right; width: 100px;">Inventory</th>
-                        <th style="width: 130px;">BOM Status</th>
-                        <th style="text-align: right; width: 130px;">Action</th>
+                        <th style="text-align: right; width: 85px;">Stock</th>
+                        <th style="width: 125px;">BOM</th>
+                        <th style="text-align: right; width: 165px;">Restock / Action</th>
                     </tr>
                 </thead>
                 <tbody>
                     {% for item in warehouseStockouts %}
-                    <tr>
+                    {% set stockState = 'restocking' if item.active_order_id else ('needsBom' if item.bom_item_count ==
+                    0 else 'ready') %}
+                    <tr class="dashStockoutRow" data-stockout-state="{{ stockState }}">
                         <td>
                             <b style="font-size: 12.5px; color: var(--tx);">{{ item.furniture_name }}</b>
                             <span style="display: block; font-size: 11px; color: var(--mt);">
@@ -237,36 +202,47 @@
                         </td>
                         <td>
                             {% if item.bom_item_count > 0 %}
-                            <span class="statusBadge completed" style="font-size: 10.5px; padding: 2px 6px;">
+                            <span class="dashPillBadge completed"
+                                style="font-size: 10.5px; padding: 0 8px; height: 21px;">
                                 BOM Ready ({{ item.bom_item_count }})
                             </span>
                             {% else %}
-                            <span class="statusBadge draft" style="font-size: 10.5px; padding: 2px 6px;">
+                            <span class="dashPillBadge draft" style="font-size: 10.5px; padding: 0 8px; height: 21px;">
                                 No BOM
                             </span>
                             {% endif %}
                         </td>
                         <td style="text-align: right;">
                             {% if item.active_order_id %}
-                            <a href="/production/orders/{{ item.active_order_id }}" class="statusBadge inProgress"
-                                style="text-decoration: none; font-size: 11px; padding: 2px 7px; display: inline-block;">
+                            <a href="/production/orders/{{ item.active_order_id }}" class="dashPillBadge inProgress"
+                                style="text-decoration: none; font-size: 11px; padding: 0 8px; height: 22px;">
                                 #PO-{{ item.active_order_id }} ({{ item.active_order_status }})
                             </a>
+                            <span style="display: block; font-size: 10.5px; color: var(--mt); margin-top: 2px;">
+                                {{ item.total_incoming_qty }} unit{{ '' if item.total_incoming_qty == 1 else 's' }} in
+                                {{ item.active_order_count }} order{{ '' if item.active_order_count == 1 else 's' }}
+                            </span>
                             {% elif item.bom_item_count == 0 %}
                             <a href="/production/bom?furniture_id={{ item.furniture_id }}"
                                 class="actionButton secondary"
-                                style="padding: 3px 8px; font-size: 11px; text-decoration: none; display: inline-block;">
-                                Configure BOM
+                                style="padding: 3px 9px; font-size: 11px; text-decoration: none; display: inline-block;">
+                                + Configure BOM
                             </a>
                             {% else %}
-                            <a href="/production/orders?stockouts=1" class="actionButton secondary"
-                                style="padding: 3px 8px; font-size: 11px; text-decoration: none; display: inline-block;">
-                                Create Order
+                            <a href="/production/orders?stockouts=1" class="actionButton"
+                                style="padding: 3px 9px; font-size: 11px; text-decoration: none; display: inline-block;">
+                                + Restock Order
                             </a>
                             {% endif %}
                         </td>
                     </tr>
                     {% endfor %}
+                    <tr id="dashStockoutsEmptyFilter" style="display: none;">
+                        <td colspan="4"
+                            style="text-align: center; color: var(--mt); padding: 24px 0; font-size: 12.5px;">
+                            No stockout products in this filter.
+                        </td>
+                    </tr>
                 </tbody>
             </table>
         </div>
@@ -278,19 +254,53 @@
         </div>
         {% endif %}
     </div>
+    {% else %}
+    <div class="card">
+        <div class="dashCardHead" style="margin-bottom: 12px;">
+            <h3>Assembly Stage Progress</h3>
+            <a href="/production/monitoring">Update Floor &rarr;</a>
+        </div>
+        {% if activeStageBatches > 0 %}
+        <div class="dashStageList">
+            {% for stage in stageReadiness %}
+            <div class="dashStageRow">
+                <div class="dashStageHead">
+                    <span class="dashStageName">{{ stage.name }}</span>
+                    <span class="dashStageStat">{{ stage.count }} / {{ activeStageBatches }} batch{{ '' if activeStageBatches == 1 else 'es' }} &middot; <b>{{ stage.percent }}%</b></span>
+                </div>
+                <div class="dashStageTrack">
+                    <div class="dashStageFill" style="width: {{ stage.percent }}%;"></div>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+        {% else %}
+        <div style="text-align: center; color: var(--mt); padding: 28px 0; font-size: 13px;">
+            No batches are currently active on the assembly floor.
+        </div>
+        {% endif %}
+    </div>
+    {% endif %}
 
     <div class="card">
         <div class="dashCardHead">
             <h3>Recent Activity</h3>
+            <span style="font-size: 12px; color: var(--mt);">{{ activityTimeline|length }} event{{ '' if
+                activityTimeline|length == 1 else 's' }}</span>
         </div>
         {% if activityTimeline|length > 0 %}
         <div class="dashActivityScroll">
-            <ul class="dashActivity">
+            <ul class="dashActivity dashTimeline">
                 {% for act in activityTimeline %}
-                <li>
+                <li class="dashTimelineItem dashCat-{{ act.category or 'created' }}">
+                    <span class="dashTimelineDot" aria-hidden="true"></span>
                     <div class="when">{{ act.dateStr }}</div>
                     <div class="what">
+                        {% if act.orderID %}
+                        <a href="/production/orders/{{ act.orderID }}" class="dashActivityLink">{{ act.title }}</a>
+                        {% else %}
                         {{ act.title }}
+                        {% endif %}
                         <span>{{ act.meta }}</span>
                     </div>
                 </li>
@@ -304,4 +314,91 @@
         {% endif %}
     </div>
 </div>
+
+<div id="dashTooltip" class="dashTooltip" role="tooltip" aria-hidden="true"></div>
+
+<script>
+    function filterDashStockouts(btn, state) {
+        var tabs = document.querySelectorAll('#dashStockoutTabs .workspaceTabBtn');
+        tabs.forEach(function (t) { t.classList.remove('active'); });
+        if (btn) btn.classList.add('active');
+        var rows = document.querySelectorAll('.dashStockoutRow');
+        var visibleCount = 0;
+        rows.forEach(function (r) {
+            var match = !state || r.getAttribute('data-stockout-state') === state;
+            r.style.display = match ? '' : 'none';
+            if (match) visibleCount++;
+        });
+        var emptyRow = document.getElementById('dashStockoutsEmptyFilter');
+        if (emptyRow && rows.length > 0) {
+            emptyRow.style.display = visibleCount === 0 ? '' : 'none';
+        }
+    }
+
+    (function () {
+        var tooltip = document.getElementById('dashTooltip');
+        if (!tooltip) return;
+
+        function clampPosition(x, y) {
+            var padding = 12;
+            var rect = tooltip.getBoundingClientRect();
+            var clampedX = Math.max(padding + rect.width / 2, Math.min(window.innerWidth - padding - rect.width / 2, x));
+            var clampedY;
+            if ((y - rect.height * 1.2 - padding) < 0) {
+                clampedY = y + 16;
+                tooltip.style.transform = 'translate(-50%, 0)';
+            } else {
+                clampedY = y;
+                tooltip.style.transform = 'translate(-50%, -120%)';
+            }
+            tooltip.style.left = clampedX + 'px';
+            tooltip.style.top = clampedY + 'px';
+        }
+
+        function showTooltip(text, x, y) {
+            if (!text) return;
+            tooltip.textContent = text;
+            tooltip.classList.add('visible');
+            tooltip.setAttribute('aria-hidden', 'false');
+            clampPosition(x, y);
+        }
+
+        function hideTooltip() {
+            tooltip.classList.remove('visible');
+            tooltip.setAttribute('aria-hidden', 'true');
+        }
+
+        var targets = document.querySelectorAll('.dashChartHitRect, .dashDonutSegment');
+        targets.forEach(function (el) {
+            el.addEventListener('mouseenter', function (e) {
+                showTooltip(el.getAttribute('data-tooltip'), e.clientX, e.clientY);
+            });
+            el.addEventListener('mousemove', function (e) {
+                if (tooltip.classList.contains('visible')) {
+                    clampPosition(e.clientX, e.clientY);
+                }
+            });
+            el.addEventListener('mouseleave', hideTooltip);
+            el.addEventListener('focus', function () {
+                var r = el.getBoundingClientRect();
+                showTooltip(el.getAttribute('data-tooltip'), r.left + r.width / 2, r.top);
+            });
+            el.addEventListener('blur', hideTooltip);
+            el.addEventListener('click', function (e) {
+                e.stopPropagation();
+                showTooltip(el.getAttribute('data-tooltip'), e.clientX, e.clientY);
+            });
+        });
+
+        window.addEventListener('scroll', hideTooltip, true);
+        document.addEventListener('keydown', function (e) {
+            if (e.key === 'Escape') hideTooltip();
+        });
+        document.addEventListener('click', function (e) {
+            if (!e.target.closest('.dashChartHitRect') && !e.target.closest('.dashDonutSegment')) {
+                hideTooltip();
+            }
+        });
+    })();
+</script>
 {% endblock %}

@@ -65,7 +65,7 @@
                         {% set margin = item.sellingPrice - item.bomCost %}
                         {% set markup = ((item.sellingPrice - item.bomCost) / item.bomCost * 100) %}
                         {% if margin >= 0 %}
-                        <span style="display: block; font-size: 11px; color: #2e6930; font-weight: 500;">+{{
+                        <span style="display: block; font-size: 11px; color: var(--p); font-weight: 500;">+{{
                             "{:,.0f}".format(markup) }}% markup (₱{{ "{:,.2f}".format(margin) }})</span>
                         {% else %}
                         <span style="display: block; font-size: 11px; color: #9a4a3a; font-weight: 500;">Below Cost

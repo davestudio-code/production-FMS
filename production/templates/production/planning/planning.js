@@ -57,7 +57,7 @@ function openScheduleModal(orderID, productName, startDate, dueDate, assignedTo)
     const viewInput = document.getElementById('planningViewSelect');
     const nextUrlInput = document.getElementById('scheduleNextUrlInput');
     if (nextUrlInput) {
-        nextUrlInput.value = (viewInput && viewInput.value === 'timeline') ? '/production/planning?view=timeline' : '/production/planning';
+        nextUrlInput.value = (viewInput && viewInput.value === 'list') ? '/production/planning?view=list' : '/production/planning';
     }
     openModal('scheduleModal');
 }
@@ -74,7 +74,7 @@ window.openScheduleFromDataset = function(btn) {
 };
 
 window.setPlanningView = function(viewMode) {
-    const mode = viewMode === 'timeline' ? 'timeline' : 'list';
+    const mode = viewMode === 'list' ? 'list' : 'timeline';
     const viewInput = document.getElementById('planningViewSelect');
     const listSec = document.getElementById('planningListSection');
     const timeSec = document.getElementById('planningTimelineSection');
@@ -90,7 +90,7 @@ window.setPlanningView = function(viewMode) {
     });
 
     if (window.history && window.history.replaceState) {
-        const nextUrl = mode === 'timeline' ? '/production/planning?view=timeline' : '/production/planning';
+        const nextUrl = mode === 'list' ? '/production/planning?view=list' : '/production/planning';
         window.history.replaceState({ targetUrl: nextUrl }, '', nextUrl);
     }
 
@@ -122,8 +122,9 @@ window.renderPlanningTimeline = function() {
     const canEdit = (document.getElementById('planningCanEdit')?.value === '1');
     const now = new Date();
     const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-    const windowDays = 14;
-    const windowStart = addLocalDays(today, -3 + planningTimelineOffsetDays);
+    const currentSunday = addLocalDays(today, -today.getDay());
+    const windowDays = 7;
+    const windowStart = addLocalDays(currentSunday, planningTimelineOffsetDays);
     const windowEnd = addLocalDays(windowStart, windowDays - 1);
 
     if (rangeLabel) {
@@ -197,8 +198,8 @@ window.renderPlanningTimeline = function() {
         });
     }
 
-    let html = '<div class="ganttGrid">';
-    html += '<div class="ganttCornerHead">Production Order</div>';
+    let html = '<div class="ganttGrid" style="grid-template-columns: 220px repeat(7, minmax(76px, 1fr)); min-width: 752px;">';
+    html += '<div class="ganttCornerHead" style="grid-column: 1;">Production Order</div>';
     days.forEach(function(day) {
         const cls = 'ganttDayHead' + (day.isWeekend ? ' isWeekend' : '') + (day.isToday ? ' isToday' : '');
         html += '<div class="' + cls + '">' +
@@ -217,9 +218,9 @@ window.renderPlanningTimeline = function() {
             const dotCls = item.health === 'Overdue' ? 'overdue' : (item.status === 'Completed' ? 'completed' : (item.status === 'In Progress' ? 'inProgress' : (item.status === 'Released' ? 'released' : 'draft')));
             const staffLineHtml = item.assignedName
                 ? '<div style="font-size: 11px; color: var(--p); font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">Staff: ' + escPlanningHtml(item.assignedName) + '</div>'
-                : '<div style="font-size: 11px; color: #8e622a; font-weight: 600;">Staff: Unassigned</div>';
+                : '<div style="font-size: 11px; color: #5c513b; font-weight: 600;">Staff: Unassigned</div>';
 
-            html += '<div class="ganttOrderCell">' +
+            html += '<div class="ganttOrderCell" style="grid-column: 1;">' +
                 '<div style="display: flex; align-items: center; justify-content: space-between; gap: 6px;">' +
                 '<a href="/production/orders/' + escPlanningHtml(item.orderId) + '" style="color: var(--p); font-weight: 700; font-size: 13px; text-decoration: none;">#PO-' + escPlanningHtml(item.orderId) + '</a>' +
                 '<span style="display: inline-flex; align-items: center; gap: 4px; font-size: 11px; color: var(--mt); font-weight: 600;"><span class="tabStatusDot ' + dotCls + '"></span>' + escPlanningHtml(item.status) + '</span>' +
@@ -228,13 +229,13 @@ window.renderPlanningTimeline = function() {
                 staffLineHtml +
                 '</div>';
 
-            html += '<div class="ganttTrackRow">';
+            html += '<div class="ganttTrackRow" style="grid-column: 2 / span 7; grid-template-columns: repeat(7, 1fr);">';
             days.forEach(function(day) {
                 const bgCls = 'ganttBgCell' + (day.isWeekend ? ' isWeekend' : '') + (day.isToday ? ' isToday' : '');
                 html += '<div class="' + bgCls + '"></div>';
             });
 
-            html += '<div class="ganttBarLayer">';
+            html += '<div class="ganttBarLayer" style="grid-template-columns: repeat(7, 1fr);">';
             if (!item.hasDates) {
                 const gapHint = item.assignedName ? 'Needs timeline dates' : 'Needs timeline & staff';
                 html += '<div class="ganttUnscheduledInline">' +
@@ -276,7 +277,8 @@ window.renderPlanningTimeline = function() {
                         '</button>';
                 } else {
                     const dirHint = endOffset < 0 ? ('← Scheduled ' + formatShortMonthDay(item.effStart)) : ('Scheduled ' + formatShortMonthDay(item.effStart) + ' →');
-                    const targetShift = diffLocalDays(item.effStart, today);
+                    const itemSunday = addLocalDays(item.effStart, -item.effStart.getDay());
+                    const targetShift = diffLocalDays(itemSunday, currentSunday);
                     html += '<div class="ganttUnscheduledInline">' +
                         '<span style="font-size: 12px; color: var(--mt);">' + escPlanningHtml(dirHint) + '</span>' +
                         '<button type="button" class="actionButton secondary" style="padding: 3px 10px; font-size: 11.5px;" onclick="planningTimelineOffsetDays = ' + targetShift + '; renderPlanningTimeline();">' +
