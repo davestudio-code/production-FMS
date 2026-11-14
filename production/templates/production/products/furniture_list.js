@@ -1,40 +1,40 @@
-function openEditModal(id, name, type, price, bomCost, hasBOM) {
+function openEditModal(id, name, type) {
     const form = document.getElementById('editFurnitureForm');
     form.action = '/production/furniture/edit/' + id;
     document.getElementById('editFurnitureName').value = name;
     document.getElementById('editFurnitureType').value = type;
-    document.getElementById('editSellingPrice').value = (price && price !== '0.00' && price !== '0') ? price : '';
-
-    const bomBox = document.getElementById('editBomCostBox');
-    const bomDisplay = document.getElementById('editBomCostDisplay');
-    const markupSuggestion = document.getElementById('editMarkupSuggestion');
-    const applyBtn = document.getElementById('applyMarkupBtn');
-
-    const costNum = parseFloat(bomCost) || 0;
-    if (bomBox) {
-        bomBox.style.display = 'block';
-        if (hasBOM && costNum > 0) {
-            bomDisplay.innerHTML = '₱' + costNum.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-            const suggested = (costNum * 1.40).toFixed(2);
-            if (applyBtn) {
-                applyBtn.textContent = 'Apply ₱' + parseFloat(suggested).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-                applyBtn.onclick = function() {
-                    document.getElementById('editSellingPrice').value = suggested;
-                };
-            }
-            if (markupSuggestion) markupSuggestion.style.display = 'flex';
-        } else {
-            bomDisplay.innerHTML = '<span class="statusBadge draft" style="font-size: 11px;">BOM Not Configured</span>';
-            if (markupSuggestion) markupSuggestion.style.display = 'none';
-        }
-    }
     openModal('editFurnitureModal');
 }
+
+window.openEditModal = openEditModal;
+
+window.openEditModalFromButton = function(btn) {
+    if (!btn) return;
+    openEditModal(btn.dataset.id, btn.dataset.name, btn.dataset.type);
+};
+
+window.setFurnitureCategoryTab = function (btn, category) {
+    if (category === undefined && btn) {
+        category = btn.dataset.category || '';
+    }
+    const hiddenSelect = document.getElementById('furnitureCategorySelect');
+    if (hiddenSelect) {
+        hiddenSelect.value = category;
+    }
+    const allTabs = document.querySelectorAll('#furnitureCategoryTabs .workspaceTabBtn');
+    allTabs.forEach(function (t) {
+        t.classList.remove('active');
+    });
+    if (btn) {
+        btn.classList.add('active');
+    }
+    window.filterFurnitureTable(true);
+};
 
 let currentFurniturePage = 1;
 let furniturePageSize = 10;
 
-window.filterFurnitureTable = function(resetPage = true) {
+window.filterFurnitureTable = function (resetPage = true) {
     if (resetPage) {
         currentFurniturePage = 1;
     }
@@ -42,10 +42,10 @@ window.filterFurnitureTable = function(resetPage = true) {
     const cat = (document.getElementById('furnitureCategorySelect')?.value || '').trim();
     const resetBtn = document.getElementById('furnitureResetBtn');
     if (resetBtn) {
-        resetBtn.style.display = cat ? 'inline-block' : 'none';
+        resetBtn.style.display = (cat || q) ? 'inline-block' : 'none';
     }
     const allRows = Array.from(document.querySelectorAll('tr.furnitureRow'));
-    const matchingRows = allRows.filter(function(row) {
+    const matchingRows = allRows.filter(function (row) {
         const rowCat = row.dataset.category || '';
         const rowSearch = row.dataset.search || '';
         const matchCat = !cat || rowCat === cat;
@@ -61,7 +61,7 @@ window.filterFurnitureTable = function(resetPage = true) {
     const startIndex = (currentFurniturePage - 1) * furniturePageSize;
     const endIndex = Math.min(startIndex + furniturePageSize, totalCount);
 
-    allRows.forEach(function(row) {
+    allRows.forEach(function (row) {
         row.style.display = 'none';
     });
 
@@ -108,12 +108,12 @@ window.filterFurnitureTable = function(resetPage = true) {
     }
 };
 
-window.changeFurniturePage = function(delta) {
+window.changeFurniturePage = function (delta) {
     currentFurniturePage += delta;
     window.filterFurnitureTable(false);
 };
 
-window.changeFurniturePageSize = function(newSize) {
+window.changeFurniturePageSize = function (newSize) {
     const parsed = parseInt(newSize, 10);
     if (!isNaN(parsed) && parsed > 0) {
         furniturePageSize = parsed;
@@ -122,7 +122,9 @@ window.changeFurniturePageSize = function(newSize) {
     }
 };
 
-window.resetFurnitureFilter = function() {
+window.resetFurnitureFilter = function () {
+    const searchInput = document.getElementById('furnitureSearchInput');
+    if (searchInput) searchInput.value = '';
     const qInput = document.getElementById('globalTabSearchInput');
     const catSelect = document.getElementById('furnitureCategorySelect');
     if (qInput) qInput.value = '';
@@ -130,17 +132,25 @@ window.resetFurnitureFilter = function() {
         window.updateGlobalSearchClearBtn();
     }
     if (catSelect) catSelect.value = '';
+    const allTabs = document.querySelectorAll('#furnitureCategoryTabs .workspaceTabBtn');
+    allTabs.forEach(function (t, idx) {
+        if (idx === 0) {
+            t.classList.add('active');
+        } else {
+            t.classList.remove('active');
+        }
+    });
     currentFurniturePage = 1;
     window.filterFurnitureTable(true);
 };
 
 if (document.readyState === 'loading') {
-    document.addEventListener('DOMContentLoaded', function() {
+    document.addEventListener('DOMContentLoaded', function () {
         window.filterFurnitureTable(true);
     });
 } else {
     window.filterFurnitureTable(true);
 }
-window.addEventListener('pageshow', function() {
+window.addEventListener('pageshow', function () {
     window.filterFurnitureTable(false);
 });

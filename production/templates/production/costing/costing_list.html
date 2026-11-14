@@ -3,14 +3,11 @@
 {% block content %}
 <link rel="stylesheet" href="/production/feature-static/costing/costing.css">
 
+{% from "production/components/page_header.html" import page_header %}
+{% from "production/components/badge.html" import badge %}
 {% set costedInTable = costOrders | selectattr('hasCostSheet') | list | length %}
 
-<div class="headerRow">
-    <div>
-        <h2>Production Costing</h2>
-        <span style="color: var(--mt); font-size: 13.5px;">Actual raw material costs and labor per batch order</span>
-    </div>
-</div>
+{{ page_header("Production Costing", "Actual raw material costs and labor per batch order") }}
 
 <div class="card">
     <div class="workspaceToolbar">
@@ -67,8 +64,7 @@
                         </div>
                     </td>
                     <td data-label="Status">
-                        <span class="statusBadge {{ 'completed' if ord.status == 'Completed' else 'inProgress' }}">{{
-                            ord.status }}</span>
+                        {{ badge(ord.status) }}
                     </td>
                     <td data-label="Materials">
                         <div>

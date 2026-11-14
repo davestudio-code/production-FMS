@@ -39,7 +39,7 @@ def add_finished_goods_stock(furnitureID, quantity, conn=None):
     with openTransaction(conn) as connection:
         with connection.cursor() as cursor:
             cursor.execute(
-                "SELECT furniture_name, selling_price FROM prod_furniture WHERE furniture_id = %s",
+                "SELECT furniture_name FROM prod_furniture WHERE furniture_id = %s",
                 (furnitureID,)
             )
             furn = cursor.fetchone()
@@ -47,7 +47,7 @@ def add_finished_goods_stock(furnitureID, quantity, conn=None):
                 raise ValueError(f"Furniture ID {furnitureID} does not exist.")
 
             furnName = furn["furniture_name"]
-            furnPrice = furn["selling_price"]
+            furnPrice = Decimal("0.00")
             itemCode = f"FG-{furnitureID:03d}"
 
             cursor.execute("""
@@ -106,7 +106,7 @@ def get_warehouse_stockouts(conn=None):
         with openTransaction(conn) as connection:
             with connection.cursor() as cursor:
                 cursor.execute("""
-                    SELECT f.furniture_id, f.furniture_name, f.furniture_type, f.selling_price,
+                    SELECT f.furniture_id, f.furniture_name, f.furniture_type,
                            COALESCE(fg.quantity, 0) AS current_stock,
                            act.order_id AS active_order_id,
                            act.status AS active_order_status,

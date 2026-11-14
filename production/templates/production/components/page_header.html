@@ -1,0 +1,15 @@
+{% macro page_header(title, subtitle='', extra_class='', style='') %}
+<div class="headerRow{% if extra_class %} {{ extra_class }}{% endif %}"{% if style %} style="{{ style }}"{% endif %}>
+    <div>
+        <h2>{{ title }}</h2>
+        {% if subtitle %}
+        <span style="color: var(--mt); font-size: 13.5px;">{{ subtitle|safe }}</span>
+        {% endif %}
+    </div>
+    {% if caller %}
+    <div>
+        {{ caller() }}
+    </div>
+    {% endif %}
+</div>
+{% endmacro %}

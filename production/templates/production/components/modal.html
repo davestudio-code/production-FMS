@@ -1,0 +1,19 @@
+{% macro modal(id, title='', max_width='480px', subtitle='', title_id='', subtitle_id='', close_fn='', card_style='', overlay_style='', z_index='', card_class='', overlay_class='') %}
+{% set close_call = close_fn if close_fn else ("closeModal('" ~ id ~ "')") %}
+<div id="{{ id }}" class="modalOverlay{% if overlay_class %} {{ overlay_class }}{% endif %}" onclick="if(event.target===this) {{ close_call }};" role="dialog" aria-modal="true"{% if title_id %} aria-labelledby="{{ title_id }}"{% endif %}{% if overlay_style or z_index %} style="{% if z_index %}z-index: {{ z_index }};{% endif %}{% if overlay_style %} {{ overlay_style }}{% endif %}"{% endif %}>
+    <div class="modalCard{% if card_class %} {{ card_class }}{% endif %}" style="max-width: {{ max_width }};{% if card_style %} {{ card_style }}{% endif %}">
+        {% if title or title_id or subtitle or subtitle_id %}
+        <div class="modalHeader">
+            <div>
+                <h3{% if title_id %} id="{{ title_id }}"{% endif %}>{{ title }}</h3>
+                {% if subtitle or subtitle_id %}
+                <span{% if subtitle_id %} id="{{ subtitle_id }}"{% endif %} style="font-size: 12.5px; color: var(--mt);">{{ subtitle }}</span>
+                {% endif %}
+            </div>
+            <button type="button" class="modalClose" onclick="{{ close_call }}" aria-label="Close modal"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg></button>
+        </div>
+        {% endif %}
+        {{ caller() }}
+    </div>
+</div>
+{% endmacro %}

@@ -112,7 +112,6 @@
                         <th>Workshop Progress</th>
                         <th>Schedule Timeline</th>
                         <th>Batch Cost</th>
-                        <th>Est. Value</th>
                     </tr>
                 </thead>
                 <tbody>
@@ -164,19 +163,16 @@
                             <span style="color: var(--mt); font-size: 12px;">No Materials Issued</span>
                             {% endif %}
                         </td>
-                        <td data-label="Est. Value">
-                            <b>₱{{ "{:,.2f}".format(r.estimatedValue) }}</b>
-                        </td>
                     </tr>
                     {% else %}
                     <tr>
-                        <td colspan="6" style="text-align: center; color: var(--mt); padding: 28px;">
+                        <td colspan="5" style="text-align: center; color: var(--mt); padding: 28px;">
                             No production orders recorded yet.
                         </td>
                     </tr>
                     {% endfor %}
                     <tr id="ordersEmptyFilterRow" style="display: none;">
-                        <td colspan="6" style="text-align: center; color: var(--mt); padding: 28px;">
+                        <td colspan="5" style="text-align: center; color: var(--mt); padding: 28px;">
                             No production orders match your search criteria.
                         </td>
                     </tr>

@@ -682,18 +682,32 @@ def index():
             return val.date()
         return today
 
+    isMgr = is_manager_session()
+    currentEmpID = session.get("employee_id")
+    orderMap = {o.orderID: o for o in allOrders}
+
+    def _matchesEmp(val, target):
+        if not val or not target:
+            return False
+        return str(val).strip() == str(target).strip()
+
     activityTimeline = []
     allOutputs = []
     try:
         allOutputs = ProductionOutput.getAll()
         for out in allOutputs:
+            ordObj = orderMap.get(out.orderID)
+            assignedTo = getattr(ordObj, "assignedTo", None) if ordObj else None
+            actorEmpID = out.inspectorID if (out.inspectorID and str(out.inspectorID).strip()) else None
             if out.qualityStatus == "Passed":
                 activityTimeline.append({
                     "orderID": out.orderID,
                     "category": "passed",
                     "title": f"#PO-{out.orderID} passed QC",
                     "meta": f"{out.quantity} units added to finished goods",
-                    "sortKey": (_safeEventDate(out.inspectionDate), 4, int(out.outputID or 0))
+                    "sortKey": (_safeEventDate(out.inspectionDate), 4, int(out.outputID or 0)),
+                    "assignedTo": assignedTo,
+                    "actorEmpID": actorEmpID
                 })
             elif out.qualityStatus == "Rework":
                 activityTimeline.append({
@@ -701,7 +715,9 @@ def index():
                     "category": "rework",
                     "title": f"#PO-{out.orderID} sent back for rework",
                     "meta": out.reason or out.furnitureName,
-                    "sortKey": (_safeEventDate(out.inspectionDate), 4, int(out.outputID or 0))
+                    "sortKey": (_safeEventDate(out.inspectionDate), 4, int(out.outputID or 0)),
+                    "assignedTo": assignedTo,
+                    "actorEmpID": actorEmpID
                 })
     except Exception:
         allOutputs = []
@@ -713,12 +729,16 @@ def index():
                     "Sanding & Finishing" if mon.progress <= 75 else "Ready for QC"
                 )
             )
+            ordObj = orderMap.get(mon.orderID)
+            assignedTo = mon.assignedTo or (getattr(ordObj, "assignedTo", None) if ordObj else None)
             activityTimeline.append({
                 "orderID": mon.orderID,
                 "category": "stage",
                 "title": f"#PO-{mon.orderID} moved to {int(mon.progress)}% · {stageLabel}",
                 "meta": "Workshop update",
-                "sortKey": (_safeEventDate(mon.startDate), 3, int(mon.monitoringID or 0))
+                "sortKey": (_safeEventDate(mon.startDate), 3, int(mon.monitoringID or 0)),
+                "assignedTo": assignedTo,
+                "actorEmpID": assignedTo
             })
 
     try:
@@ -727,12 +747,16 @@ def index():
         for iss in recentIssuances:
             if iss.orderID not in seenIssuanceOrders:
                 seenIssuanceOrders.add(iss.orderID)
+                ordObj = orderMap.get(iss.orderID)
+                assignedTo = getattr(ordObj, "assignedTo", None) if ordObj else None
                 activityTimeline.append({
                     "orderID": iss.orderID,
                     "category": "issued",
                     "title": f"Materials issued for #PO-{iss.orderID}",
                     "meta": "Stock deducted from inventory",
-                    "sortKey": (_safeEventDate(iss.issueDate), 2, int(iss.issuanceID or 0))
+                    "sortKey": (_safeEventDate(iss.issueDate), 2, int(iss.issuanceID or 0)),
+                    "assignedTo": assignedTo,
+                    "actorEmpID": None
                 })
     except Exception:
         pass
@@ -744,8 +768,16 @@ def index():
             "category": "created",
             "title": f"#PO-{o.orderID} created · {o.furnitureName}",
             "meta": f"{o.plannedQuantity} units · {dueText}",
-            "sortKey": (_safeEventDate(o.orderDate), 1, int(o.orderID or 0))
+            "sortKey": (_safeEventDate(o.orderDate), 1, int(o.orderID or 0)),
+            "assignedTo": getattr(o, "assignedTo", None),
+            "actorEmpID": None
         })
+
+    if not isMgr:
+        activityTimeline = [
+            act for act in activityTimeline
+            if currentEmpID and (_matchesEmp(act.get("assignedTo"), currentEmpID) or _matchesEmp(act.get("actorEmpID"), currentEmpID))
+        ]
 
     activityTimeline.sort(key=lambda x: x["sortKey"], reverse=True)
     for act in activityTimeline:
@@ -778,9 +810,6 @@ def index():
     productsInStockPct = int(round(productsInStockCount / totalProducts * 100)) if totalProducts > 0 else None
     totalIncomingUnits = sum(int(s.get("total_incoming_qty") or 0) for s in stockouts)
 
-    isMgr = is_manager_session()
-    currentEmpID = session.get("employee_id")
-    orderMap = {o.orderID: o for o in allOrders}
     awaitingQCUnits = sum(
         int(orderMap[m.orderID].plannedQuantity or 0)
         for m in activeMonitoring
@@ -1182,16 +1211,23 @@ def furnitureList():
     try:
         furnitureItemList = Furniture.getAll()
         categoriesList = Furniture.getCategories()
+        categoryCounts = {}
+        for item in furnitureItemList:
+            c = item.furnitureType
+            if c:
+                categoryCounts[c] = categoryCounts.get(c, 0) + 1
     except Exception as err:
         flash(f"Failed to load products from database: {str(err)}", "alert")
         furnitureItemList = []
         categoriesList = []
+        categoryCounts = {}
 
     return render_template(
         "production/products/furniture_list.html",
         activeTab="furniture",
         furnitureItems=furnitureItemList,
         categories=categoriesList,
+        categoryCounts=categoryCounts,
         searchQuery=searchQuery,
         selectedCategory=selectedCategory
     )
@@ -1201,29 +1237,17 @@ def furnitureList():
 def addFurniture():
     furnitureName = request.form.get("furnitureName", "").strip()
     furnitureType = request.form.get("furnitureType", "").strip()
-    priceRaw = request.form.get("sellingPrice", "").strip()
 
     if not furnitureName or not furnitureType:
         flash("Product name and category are required.", "error")
         return redirect(url_for("production.furnitureList"))
-
-    sellingPrice = Decimal("0.00")
-    if priceRaw:
-        try:
-            sellingPrice = Decimal(priceRaw)
-            if sellingPrice < 0:
-                flash("Selling price must be 0 or greater.", "error")
-                return redirect(url_for("production.furnitureList"))
-        except Exception:
-            flash("Invalid price format. Please enter a valid number.", "error")
-            return redirect(url_for("production.furnitureList"))
 
     try:
         if Furniture.existsByName(furnitureName):
             flash(f"A product named '{furnitureName}' already exists in the catalog.", "warning")
             return redirect(url_for("production.furnitureList"))
 
-        Furniture.addFurniture(furnitureName, furnitureType, sellingPrice)
+        Furniture.addFurniture(furnitureName, furnitureType)
         flash(f"Product '{furnitureName}' registered successfully.", "success")
     except UniqueViolation:
         flash(f"A product named '{furnitureName}' already exists in the catalog.", "warning")
@@ -1237,29 +1261,17 @@ def addFurniture():
 def editFurniture(furnitureID):
     furnitureName = request.form.get("furnitureName", "").strip()
     furnitureType = request.form.get("furnitureType", "").strip()
-    priceRaw = request.form.get("sellingPrice", "").strip()
 
     if not furnitureName or not furnitureType:
         flash("Product name and category are required.", "error")
         return redirect(url_for("production.furnitureList"))
-
-    sellingPrice = Decimal("0.00")
-    if priceRaw:
-        try:
-            sellingPrice = Decimal(priceRaw)
-            if sellingPrice < 0:
-                flash("Selling price must be 0 or greater.", "error")
-                return redirect(url_for("production.furnitureList"))
-        except Exception:
-            flash("Invalid price format. Please enter a valid number.", "error")
-            return redirect(url_for("production.furnitureList"))
 
     try:
         if Furniture.existsByName(furnitureName, excludeID=furnitureID):
             flash(f"Another product with the name '{furnitureName}' already exists.", "warning")
             return redirect(url_for("production.furnitureList"))
 
-        updated = Furniture.updateFurniture(furnitureID, furnitureName, furnitureType, sellingPrice)
+        updated = Furniture.updateFurniture(furnitureID, furnitureName, furnitureType)
         if updated:
             flash(f"Product '{furnitureName}' updated successfully.", "success")
         else:
@@ -1449,28 +1461,7 @@ def removeBomItem(bomItemID):
 @manager_required
 def updateFurniturePriceFromBom():
     furnitureID = request.form.get("furnitureID", "").strip()
-    priceRaw = request.form.get("sellingPrice", "").strip()
-    if not furnitureID or not furnitureID.isdigit():
-        flash("Invalid product reference.", "error")
-        return redirect(url_for("production.bomList"))
-    try:
-        newPrice = Decimal(priceRaw) if priceRaw else Decimal("0.00")
-        if newPrice < 0:
-            flash("Selling price must be 0 or greater.", "error")
-            return redirect(url_for("production.bomList", furniture_id=furnitureID))
-    except Exception:
-        flash("Invalid price format. Please enter a valid number.", "error")
-        return redirect(url_for("production.bomList", furniture_id=furnitureID))
-    try:
-        f = Furniture.getByID(int(furnitureID))
-        if f:
-            Furniture.updateFurniture(f.furnitureID, f.furnitureName, f.furnitureType, newPrice)
-            flash(f"Updated catalog selling price for '{f.furnitureName}' to ₱{newPrice:,.2f}.", "success")
-        else:
-            flash("Product not found.", "error")
-    except Exception as err:
-        flash(f"DB error while updating price: {str(err)}", "error")
-    return redirect(url_for("production.bomList", furniture_id=furnitureID))
+    return redirect(url_for("production.bomList", furniture_id=furnitureID if furnitureID.isdigit() else None))
 
 @productionBlueprint.route("/orders")
 def orderList():
@@ -2539,7 +2530,6 @@ def reportView():
                            po.due_date,
                            f.furniture_name,
                            f.furniture_type,
-                           f.selling_price,
                            COALESCE(pm.progress, 0.00) AS progress,
                            pm.start_date AS actual_start_date,
                            pm.completion_date,
@@ -2589,8 +2579,7 @@ def reportView():
             item["formattedStartDate"] = item["actual_start_date"].strftime("%b. %d, %Y") if item.get("actual_start_date") else (item["planned_start_date"].strftime("%b. %d, %Y") if item.get("planned_start_date") else "-")
             item["formattedCompletionDate"] = item["completion_date"].strftime("%b. %d, %Y") if item.get("completion_date") else ("In Progress" if item["status"] == "In Progress" else "-")
             qty = Decimal(str(item.get("planned_quantity") or 0))
-            price = Decimal(str(item.get("selling_price") or 0))
-            item["estimatedValue"] = qty * price
+            item["estimatedValue"] = Decimal("0.00")
             issuedMatCost = Decimal(str(item.get("issued_material_cost") or 0)).quantize(Decimal("0.01"))
             if item.get("total_cost") is not None:
                 item["hasCostSheet"] = True

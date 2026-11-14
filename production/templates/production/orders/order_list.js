@@ -103,8 +103,7 @@ window.filterOrdersTable = function(resetPage = true) {
     if (resetPage) {
         currentOrdersPage = 1;
     }
-    const qInput = document.getElementById('globalTabSearchInput');
-    const q = (qInput?.value || '').toLowerCase().trim();
+    const q = (document.getElementById('globalTabSearchInput')?.value || '').toLowerCase().trim();
     const status = (document.getElementById('orderStatusSelect')?.value || '').trim();
     const ordersSection = document.getElementById('ordersWorkspaceSection');
     const stockoutsSection = document.getElementById('stockoutsWorkspaceSection');

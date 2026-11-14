@@ -77,9 +77,9 @@ button.qaModalClose {
     border-radius: 8px;
     background: transparent;
     border: none;
-    font-size: 21px;
+    font-size: 19px;
     font-weight: 500;
-    line-height: 1;
+    line-height: 0;
     color: var(--mt);
     cursor: pointer;
     padding: 0;
@@ -89,6 +89,14 @@ button.qaModalClose {
     flex-shrink: 0;
     transform: none;
     transition: background 0.15s ease, color 0.15s ease;
+}
+
+.qaModalClose svg,
+button.qaModalClose svg {
+    display: block;
+    width: 15px;
+    height: 15px;
+    pointer-events: none;
 }
 
 .qaModalClose:hover,

@@ -1,13 +1,11 @@
 {% extends "production/base.html" %}
 
 {% block content %}
+{% from "production/components/modal.html" import modal %}
+{% from "production/components/page_header.html" import page_header %}
+{% from "production/components/badge.html" import badge %}
 {% set showStockoutsTab = (request.args.get('stockouts') == '1' and isManager) %}
-<div class="headerRow">
-    <div>
-        <h2>Production Orders</h2>
-        <span style="color: var(--mt); font-size: 13.5px;">Track order lifecycle: Draft &rarr; Released &rarr; In Progress &rarr; Completed</span>
-    </div>
-</div>
+{{ page_header("Production Orders", "Track order lifecycle: Draft &rarr; Released &rarr; In Progress &rarr; Completed") }}
 
 <div class="card">
     <div class="workspaceToolbar">
@@ -83,9 +81,7 @@
                         <span style="display: block; font-size: 11.5px; color: var(--mt); margin-top: 2px;">Ordered: {{ ord.orderDate|date_fmt }}</span>
                     </td>
                     <td>
-                        <span class="statusBadge {{ 'completed' if ord.status == 'Completed' else ('inProgress' if ord.status == 'In Progress' else ('released' if ord.status == 'Released' else 'draft')) }}">
-                            {{ ord.status }}
-                        </span>
+                        {{ badge(ord.status) }}
                     </td>
                     <td>
                         <div style="display: flex; gap: 8px; align-items: center;">
@@ -207,43 +203,37 @@
 </div>
 
 {% if isManager %}
-<div id="createOrderModal" class="modalOverlay">
-    <div class="modalCard" style="max-width: 520px; width: 100%; box-sizing: border-box; overflow-x: hidden;">
-        <div class="modalHeader">
-            <h3>New Production Order</h3>
-            <button class="modalClose" onclick="closeModal('createOrderModal')">&times;</button>
-        </div>
-        <form method="POST" action="/production/orders/create">
-            <div class="formGroup">
-                <label>Furniture Product (Must have configured BOM)</label>
-                <select name="furnitureID" id="modalFurnitureSelect" onchange="updateLiveMrpCheck()" required>
-                    <option value="">Select Product...</option>
-                    {% for f in furnitureItems %}
-                        <option value="{{ f.furnitureID }}">{{ f.furnitureName }} ({{ f.furnitureType }})</option>
-                    {% endfor %}
-                </select>
-            </div>
-            <div class="formGroup">
-                <label>Planned Batch Quantity (Whole Number)</label>
-                <input type="number" name="plannedQuantity" id="modalQuantityInput" placeholder="e.g. 4" min="1" max="100000" step="1" oninput="updateLiveMrpCheck()" required>
-            </div>
-            <div id="mrpPreviewBox" style="display: none; background: #faf8f3; border: 1px solid var(--bd); border-radius: 8px; padding: 10px 14px; margin-bottom: 14px;">
-                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
-                    <span style="font-size: 11px; font-weight: 700; text-transform: uppercase; color: var(--mt);">Material Requirement Preview (MRP)</span>
-                    <span id="mrpStatusBadge" class="statusBadge" style="font-size: 10.5px;"></span>
-                </div>
-                <div id="mrpComponentList" style="font-size: 12px; display: flex; flex-direction: column; gap: 4px;"></div>
-            </div>
-            <div class="bannerNotice" style="margin-top: 6px; font-size: 12.5px; line-height: 1.45;">
-                Orders are created in <b>Draft</b> status. Timeline scheduling and workshop staff assignment are managed in <b>Production Planning</b> prior to release.
-            </div>
-            <div class="modalActions" style="margin-top: 18px;">
-                <button type="button" class="actionButton secondary" onclick="closeModal('createOrderModal')">Cancel</button>
-                <button type="submit" class="actionButton" id="modalCreateOrderBtn">Create Draft Order</button>
-            </div>
-        </form>
+{% call modal("createOrderModal", "New Production Order", max_width="520px", card_style="width: 100%; box-sizing: border-box; overflow-x: hidden;") %}
+<form method="POST" action="/production/orders/create">
+    <div class="formGroup">
+        <label>Furniture Product (Must have configured BOM)</label>
+        <select name="furnitureID" id="modalFurnitureSelect" onchange="updateLiveMrpCheck()" required>
+            <option value="">Select Product...</option>
+            {% for f in furnitureItems %}
+                <option value="{{ f.furnitureID }}">{{ f.furnitureName }} ({{ f.furnitureType }})</option>
+            {% endfor %}
+        </select>
     </div>
-</div>
+    <div class="formGroup">
+        <label>Planned Batch Quantity (Whole Number)</label>
+        <input type="number" name="plannedQuantity" id="modalQuantityInput" placeholder="e.g. 4" min="1" max="100000" step="1" oninput="updateLiveMrpCheck()" required>
+    </div>
+    <div id="mrpPreviewBox" style="display: none; background: #faf8f3; border: 1px solid var(--bd); border-radius: 8px; padding: 10px 14px; margin-bottom: 14px;">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
+            <span style="font-size: 11px; font-weight: 700; text-transform: uppercase; color: var(--mt);">Material Requirement Preview (MRP)</span>
+            <span id="mrpStatusBadge" class="statusBadge" style="font-size: 10.5px;"></span>
+        </div>
+        <div id="mrpComponentList" style="font-size: 12px; display: flex; flex-direction: column; gap: 4px;"></div>
+    </div>
+    <div class="bannerNotice" style="margin-top: 6px; font-size: 12.5px; line-height: 1.45;">
+        Orders are created in <b>Draft</b> status. Timeline scheduling and workshop staff assignment are managed in <b>Production Planning</b> prior to release.
+    </div>
+    <div class="modalActions" style="margin-top: 18px;">
+        <button type="button" class="actionButton secondary" onclick="closeModal('createOrderModal')">Cancel</button>
+        <button type="submit" class="actionButton" id="modalCreateOrderBtn">Create Draft Order</button>
+    </div>
+</form>
+{% endcall %}
 {% endif %}
 
 <script>

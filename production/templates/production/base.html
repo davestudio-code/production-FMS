@@ -6,7 +6,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>Velmora Co. &middot; Production ERP</title>
     <link rel="icon" type="image/png" href="/production/static/images/velmora-logo.png">
-    <link rel="stylesheet" href="/production/static/css/style.css?v=20261114b">
+    <link rel="stylesheet" href="/production/static/css/style.css?v=20261114c">
 </head>
 
 <body>
@@ -58,7 +58,9 @@
                         <path d="M2 10h4"></path>
                         <path d="M2 14h4"></path>
                         <path d="M2 18h4"></path>
-                        <path d="M21.378 5.626a1 1 0 1 0-3.004-3.004l-5.01 5.012a2 2 0 0 0-.506.854l-.837 2.87a.5.5 0 0 0 .62.62l2.87-.837a2 2 0 0 0 .854-.506z"></path>
+                        <path
+                            d="M21.378 5.626a1 1 0 1 0-3.004-3.004l-5.01 5.012a2 2 0 0 0-.506.854l-.837 2.87a.5.5 0 0 0 .62.62l2.87-.837a2 2 0 0 0 .854-.506z">
+                        </path>
                     </svg>
                     <span>Bill of Materials (BOM)</span>
                 </a>
@@ -99,7 +101,9 @@
                     <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
                         stroke-linecap="round" stroke-linejoin="round">
                         <path d="m11 17 2 2a1 1 0 1 0 3-3"></path>
-                        <path d="m14 14 2.5 2.5a1 1 0 1 0 3-3l-3.88-3.88a3 3 0 0 0-4.24 0l-.88.88a1 1 0 1 1-3-3l2.81-2.81a5.79 5.79 0 0 1 7.06-.87l.47.28a2 2 0 0 0 1.42.25L21 4"></path>
+                        <path
+                            d="m14 14 2.5 2.5a1 1 0 1 0 3-3l-3.88-3.88a3 3 0 0 0-4.24 0l-.88.88a1 1 0 1 1-3-3l2.81-2.81a5.79 5.79 0 0 1 7.06-.87l.47.28a2 2 0 0 0 1.42.25L21 4">
+                        </path>
                         <path d="m21 3 1 11h-2"></path>
                         <path d="M3 3 2 14l6.5 6.5a1 1 0 1 0 3-3"></path>
                         <path d="M3 4h8"></path>
@@ -216,8 +220,8 @@
                                 <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"></path>
                                 <path d="M13.73 21a2 2 0 0 1-3.46 0"></path>
                             </svg>
-                            <span class="topIconBadge" id="topNotifBadge"
-                                style="{{ '' if totalNotifBadgeCount and totalNotifBadgeCount > 0 else 'display: none;' }}">{{
+                            <span class="topIconBadge" id="topNotifBadge" {% if not totalNotifBadgeCount or
+                                totalNotifBadgeCount <=0 %} style="display: none;" {% endif %}>{{
                                 totalNotifBadgeCount or 0 }}</span>
                         </button>
                         <div class="topNotifDropdown" id="topNotifDropdown"
@@ -225,8 +229,8 @@
                             data-stockout-pin="{{ '1' if isManager and stockoutAlertCount and stockoutAlertCount > 0 else '0' }}">
                             <div class="topNotifHeader">
                                 <b>Notifications</b>
-                                <button type="button" class="topNotifReadAllBtn"
-                                    style="{{ '' if accountUnreadCount and accountUnreadCount > 0 else 'display: none;' }}"
+                                <button type="button" class="topNotifReadAllBtn" {% if not accountUnreadCount or
+                                    accountUnreadCount <=0 %} style="display: none;" {% endif %}
                                     onclick="window.markAllNotifsRead(event)">Mark all read</button>
                             </div>
                             <div class="topNotifList">
@@ -334,24 +338,17 @@
 
     <div id="toastContainer" class="toastContainer" aria-live="polite"></div>
 
-    <div id="globalProofLightbox" class="modalOverlay" style="z-index: 2500;"
-        onclick="if(event.target===this) window.closeProofLightbox();">
-        <div class="modalCard" style="max-width: 640px;">
-            <div class="modalHeader">
-                <div>
-                    <h3 id="proofLightboxTitle">Workshop Stage Proof</h3>
-                    <span id="proofLightboxMeta" style="font-size: 12px; color: var(--mt);"></span>
-                </div>
-                <button type="button" class="modalClose" onclick="window.closeProofLightbox()">&times;</button>
-            </div>
-            <div class="proofLightboxImgWrap">
-                <img id="proofLightboxImg" src="" alt="Workshop Stage Proof">
-            </div>
-            <div id="proofLightboxNote"
-                style="display: none; margin-top: 12px; padding: 10px 12px; background: #faf8f2; border: 1px solid var(--bd); border-radius: 8px; font-size: 13px; color: var(--tx);">
-            </div>
-        </div>
+    {% from "production/components/modal.html" import modal %}
+
+    {% call modal("globalProofLightbox", title="Attachment", title_id="proofLightboxTitle",
+    subtitle_id="proofLightboxMeta", max_width="640px", z_index="2500", close_fn="window.closeProofLightbox()") %}
+    <div class="proofLightboxImgWrap">
+        <img id="proofLightboxImg" src="" alt="Attachment">
     </div>
+    <div id="proofLightboxNote"
+        style="display: none; margin-top: 12px; padding: 10px 12px; background: #faf8f2; border: 1px solid var(--bd); border-radius: 8px; font-size: 13px; color: var(--tx);">
+    </div>
+    {% endcall %}
 
     <div id="accountSettingsModal" class="modalOverlay" style="z-index: 2600;"
         onclick="if(event.target===this) window.closeAccountSettingsModal();">
@@ -362,7 +359,7 @@
                     <span style="font-size: 12px; color: var(--mt);">Manage your personal details and security
                         credentials</span>
                 </div>
-                <button type="button" class="modalClose" onclick="window.closeAccountSettingsModal()">&times;</button>
+                <button type="button" class="modalClose" onclick="window.closeAccountSettingsModal()" aria-label="Close modal"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg></button>
             </div>
 
             <div class="accountModalTabs">
@@ -464,6 +461,8 @@
         </div>
     </div>
 
+    <script id="serverFlashedMessages"
+        type="application/json">{{ (get_flashed_messages(with_categories=true) or [])|tojson }}</script>
     <script>
         function toggleMobileNav() {
             const container = document.getElementById('navLinksContainer');
@@ -577,16 +576,16 @@
         }, true);
 
         document.addEventListener('DOMContentLoaded', function () {
-            {% with messages = get_flashed_messages(with_categories = true) %}
-            {% if messages %}
-            const flashed = {{ messages| tojson
-        }};
-        flashed.forEach(function (item) {
-            console.log('[Server Message - ' + item[0].toUpperCase() + ']:', item[1]);
-            showToast(item[1], item[0]);
-        });
-        {% endif %}
-        {% endwith %}
+            const flashedEl = document.getElementById('serverFlashedMessages');
+            if (flashedEl) {
+                try {
+                    const flashed = JSON.parse(flashedEl.textContent || '[]');
+                    flashed.forEach(function (item) {
+                        console.log('[Server Message - ' + item[0].toUpperCase() + ']:', item[1]);
+                        showToast(item[1], item[0]);
+                    });
+                } catch (e) { }
+            }
         });
 
         function openUpdateCostModal(id, name, cost, unit) {
@@ -638,7 +637,7 @@
             }
         }
 
-        function openEditModal(id, name, type, price) {
+        function openEditModal(id, name, type) {
             const form = document.getElementById('editFurnitureForm');
             if (form) {
                 form.action = '/production/furniture/edit/' + id;
@@ -647,8 +646,6 @@
             if (nameEl) nameEl.value = name;
             const typeEl = document.getElementById('editFurnitureType');
             if (typeEl) typeEl.value = type;
-            const priceEl = document.getElementById('editSellingPrice');
-            if (priceEl) priceEl.value = price;
             openModal('editFurnitureModal');
         }
 

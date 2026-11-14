@@ -1,0 +1,15 @@
+{% macro badge(status, label=None, extra_class='', style='') %}
+{% set s = (status|string|lower|trim)|replace(' ', '')|replace('_', '')|replace('-', '') %}
+{% if s in ['completed', 'passed', 'instock', 'readyforqc', '100%qcpassed', 'dispatched', 'issued'] %}
+    {% set cls = 'completed' %}
+{% elif s in ['inprogress', 'rework', 'active'] %}
+    {% set cls = 'inProgress' %}
+{% elif s in ['released', 'planned', 'ready', 'availableforproduction', 'onschedule'] %}
+    {% set cls = 'released' %}
+{% elif s in ['alert', 'failed', 'cancelled', 'canceled', 'shortage', 'overdue', 'lowstock', 'defect'] %}
+    {% set cls = 'alert' %}
+{% else %}
+    {% set cls = 'draft' %}
+{% endif %}
+<span class="statusBadge {{ cls }}{% if extra_class %} {{ extra_class }}{% endif %}"{% if style %} style="{{ style }}"{% endif %}>{{ label if label is not none else status }}</span>
+{% endmacro %}

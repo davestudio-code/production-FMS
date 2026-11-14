@@ -8,8 +8,7 @@ class Furniture:
             self.furnitureID = data.get("furniture_id")
             self.furnitureName = data.get("furniture_name")
             self.furnitureType = data.get("furniture_type")
-            rawPrice = data.get("selling_price")
-            self.sellingPrice = Decimal(str(rawPrice)) if rawPrice is not None else Decimal("0.00")
+            self.sellingPrice = Decimal("0.00")
             rawBomCost = data.get("bom_material_cost")
             self.bomCost = Decimal(str(rawBomCost)) if rawBomCost is not None else Decimal("0.00")
             self.componentCount = int(data.get("component_count") or 0)
@@ -35,7 +34,7 @@ class Furniture:
         with openTransaction(conn) as connection:
             with connection.cursor() as cursor:
                 sql = """
-                    SELECT f.furniture_id, f.furniture_name, f.furniture_type, f.selling_price,
+                    SELECT f.furniture_id, f.furniture_name, f.furniture_type,
                            bom.bom_id,
                            COALESCE(SUM(bi.quantity_required * rm.unit_cost), 0.00) AS bom_material_cost,
                            COUNT(bi.bom_item_id) AS component_count
@@ -52,7 +51,7 @@ class Furniture:
                 if category:
                     sql += " AND f.furniture_type = %s"
                     params.append(category.strip())
-                sql += " GROUP BY f.furniture_id, f.furniture_name, f.furniture_type, f.selling_price, bom.bom_id ORDER BY f.furniture_id ASC"
+                sql += " GROUP BY f.furniture_id, f.furniture_name, f.furniture_type, bom.bom_id ORDER BY f.furniture_id ASC"
                 cursor.execute(sql, tuple(params))
                 rows = cursor.fetchall()
                 result = [cls(row) for row in rows]
@@ -81,7 +80,7 @@ class Furniture:
         with openTransaction(conn) as connection:
             with connection.cursor() as cursor:
                 sql = """
-                    SELECT f.furniture_id, f.furniture_name, f.furniture_type, f.selling_price,
+                    SELECT f.furniture_id, f.furniture_name, f.furniture_type,
                            bom.bom_id,
                            COALESCE(SUM(bi.quantity_required * rm.unit_cost), 0.00) AS bom_material_cost,
                            COUNT(bi.bom_item_id) AS component_count
@@ -90,7 +89,7 @@ class Furniture:
                     LEFT JOIN prod_bomitem bi ON bom.bom_id = bi.bom_id
                     LEFT JOIN raw_material rm ON bi.material_id = rm.raw_material_id
                     WHERE f.furniture_id = %s
-                    GROUP BY f.furniture_id, f.furniture_name, f.furniture_type, f.selling_price, bom.bom_id
+                    GROUP BY f.furniture_id, f.furniture_name, f.furniture_type, bom.bom_id
                 """
                 cursor.execute(sql, (furnitureID,))
                 row = cursor.fetchone()
@@ -107,30 +106,28 @@ class Furniture:
                 return cursor.fetchone() is not None
 
     @classmethod
-    def addFurniture(cls, furnitureName, furnitureType, sellingPrice=Decimal("0.00"), conn=None):
+    def addFurniture(cls, furnitureName, furnitureType, sellingPrice=None, conn=None):
         cleanName = furnitureName.strip()
         cleanType = furnitureType.strip()
-        priceVal = Decimal(str(sellingPrice)) if sellingPrice is not None else Decimal("0.00")
         with openTransaction(conn) as connection:
             with connection.cursor() as cursor:
                 cursor.execute(
-                    "INSERT INTO prod_furniture (furniture_name, furniture_type, selling_price) VALUES (%s, %s, %s) RETURNING furniture_id, furniture_name, furniture_type, selling_price",
-                    (cleanName, cleanType, priceVal)
+                    "INSERT INTO prod_furniture (furniture_name, furniture_type) VALUES (%s, %s) RETURNING furniture_id, furniture_name, furniture_type",
+                    (cleanName, cleanType)
                 )
                 row = cursor.fetchone()
                 invalidateKeys("furniture_all", "furniture_categories")
                 return cls(row)
 
     @classmethod
-    def updateFurniture(cls, furnitureID, furnitureName, furnitureType, sellingPrice=Decimal("0.00"), conn=None):
+    def updateFurniture(cls, furnitureID, furnitureName, furnitureType, sellingPrice=None, conn=None):
         cleanName = furnitureName.strip()
         cleanType = furnitureType.strip()
-        priceVal = Decimal(str(sellingPrice)) if sellingPrice is not None else Decimal("0.00")
         with openTransaction(conn) as connection:
             with connection.cursor() as cursor:
                 cursor.execute(
-                    "UPDATE prod_furniture SET furniture_name = %s, furniture_type = %s, selling_price = %s WHERE furniture_id = %s RETURNING furniture_id, furniture_name, furniture_type, selling_price",
-                    (cleanName, cleanType, priceVal, furnitureID)
+                    "UPDATE prod_furniture SET furniture_name = %s, furniture_type = %s WHERE furniture_id = %s RETURNING furniture_id, furniture_name, furniture_type",
+                    (cleanName, cleanType, furnitureID)
                 )
                 row = cursor.fetchone()
                 invalidateKeys("furniture_all", "furniture_categories")

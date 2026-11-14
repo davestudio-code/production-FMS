@@ -1,6 +1,7 @@
 {% extends "production/base.html" %}
 
 {% block content %}
+{% from "production/components/modal.html" import modal %}
 <link rel="stylesheet" href="/production/feature-static/manufacturing/monitoring.css?v=20261113e">
 
 <div class="headerRow">
@@ -229,61 +230,52 @@
 </div>
 
 {% if isProdStaff %}
-<div id="stageUpdateModal" class="modalOverlay" onclick="if(event.target===this) closeModal('stageUpdateModal');">
-    <div class="modalCard" style="max-width: 480px;">
-        <div class="modalHeader">
-            <div>
-                <h3 id="stageModalTitle">Log Workshop Stage</h3>
-                <span id="stageModalSubtitle" style="font-size: 12.5px; color: var(--mt);"></span>
-            </div>
-            <button type="button" class="modalClose" onclick="closeModal('stageUpdateModal')">&times;</button>
-        </div>
-        <form id="stageUpdateForm" method="POST" action="" enctype="multipart/form-data">
-            <div class="formGroup">
-                <label for="stageModalProgress">Workshop Milestone</label>
-                <select id="stageModalProgress" name="progress" required onchange="window.syncStageProofRequirement()">
-                    <option value="25">Stage 1: Cutting &amp; Sizing (25%)</option>
-                    <option value="50">Stage 2: Joinery &amp; Assembly (50%)</option>
-                    <option value="75">Stage 3: Sanding &amp; Finishing (75%)</option>
-                    <option value="90">Stage 4: Ready for QC (90%)</option>
-                </select>
-            </div>
-            <div class="formGroup">
-                <div style="display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 6px;">
-                    <label for="stageModalPhoto" id="stagePhotoLabel" style="margin-bottom: 0;">Workshop Photo
-                        Proof</label>
-                    <span id="stagePhotoReqBadge" style="font-size: 11px; font-weight: 700; color: var(--mt);">Optional
-                        on Stages 1–3</span>
-                </div>
-                <input type="file" id="stageModalPhoto" name="proofPhoto" accept="image/jpeg,image/png,image/webp"
-                    onchange="window.handleStagePhotoChange(this)"
-                    style="width: 100%; padding: 8px 10px; border: 1px dashed var(--bd); border-radius: 8px; background: #faf8f2; font-size: 12.5px;">
-                <div id="stagePhotoPreviewWrap"
-                    style="display: none; margin-top: 8px; padding: 8px 10px; background: #f6f2e7; border: 1px solid var(--bd); border-radius: 8px; align-items: center; gap: 10px;">
-                    <img id="stagePhotoPreviewImg" src="" alt="Preview"
-                        style="width: 44px; height: 44px; object-fit: cover; border-radius: 6px; border: 1px solid rgba(43,51,31,0.15);">
-                    <div style="flex: 1; min-width: 0;">
-                        <div id="stagePhotoPreviewMeta"
-                            style="font-size: 12px; font-weight: 600; color: var(--tx); overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">
-                        </div>
-                        <div style="font-size: 11px; color: var(--mt);">Optimized for cloud storage</div>
-                    </div>
-                </div>
-            </div>
-            <div class="formGroup">
-                <label for="stageModalNote">Workshop Note <span
-                        style="font-weight: 400; color: var(--mt);">(Optional)</span></label>
-                <input type="text" id="stageModalNote" name="stageNote" maxlength="300"
-                    placeholder="e.g. latest progress of this furniture">
-            </div>
-            <div style="display: flex; justify-content: flex-end; gap: 10px; margin-top: 18px;">
-                <button type="button" class="actionButton secondary"
-                    onclick="closeModal('stageUpdateModal')">Cancel</button>
-                <button type="submit" id="stageModalSubmitBtn" class="actionButton">Save Milestone</button>
-            </div>
-        </form>
+{% call modal("stageUpdateModal", "Log Workshop Stage", title_id="stageModalTitle", subtitle_id="stageModalSubtitle", max_width="480px") %}
+<form id="stageUpdateForm" method="POST" action="" enctype="multipart/form-data">
+    <div class="formGroup">
+        <label for="stageModalProgress">Workshop Milestone</label>
+        <select id="stageModalProgress" name="progress" required onchange="window.syncStageProofRequirement()">
+            <option value="25">Stage 1: Cutting &amp; Sizing (25%)</option>
+            <option value="50">Stage 2: Joinery &amp; Assembly (50%)</option>
+            <option value="75">Stage 3: Sanding &amp; Finishing (75%)</option>
+            <option value="90">Stage 4: Ready for QC (90%)</option>
+        </select>
     </div>
-</div>
+    <div class="formGroup">
+        <div style="display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 6px;">
+            <label for="stageModalPhoto" id="stagePhotoLabel" style="margin-bottom: 0;">Workshop Photo
+                Proof</label>
+            <span id="stagePhotoReqBadge" style="font-size: 11px; font-weight: 700; color: var(--mt);">Optional
+                on Stages 1–3</span>
+        </div>
+        <input type="file" id="stageModalPhoto" name="proofPhoto" accept="image/jpeg,image/png,image/webp"
+            onchange="window.handleStagePhotoChange(this)"
+            style="width: 100%; padding: 8px 10px; border: 1px dashed var(--bd); border-radius: 8px; background: #faf8f2; font-size: 12.5px;">
+        <div id="stagePhotoPreviewWrap"
+            style="display: none; margin-top: 8px; padding: 8px 10px; background: #f6f2e7; border: 1px solid var(--bd); border-radius: 8px; align-items: center; gap: 10px;">
+            <img id="stagePhotoPreviewImg" src="" alt="Preview"
+                style="width: 44px; height: 44px; object-fit: cover; border-radius: 6px; border: 1px solid rgba(43,51,31,0.15);">
+            <div style="flex: 1; min-width: 0;">
+                <div id="stagePhotoPreviewMeta"
+                    style="font-size: 12px; font-weight: 600; color: var(--tx); overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">
+                </div>
+                <div style="font-size: 11px; color: var(--mt);">Optimized for cloud storage</div>
+            </div>
+        </div>
+    </div>
+    <div class="formGroup">
+        <label for="stageModalNote">Workshop Note <span
+                style="font-weight: 400; color: var(--mt);">(Optional)</span></label>
+        <input type="text" id="stageModalNote" name="stageNote" maxlength="300"
+            placeholder="e.g. latest progress of this furniture">
+    </div>
+    <div style="display: flex; justify-content: flex-end; gap: 10px; margin-top: 18px;">
+        <button type="button" class="actionButton secondary"
+            onclick="closeModal('stageUpdateModal')">Cancel</button>
+        <button type="submit" id="stageModalSubmitBtn" class="actionButton">Save Milestone</button>
+    </div>
+</form>
+{% endcall %}
 {% endif %}
 
 <script src="/production/feature-static/manufacturing/monitoring.js?v=20261027c"></script>
