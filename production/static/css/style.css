@@ -3708,18 +3708,20 @@ button.accountModalTabBtn.active {
     flex-direction: column;
 }
 
-.dashGridTop > .card:last-child {
+.dashSideCol {
     display: flex;
     flex-direction: column;
+    gap: 16px;
+    min-width: 0;
 }
 
-.dashGridTop > .card:last-child .dashDonutWrap {
-    flex: 1;
+.dashSideCol > .card {
+    margin-bottom: 0;
 }
 
 .dashTelemetryRibbon {
     display: grid;
-    grid-template-columns: repeat(4, 1fr);
+    grid-template-columns: repeat(3, 1fr);
     background: rgba(246, 238, 218, 0.4);
     border-bottom: 1px solid var(--bd);
 }
@@ -3943,17 +3945,8 @@ button.accountModalTabBtn.active {
 }
 
 @media (max-width: 1024px) {
-    .dashGridRings,
-    .dashTelemetryRibbon {
+    .dashGridRings {
         grid-template-columns: repeat(2, 1fr);
-    }
-
-    .dashTelemetryItem:nth-child(2n) {
-        border-right: none;
-    }
-
-    .dashTelemetryItem:nth-child(-n+2) {
-        border-bottom: 1px solid var(--bd);
     }
 
     .dashGridTop,
@@ -3962,7 +3955,7 @@ button.accountModalTabBtn.active {
     }
 }
 
-@media (max-width: 640px) {
+@media (max-width: 768px) {
     .dashGridRings,
     .dashTelemetryRibbon {
         grid-template-columns: 1fr;

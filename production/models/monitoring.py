@@ -1,6 +1,6 @@
 from datetime import date
 from decimal import Decimal
-from production.db import openTransaction
+from production.db import fetchAll, fetchOne, executeReturning
 
 class ProductionMonitoring:
     STAGE_LABELS = {
@@ -88,112 +88,102 @@ class ProductionMonitoring:
 
     @classmethod
     def getAll(cls, conn=None):
-        with openTransaction(conn) as connection:
-            with connection.cursor() as cursor:
-                cursor.execute("""
-                    SELECT pm.monitoring_id,
-                           pm.order_id,
-                           pm.progress,
-                           pm.start_date,
-                           pm.completion_date,
-                           COALESCE(pm.rework_count, 0) AS rework_count,
-                           po.planned_quantity,
-                           po.status AS order_status,
-                           po.due_date,
-                           po.assigned_to,
-                           emp.name AS assigned_first_name,
-                           emp.last_name AS assigned_last_name,
-                           f.furniture_name
-                    FROM prod_productionmonitoring pm
-                    JOIN prod_productionorder po ON pm.order_id = po.order_id
-                    JOIN prod_furniture f ON po.furniture_id = f.furniture_id
-                    LEFT JOIN public.employee emp ON emp.employee_id = po.assigned_to
-                    ORDER BY pm.monitoring_id DESC
-                """)
-                rows = cursor.fetchall()
-                return [cls(r) for r in rows]
+        sql = """
+            SELECT pm.monitoring_id,
+                   pm.order_id,
+                   pm.progress,
+                   pm.start_date,
+                   pm.completion_date,
+                   COALESCE(pm.rework_count, 0) AS rework_count,
+                   po.planned_quantity,
+                   po.status AS order_status,
+                   po.due_date,
+                   po.assigned_to,
+                   emp.name AS assigned_first_name,
+                   emp.last_name AS assigned_last_name,
+                   f.furniture_name
+            FROM prod_productionmonitoring pm
+            JOIN prod_productionorder po ON pm.order_id = po.order_id
+            JOIN prod_furniture f ON po.furniture_id = f.furniture_id
+            LEFT JOIN public.employee emp ON emp.employee_id = po.assigned_to
+            ORDER BY pm.monitoring_id DESC
+        """
+        rows = fetchAll(sql, conn=conn)
+        return [cls(r) for r in rows]
 
     @classmethod
     def getByID(cls, monitoringID, conn=None):
-        with openTransaction(conn) as connection:
-            with connection.cursor() as cursor:
-                cursor.execute("""
-                    SELECT pm.monitoring_id,
-                           pm.order_id,
-                           pm.progress,
-                           pm.start_date,
-                           pm.completion_date,
-                           COALESCE(pm.rework_count, 0) AS rework_count,
-                           po.planned_quantity,
-                           po.status AS order_status,
-                           po.due_date,
-                           po.assigned_to,
-                           emp.name AS assigned_first_name,
-                           emp.last_name AS assigned_last_name,
-                           f.furniture_name
-                    FROM prod_productionmonitoring pm
-                    JOIN prod_productionorder po ON pm.order_id = po.order_id
-                    JOIN prod_furniture f ON po.furniture_id = f.furniture_id
-                    LEFT JOIN public.employee emp ON emp.employee_id = po.assigned_to
-                    WHERE pm.monitoring_id = %s
-                """, (monitoringID,))
-                row = cursor.fetchone()
-                return cls(row) if row else None
+        sql = """
+            SELECT pm.monitoring_id,
+                   pm.order_id,
+                   pm.progress,
+                   pm.start_date,
+                   pm.completion_date,
+                   COALESCE(pm.rework_count, 0) AS rework_count,
+                   po.planned_quantity,
+                   po.status AS order_status,
+                   po.due_date,
+                   po.assigned_to,
+                   emp.name AS assigned_first_name,
+                   emp.last_name AS assigned_last_name,
+                   f.furniture_name
+            FROM prod_productionmonitoring pm
+            JOIN prod_productionorder po ON pm.order_id = po.order_id
+            JOIN prod_furniture f ON po.furniture_id = f.furniture_id
+            LEFT JOIN public.employee emp ON emp.employee_id = po.assigned_to
+            WHERE pm.monitoring_id = %s
+        """
+        row = fetchOne(sql, (monitoringID,), conn=conn)
+        return cls(row) if row else None
 
     @classmethod
     def getByOrderID(cls, orderID, conn=None):
-        with openTransaction(conn) as connection:
-            with connection.cursor() as cursor:
-                cursor.execute("""
-                    SELECT pm.monitoring_id,
-                           pm.order_id,
-                           pm.progress,
-                           pm.start_date,
-                           pm.completion_date,
-                           COALESCE(pm.rework_count, 0) AS rework_count,
-                           po.planned_quantity,
-                           po.status AS order_status,
-                           po.due_date,
-                           po.assigned_to,
-                           emp.name AS assigned_first_name,
-                           emp.last_name AS assigned_last_name,
-                           f.furniture_name
-                    FROM prod_productionmonitoring pm
-                    JOIN prod_productionorder po ON pm.order_id = po.order_id
-                    JOIN prod_furniture f ON po.furniture_id = f.furniture_id
-                    LEFT JOIN public.employee emp ON emp.employee_id = po.assigned_to
-                    WHERE pm.order_id = %s
-                """, (orderID,))
-                row = cursor.fetchone()
-                return cls(row) if row else None
+        sql = """
+            SELECT pm.monitoring_id,
+                   pm.order_id,
+                   pm.progress,
+                   pm.start_date,
+                   pm.completion_date,
+                   COALESCE(pm.rework_count, 0) AS rework_count,
+                   po.planned_quantity,
+                   po.status AS order_status,
+                   po.due_date,
+                   po.assigned_to,
+                   emp.name AS assigned_first_name,
+                   emp.last_name AS assigned_last_name,
+                   f.furniture_name
+            FROM prod_productionmonitoring pm
+            JOIN prod_productionorder po ON pm.order_id = po.order_id
+            JOIN prod_furniture f ON po.furniture_id = f.furniture_id
+            LEFT JOIN public.employee emp ON emp.employee_id = po.assigned_to
+            WHERE pm.order_id = %s
+        """
+        row = fetchOne(sql, (orderID,), conn=conn)
+        return cls(row) if row else None
 
     @classmethod
     def updateProgress(cls, monitoringID, progressVal, conn=None):
         val = max(0.0, min(100.0, float(progressVal)))
-        with openTransaction(conn) as connection:
-            with connection.cursor() as cursor:
-                cursor.execute("""
-                    UPDATE prod_productionmonitoring
-                    SET progress = %s,
-                        completion_date = CASE WHEN %s >= 100.0 THEN CURRENT_DATE ELSE NULL END
-                    WHERE monitoring_id = %s
-                    RETURNING monitoring_id, order_id, progress, start_date, completion_date, rework_count
-                """, (val, val, monitoringID))
-                row = cursor.fetchone()
-                return cls(row) if row else None
+        sql = """
+            UPDATE prod_productionmonitoring
+            SET progress = %s,
+                completion_date = CASE WHEN %s >= 100.0 THEN CURRENT_DATE ELSE NULL END
+            WHERE monitoring_id = %s
+            RETURNING monitoring_id, order_id, progress, start_date, completion_date, rework_count
+        """
+        row = executeReturning(sql, (val, val, monitoringID), conn=conn)
+        return cls(row) if row else None
 
     @classmethod
     def updateProgressAndRework(cls, monitoringID, progressVal, reworkCount, conn=None):
         val = max(0.0, min(100.0, float(progressVal)))
-        with openTransaction(conn) as connection:
-            with connection.cursor() as cursor:
-                cursor.execute("""
-                    UPDATE prod_productionmonitoring
-                    SET progress = %s,
-                        rework_count = %s,
-                        completion_date = CASE WHEN %s >= 100.0 THEN CURRENT_DATE ELSE NULL END
-                    WHERE monitoring_id = %s
-                    RETURNING monitoring_id, order_id, progress, start_date, completion_date, rework_count
-                """, (val, reworkCount, val, monitoringID))
-                row = cursor.fetchone()
-                return cls(row) if row else None
+        sql = """
+            UPDATE prod_productionmonitoring
+            SET progress = %s,
+                rework_count = %s,
+                completion_date = CASE WHEN %s >= 100.0 THEN CURRENT_DATE ELSE NULL END
+            WHERE monitoring_id = %s
+            RETURNING monitoring_id, order_id, progress, start_date, completion_date, rework_count
+        """
+        row = executeReturning(sql, (val, reworkCount, val, monitoringID), conn=conn)
+        return cls(row) if row else None

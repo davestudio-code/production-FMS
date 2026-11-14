@@ -15,8 +15,6 @@
     align-items: center;
     flex-wrap: wrap;
     gap: 14px;
-}
-.bomSelectBar.hasSelected {
     padding-bottom: 16px;
     border-bottom: 1px solid var(--bd);
     margin-bottom: 16px;
@@ -24,11 +22,11 @@
 </style>
 
 <div class="card" style="margin-bottom: 20px;">
-    <div class="bomSelectBar {{ 'hasSelected' if selectedFurniture else '' }}">
+    <div class="bomSelectBar">
         <div style="display: flex; gap: 12px; align-items: center; flex-wrap: wrap;">
             <label style="font-weight: 600; font-size: 13.5px;">Product BOM:</label>
             <select id="bomSelect" onchange="window.location.href='/production/bom?furniture_id=' + this.value"
-                style="min-width: 280px;">
+                style="min-width: 280px;" {% if not furnitureItems %}disabled{% endif %}>
                 {% for f in furnitureItems %}
                 <option value="{{ f.furnitureID }}" {{ 'selected' if selectedFurniture and
                     selectedFurniture.furnitureID==f.furnitureID else '' }}>
@@ -272,6 +270,11 @@
                 </table>
             </div>
         </div>
+    </div>
+    {% else %}
+    <div style="text-align: center; padding: 36px 16px; color: var(--mt);">
+        <p style="margin: 0 0 8px 0; font-size: 14px; font-weight: 600; color: var(--tx);">No products registered yet.</p>
+        <span style="font-size: 12.5px;">Add furniture items in <a href="/production/furniture" style="color: var(--p); font-weight: 600;">Product Master</a> first to configure their Bill of Materials.</span>
     </div>
     {% endif %}
 </div>

@@ -1,5 +1,5 @@
 from decimal import Decimal
-from production.db import openTransaction
+from production.db import fetchAll, executeReturning
 
 class MaterialIssuance:
     def __init__(self, data=None):
@@ -41,60 +41,51 @@ class MaterialIssuance:
             raise ValueError("Issued quantity must be greater than zero.")
 
         issuerName = recordedBy or "Dave Cagalitan"
-        with openTransaction(conn) as connection:
-            with connection.cursor() as cursor:
-                cursor.execute(
-                    "INSERT INTO prod_materialissuance (order_id, material_id, quantity_issued, issue_date, recorded_by) VALUES (%s, %s, %s, CURRENT_DATE, %s) RETURNING issuance_id, order_id, material_id, quantity_issued, issue_date, recorded_by",
-                    (orderID, materialID, qtyVal, issuerName)
-                )
-                row = cursor.fetchone()
-                return cls(row)
+        sql = "INSERT INTO prod_materialissuance (order_id, material_id, quantity_issued, issue_date, recorded_by) VALUES (%s, %s, %s, CURRENT_DATE, %s) RETURNING issuance_id, order_id, material_id, quantity_issued, issue_date, recorded_by"
+        row = executeReturning(sql, (orderID, materialID, qtyVal, issuerName), conn=conn)
+        return cls(row)
 
     @classmethod
     def getAll(cls, conn=None):
-        with openTransaction(conn) as connection:
-            with connection.cursor() as cursor:
-                cursor.execute("""
-                    SELECT mi.issuance_id,
-                           mi.order_id,
-                           mi.material_id,
-                           mi.quantity_issued,
-                           mi.issue_date,
-                           mi.recorded_by,
-                           im.item_name AS material_name,
-                           im.unit AS unit,
-                           f.furniture_name AS furniture_name
-                    FROM prod_materialissuance mi
-                    JOIN raw_material rm ON mi.material_id = rm.raw_material_id
-                    JOIN item_master im ON rm.item_id = im.item_id
-                    JOIN prod_productionorder po ON mi.order_id = po.order_id
-                    JOIN prod_furniture f ON po.furniture_id = f.furniture_id
-                    ORDER BY mi.issuance_id DESC
-                """)
-                rows = cursor.fetchall()
-                return [cls(r) for r in rows]
+        sql = """
+            SELECT mi.issuance_id,
+                   mi.order_id,
+                   mi.material_id,
+                   mi.quantity_issued,
+                   mi.issue_date,
+                   mi.recorded_by,
+                   im.item_name AS material_name,
+                   im.unit AS unit,
+                   f.furniture_name AS furniture_name
+            FROM prod_materialissuance mi
+            JOIN raw_material rm ON mi.material_id = rm.raw_material_id
+            JOIN item_master im ON rm.item_id = im.item_id
+            JOIN prod_productionorder po ON mi.order_id = po.order_id
+            JOIN prod_furniture f ON po.furniture_id = f.furniture_id
+            ORDER BY mi.issuance_id DESC
+        """
+        rows = fetchAll(sql, conn=conn)
+        return [cls(r) for r in rows]
 
     @classmethod
     def getByOrderID(cls, orderID, conn=None):
-        with openTransaction(conn) as connection:
-            with connection.cursor() as cursor:
-                cursor.execute("""
-                    SELECT mi.issuance_id,
-                           mi.order_id,
-                           mi.material_id,
-                           mi.quantity_issued,
-                           mi.issue_date,
-                           mi.recorded_by,
-                           im.item_name AS material_name,
-                           im.unit AS unit,
-                           f.furniture_name AS furniture_name
-                    FROM prod_materialissuance mi
-                    JOIN raw_material rm ON mi.material_id = rm.raw_material_id
-                    JOIN item_master im ON rm.item_id = im.item_id
-                    JOIN prod_productionorder po ON mi.order_id = po.order_id
-                    JOIN prod_furniture f ON po.furniture_id = f.furniture_id
-                    WHERE mi.order_id = %s
-                    ORDER BY mi.issuance_id ASC
-                """, (orderID,))
-                rows = cursor.fetchall()
-                return [cls(r) for r in rows]
+        sql = """
+            SELECT mi.issuance_id,
+                   mi.order_id,
+                   mi.material_id,
+                   mi.quantity_issued,
+                   mi.issue_date,
+                   mi.recorded_by,
+                   im.item_name AS material_name,
+                   im.unit AS unit,
+                   f.furniture_name AS furniture_name
+            FROM prod_materialissuance mi
+            JOIN raw_material rm ON mi.material_id = rm.raw_material_id
+            JOIN item_master im ON rm.item_id = im.item_id
+            JOIN prod_productionorder po ON mi.order_id = po.order_id
+            JOIN prod_furniture f ON po.furniture_id = f.furniture_id
+            WHERE mi.order_id = %s
+            ORDER BY mi.issuance_id ASC
+        """
+        rows = fetchAll(sql, (orderID,), conn=conn)
+        return [cls(r) for r in rows]

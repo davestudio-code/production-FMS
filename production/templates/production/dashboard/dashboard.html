@@ -25,8 +25,10 @@
             <a class="dashTelemetryItem" href="{{ ring.url }}">
                 <div class="dashTelemetryTop">
                     <span class="dashTelemetryLabel">{{ ring.label }}</span>
-                    <span class="dashTelemetryDot {{ 'isAlert' if ring.isAlert else 'isOk' }}"
+                    {% if ring.showDot %}
+                    <span class="dashTelemetryDot" style="background: {{ ring.color }};"
                         aria-hidden="true"></span>
+                    {% endif %}
                 </div>
                 <div class="dashTelemetryVal">{{ ring.value }}</div>
                 <div class="dashTelemetryNote">{{ ring.note }}</div>
@@ -116,33 +118,66 @@
         </div>
     </div>
 
-    <div class="card">
-        <div class="dashCardHead">
-            <h3>Orders by Status</h3>
-            <a href="/production/orders">View all &rarr;</a>
-        </div>
-        <div class="dashDonutWrap">
-            <svg width="132" height="132" viewBox="0 0 42 42">
-                <circle cx="21" cy="21" r="15.915" fill="none" stroke="#EFE7D4" stroke-width="5"></circle>
-                {% for seg in donutSegments %}
-                {% if seg.show %}
-                <circle class="dashDonutSegment" cx="21" cy="21" r="15.915" fill="none" stroke="{{ seg.color }}"
-                    stroke-width="5" stroke-dasharray="{{ seg.dash }}" stroke-dashoffset="{{ seg.offset }}" tabindex="0"
-                    role="graphics-symbol" aria-label="{{ seg.label }}: {{ seg.count }} orders"
-                    data-tooltip="{{ seg.label }}: {{ seg.count }} orders"></circle>
-                {% endif %}
-                {% endfor %}
-                <text x="21" y="21" text-anchor="middle" font-size="8" font-weight="700" fill="#242c17">{{
-                    metrics.totalOrders }}</text>
-                <text x="21" y="27" text-anchor="middle" font-size="3.4" fill="#6b7557">orders</text>
-            </svg>
-            <div class="dashDonutList">
-                {% for seg in donutSegments %}
-                <div>
-                    <span><span class="dashDot" style="background:{{ seg.color }}"></span>{{ seg.label }}</span>
-                    <b>{{ seg.count }}</b>
+    <div class="dashSideCol">
+        <div class="card">
+            <div class="dashCardHead">
+                <h3>Order By status</h3>
+                <a href="/production/orders">View all &rarr;</a>
+            </div>
+            <div class="dashDonutWrap">
+                <svg width="132" height="132" viewBox="0 0 42 42">
+                    <circle cx="21" cy="21" r="15.915" fill="none" stroke="#EFE7D4" stroke-width="5"></circle>
+                    {% for seg in donutSegments %}
+                    {% if seg.show %}
+                    <circle class="dashDonutSegment" cx="21" cy="21" r="15.915" fill="none" stroke="{{ seg.color }}"
+                        stroke-width="5" stroke-dasharray="{{ seg.dash }}" stroke-dashoffset="{{ seg.offset }}" tabindex="0"
+                        role="graphics-symbol" aria-label="{{ seg.label }}: {{ seg.count }} orders"
+                        data-tooltip="{{ seg.label }}: {{ seg.count }} orders"></circle>
+                    {% endif %}
+                    {% endfor %}
+                    <text x="21" y="21" text-anchor="middle" font-size="8" font-weight="700" fill="#242c17">{{
+                        metrics.totalOrders }}</text>
+                    <text x="21" y="27" text-anchor="middle" font-size="3.4" fill="#6b7557">orders</text>
+                </svg>
+                <div class="dashDonutList">
+                    {% for seg in donutSegments %}
+                    <div>
+                        <span><span class="dashDot" style="background:{{ seg.color }}"></span>{{ seg.label }}</span>
+                        <b>{{ seg.count }}</b>
+                    </div>
+                    {% endfor %}
                 </div>
-                {% endfor %}
+            </div>
+        </div>
+
+        <div class="card">
+            <div class="dashCardHead">
+                <h3>Timeline</h3>
+                <a href="/production/planning">Schedule &rarr;</a>
+            </div>
+            <div class="dashDonutWrap">
+                <svg width="132" height="132" viewBox="0 0 42 42">
+                    <circle cx="21" cy="21" r="15.915" fill="none" stroke="#EFE7D4" stroke-width="5"></circle>
+                    {% for seg in timelineSegments %}
+                    {% if seg.show %}
+                    <circle class="dashDonutSegment" cx="21" cy="21" r="15.915" fill="none" stroke="{{ seg.color }}"
+                        stroke-width="5" stroke-dasharray="{{ seg.dash }}" stroke-dashoffset="{{ seg.offset }}" tabindex="0"
+                        role="graphics-symbol" aria-label="{{ seg.label }}: {{ seg.count }} orders"
+                        data-tooltip="{{ seg.label }}: {{ seg.count }} orders"></circle>
+                    {% endif %}
+                    {% endfor %}
+                    <text x="21" y="21" text-anchor="middle" font-size="8" font-weight="700" fill="#242c17">{{
+                        timelineTotal }}</text>
+                    <text x="21" y="27" text-anchor="middle" font-size="3.4" fill="#6b7557">orders</text>
+                </svg>
+                <div class="dashDonutList">
+                    {% for seg in timelineSegments %}
+                    <div>
+                        <span><span class="dashDot" style="background:{{ seg.color }}"></span>{{ seg.label }}</span>
+                        <b>{{ seg.count }}</b>
+                    </div>
+                    {% endfor %}
+                </div>
             </div>
         </div>
     </div>

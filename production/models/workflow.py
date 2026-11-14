@@ -6,7 +6,7 @@ import urllib.parse
 import urllib.request
 import uuid
 from datetime import date
-from production.db import openTransaction
+from production.db import fetchAll, fetchOne, executeReturning
 from production.auth import PRODUCTION_DEPARTMENT_ID, STAFF_POSITION_ID
 
 
@@ -14,21 +14,20 @@ def isValidActiveProdStaff(employeeID, conn=None):
     if not employeeID:
         return False
     try:
-        with openTransaction(conn) as connection:
-            with connection.cursor() as cursor:
-                cursor.execute(
-                    """
-                    SELECT 1
-                    FROM public.employee
-                    WHERE employee_id = %s
-                      AND is_active = TRUE
-                      AND department_id = %s
-                      AND position_id = %s
-                    LIMIT 1
-                    """,
-                    (int(employeeID), PRODUCTION_DEPARTMENT_ID, STAFF_POSITION_ID)
-                )
-                return cursor.fetchone() is not None
+        row = fetchOne(
+            """
+            SELECT 1
+            FROM public.employee
+            WHERE employee_id = %s
+              AND is_active = TRUE
+              AND department_id = %s
+              AND position_id = %s
+            LIMIT 1
+            """,
+            (int(employeeID), PRODUCTION_DEPARTMENT_ID, STAFF_POSITION_ID),
+            conn=conn
+        )
+        return row is not None
     except Exception:
         return False
 
@@ -56,18 +55,15 @@ def getProductionStaffRoster(conn=None):
     """
     roster = []
     try:
-        with openTransaction(conn) as connection:
-            with connection.cursor() as cursor:
-                cursor.execute(query, (PRODUCTION_DEPARTMENT_ID, STAFF_POSITION_ID))
-                rows = cursor.fetchall()
-                for r in rows:
-                    fullName = f"{r.get('name') or ''} {r.get('last_name') or ''}".strip() or (r.get("email") or f"Employee #{r['employee_id']}")
-                    roster.append({
-                        "employeeID": int(r["employee_id"]),
-                        "fullName": fullName,
-                        "positionName": r.get("position_name") or "Production Staff",
-                        "activeBatches": int(r.get("active_batches") or 0)
-                    })
+        rows = fetchAll(query, (PRODUCTION_DEPARTMENT_ID, STAFF_POSITION_ID), conn=conn)
+        for r in rows:
+            fullName = f"{r.get('name') or ''} {r.get('last_name') or ''}".strip() or (r.get("email") or f"Employee #{r['employee_id']}")
+            roster.append({
+                "employeeID": int(r["employee_id"]),
+                "fullName": fullName,
+                "positionName": r.get("position_name") or "Production Staff",
+                "activeBatches": int(r.get("active_batches") or 0)
+            })
     except Exception:
         return []
     return roster
@@ -214,40 +210,38 @@ class ProductionAttachment:
         cleanStage = int(stageProgress) if stageProgress is not None else None
         cleanUploader = int(uploadedBy) if uploadedBy is not None else None
 
-        with openTransaction(conn) as connection:
-            with connection.cursor() as cursor:
-                cursor.execute(
-                    """
-                    INSERT INTO public.prod_attachments (
-                        entity_type, order_id, stage_progress, note, file_name, file_url, uploaded_by
-                    )
-                    VALUES (%s, %s, %s, %s, %s, %s, %s)
-                    RETURNING attachment_id
-                    """,
-                    (cleanType, orderID, cleanStage, cleanNote, cleanName, cleanUrl, cleanUploader)
-                )
-                return cursor.fetchone()["attachment_id"]
+        newRow = executeReturning(
+            """
+            INSERT INTO public.prod_attachments (
+                entity_type, order_id, stage_progress, note, file_name, file_url, uploaded_by
+            )
+            VALUES (%s, %s, %s, %s, %s, %s, %s)
+            RETURNING attachment_id
+            """,
+            (cleanType, orderID, cleanStage, cleanNote, cleanName, cleanUrl, cleanUploader),
+            conn=conn
+        )
+        return newRow["attachment_id"]
 
     @classmethod
     def getByOrderID(cls, orderID, entityType="stage_proof", conn=None):
         try:
-            with openTransaction(conn) as connection:
-                with connection.cursor() as cursor:
-                    cursor.execute(
-                        """
-                        SELECT a.attachment_id, a.entity_type, a.order_id, a.stage_progress,
-                               a.note, a.file_name, a.file_url, a.uploaded_by, a.created_at,
-                               TRIM(COALESCE(e.name, '') || ' ' || COALESCE(e.last_name, '')) AS uploader_name,
-                               e.email AS uploader_email
-                        FROM public.prod_attachments a
-                        LEFT JOIN public.employee e ON e.employee_id = a.uploaded_by
-                        WHERE a.order_id = %s
-                          AND a.entity_type = %s
-                        ORDER BY a.created_at DESC, a.attachment_id DESC
-                        """,
-                        (int(orderID), entityType)
-                    )
-                    return [cls(r) for r in cursor.fetchall()]
+            rows = fetchAll(
+                """
+                SELECT a.attachment_id, a.entity_type, a.order_id, a.stage_progress,
+                       a.note, a.file_name, a.file_url, a.uploaded_by, a.created_at,
+                       TRIM(COALESCE(e.name, '') || ' ' || COALESCE(e.last_name, '')) AS uploader_name,
+                       e.email AS uploader_email
+                FROM public.prod_attachments a
+                LEFT JOIN public.employee e ON e.employee_id = a.uploaded_by
+                WHERE a.order_id = %s
+                  AND a.entity_type = %s
+                ORDER BY a.created_at DESC, a.attachment_id DESC
+                """,
+                (int(orderID), entityType),
+                conn=conn
+            )
+            return [cls(r) for r in rows]
         except Exception:
             return []
 
@@ -271,11 +265,8 @@ class ProductionAttachment:
             ORDER BY a.order_id, a.created_at DESC, a.attachment_id DESC
         """
         try:
-            with openTransaction(conn) as connection:
-                with connection.cursor() as cursor:
-                    cursor.execute(query, (cleanIDs, entityType))
-                    rows = cursor.fetchall()
-                    return {int(r["order_id"]): cls(r) for r in rows}
+            rows = fetchAll(query, (cleanIDs, entityType), conn=conn)
+            return {int(r["order_id"]): cls(r) for r in rows}
         except Exception:
             return {}
 
@@ -292,133 +283,131 @@ def getLiveNotificationsForUser(employeeID=None, isManager=False, isProdStaff=Fa
     items = []
     todayVal = date.today()
     try:
-        with openTransaction(conn) as connection:
-            with connection.cursor() as cursor:
-                if isManager:
-                    cursor.execute(
-                        """
-                        SELECT po.order_id,
-                               po.planned_quantity,
-                               po.status,
-                               po.planned_start_date,
-                               po.due_date,
-                               po.assigned_to,
-                               f.furniture_name,
-                               COALESCE(pm.progress, 0.0) AS progress,
-                               COALESCE(pm.rework_count, 0) AS rework_count,
-                               TRIM(COALESCE(e.name, '') || ' ' || COALESCE(e.last_name, '')) AS staff_name
-                        FROM prod_productionorder po
-                        JOIN prod_furniture f ON f.furniture_id = po.furniture_id
-                        LEFT JOIN prod_productionmonitoring pm ON pm.order_id = po.order_id
-                        LEFT JOIN public.employee e ON e.employee_id = po.assigned_to
-                        WHERE po.status != 'Completed'
-                        ORDER BY po.order_id DESC
-                        """
-                    )
-                    rows = cursor.fetchall()
-                    for r in rows:
-                        oid = int(r["order_id"])
-                        qty = int(r["planned_quantity"] or 0)
-                        fname = r.get("furniture_name") or "Product"
-                        prog = float(r.get("progress") or 0.0)
-                        rwk = int(r.get("rework_count") or 0)
-                        staff = (r.get("staff_name") or "").strip() or "Workshop Staff"
-                        status = r.get("status") or "Draft"
-                        dueDate = r.get("due_date")
+        if isManager:
+            rows = fetchAll(
+                """
+                SELECT po.order_id,
+                       po.planned_quantity,
+                       po.status,
+                       po.planned_start_date,
+                       po.due_date,
+                       po.assigned_to,
+                       f.furniture_name,
+                       COALESCE(pm.progress, 0.0) AS progress,
+                       COALESCE(pm.rework_count, 0) AS rework_count,
+                       TRIM(COALESCE(e.name, '') || ' ' || COALESCE(e.last_name, '')) AS staff_name
+                FROM prod_productionorder po
+                JOIN prod_furniture f ON f.furniture_id = po.furniture_id
+                LEFT JOIN prod_productionmonitoring pm ON pm.order_id = po.order_id
+                LEFT JOIN public.employee e ON e.employee_id = po.assigned_to
+                WHERE po.status != 'Completed'
+                ORDER BY po.order_id DESC
+                """,
+                conn=conn
+            )
+            for r in rows:
+                oid = int(r["order_id"])
+                qty = int(r["planned_quantity"] or 0)
+                fname = r.get("furniture_name") or "Product"
+                prog = float(r.get("progress") or 0.0)
+                rwk = int(r.get("rework_count") or 0)
+                staff = (r.get("staff_name") or "").strip() or "Workshop Staff"
+                status = r.get("status") or "Draft"
+                dueDate = r.get("due_date")
 
-                        if status == "In Progress" and prog >= 90.0:
-                            items.append({
-                                "notifKey": f"qc-ready-{oid}-r{rwk}",
-                                "title": f"Order #PO-{oid} Ready for QC",
-                                "message": f"{fname} ({qty} units) submitted by {staff} is at 90% awaiting inspection.",
-                                "targetUrl": "/production/finished-goods",
-                                "timeLabel": "Stage 4 Complete · Inspect QC →"
-                            })
+                if status == "In Progress" and prog >= 90.0:
+                    items.append({
+                        "notifKey": f"qc-ready-{oid}-r{rwk}",
+                        "title": f"Order #PO-{oid} Ready for QC",
+                        "message": f"{fname} ({qty} units) submitted by {staff} is at 90% awaiting inspection.",
+                        "targetUrl": "/production/finished-goods",
+                        "timeLabel": "Stage 4 Complete · Inspect QC →"
+                    })
 
-                        if dueDate and dueDate < todayVal:
-                            items.append({
-                                "notifKey": f"overdue-{oid}-{dueDate.isoformat()}",
-                                "title": f"Order #PO-{oid} Overdue",
-                                "message": f"{fname} ({qty} units) passed target due date ({_fmtShortDate(dueDate)}).",
-                                "targetUrl": "/production/planning?view=timeline",
-                                "timeLabel": "Schedule Alert · View Timeline →"
-                            })
+                if dueDate and dueDate < todayVal:
+                    items.append({
+                        "notifKey": f"overdue-{oid}-{dueDate.isoformat()}",
+                        "title": f"Order #PO-{oid} Overdue",
+                        "message": f"{fname} ({qty} units) passed target due date ({_fmtShortDate(dueDate)}).",
+                        "targetUrl": "/production/planning?view=timeline",
+                        "timeLabel": "Schedule Alert · View Timeline →"
+                    })
 
-                        if status == "Draft" and (not r.get("planned_start_date") or not dueDate or not r.get("assigned_to")):
-                            items.append({
-                                "notifKey": f"plan-needed-{oid}",
-                                "title": f"Order #PO-{oid} Needs Planning",
-                                "message": f"Assign timeline dates and workshop staff for {fname} ({qty} units).",
-                                "targetUrl": "/production/planning",
-                                "timeLabel": "Draft · Plan & Assign →"
-                            })
+                if status == "Draft" and (not r.get("planned_start_date") or not dueDate or not r.get("assigned_to")):
+                    items.append({
+                        "notifKey": f"plan-needed-{oid}",
+                        "title": f"Order #PO-{oid} Needs Planning",
+                        "message": f"Assign timeline dates and workshop staff for {fname} ({qty} units).",
+                        "targetUrl": "/production/planning",
+                        "timeLabel": "Draft · Plan & Assign →"
+                    })
 
-                elif isProdStaff and employeeID:
-                    cursor.execute(
-                        """
-                        SELECT po.order_id,
-                               po.planned_quantity,
-                               po.status,
-                               po.planned_start_date,
-                               po.due_date,
-                               f.furniture_name,
-                               COALESCE(pm.progress, 0.0) AS progress,
-                               COALESCE(pm.rework_count, 0) AS rework_count,
-                               rwk_out.reason AS rework_reason
-                        FROM prod_productionorder po
-                        JOIN prod_furniture f ON f.furniture_id = po.furniture_id
-                        LEFT JOIN prod_productionmonitoring pm ON pm.order_id = po.order_id
-                        LEFT JOIN LATERAL (
-                            SELECT reason
-                            FROM prod_productionoutput outp
-                            WHERE outp.order_id = po.order_id
-                              AND outp.quality_status = 'Rework'
-                            ORDER BY outp.output_id DESC
-                            LIMIT 1
-                        ) rwk_out ON true
-                        WHERE po.assigned_to = %s
-                          AND po.status != 'Completed'
-                        ORDER BY (po.status = 'In Progress') DESC, po.due_date ASC NULLS LAST, po.order_id DESC
-                        """,
-                        (int(employeeID),)
-                    )
-                    rows = cursor.fetchall()
-                    for r in rows:
-                        oid = int(r["order_id"])
-                        qty = int(r["planned_quantity"] or 0)
-                        fname = r.get("furniture_name") or "Product"
-                        status = r.get("status") or "Draft"
-                        prog = float(r.get("progress") or 0.0)
-                        rwk = int(r.get("rework_count") or 0)
-                        reason = (r.get("rework_reason") or "").strip()
-                        startFmt = _fmtShortDate(r.get("planned_start_date"))
-                        dueFmt = _fmtShortDate(r.get("due_date"))
+        elif isProdStaff and employeeID:
+            rows = fetchAll(
+                """
+                SELECT po.order_id,
+                       po.planned_quantity,
+                       po.status,
+                       po.planned_start_date,
+                       po.due_date,
+                       f.furniture_name,
+                       COALESCE(pm.progress, 0.0) AS progress,
+                       COALESCE(pm.rework_count, 0) AS rework_count,
+                       rwk_out.reason AS rework_reason
+                FROM prod_productionorder po
+                JOIN prod_furniture f ON f.furniture_id = po.furniture_id
+                LEFT JOIN prod_productionmonitoring pm ON pm.order_id = po.order_id
+                LEFT JOIN LATERAL (
+                    SELECT reason
+                    FROM prod_productionoutput outp
+                    WHERE outp.order_id = po.order_id
+                      AND outp.quality_status = 'Rework'
+                    ORDER BY outp.output_id DESC
+                    LIMIT 1
+                ) rwk_out ON true
+                WHERE po.assigned_to = %s
+                  AND po.status != 'Completed'
+                ORDER BY (po.status = 'In Progress') DESC, po.due_date ASC NULLS LAST, po.order_id DESC
+                """,
+                (int(employeeID),),
+                conn=conn
+            )
+            for r in rows:
+                oid = int(r["order_id"])
+                qty = int(r["planned_quantity"] or 0)
+                fname = r.get("furniture_name") or "Product"
+                status = r.get("status") or "Draft"
+                prog = float(r.get("progress") or 0.0)
+                rwk = int(r.get("rework_count") or 0)
+                reason = (r.get("rework_reason") or "").strip()
+                startFmt = _fmtShortDate(r.get("planned_start_date"))
+                dueFmt = _fmtShortDate(r.get("due_date"))
 
-                        if status == "In Progress" and rwk > 0 and prog < 90.0:
-                            reasonSuffix = f": {reason}" if reason else "."
-                            items.append({
-                                "notifKey": f"staff-rework-{oid}-r{rwk}",
-                                "title": f"QC Rework #{rwk} — Order #PO-{oid}",
-                                "message": f"{fname} ({qty} units) returned to Stage 3 (75%){reasonSuffix}",
-                                "targetUrl": "/production/monitoring",
-                                "timeLabel": "Rework Needed · Open Monitoring →"
-                            })
-                        elif status == "In Progress" and prog < 90.0:
-                            items.append({
-                                "notifKey": f"staff-active-{oid}",
-                                "title": f"Workshop Assembly — Order #PO-{oid}",
-                                "message": f"Materials dispatched for {fname} ({qty} units) · Currently at {int(round(prog))}%.",
-                                "targetUrl": "/production/monitoring",
-                                "timeLabel": f"Due {dueFmt} · Update Progress →"
-                            })
-                        elif status in ("Draft", "Released"):
-                            items.append({
-                                "notifKey": f"staff-assigned-{oid}-{status.lower()}",
-                                "title": f"Order #PO-{oid} Assigned to You",
-                                "message": f"{fname} ({qty} units) scheduled {startFmt} to {dueFmt} ({status}).",
-                                "targetUrl": f"/production/orders/{oid}",
-                                "timeLabel": "Scheduled · View Order →"
-                            })
+                if status == "In Progress" and rwk > 0 and prog < 90.0:
+                    reasonSuffix = f": {reason}" if reason else "."
+                    items.append({
+                        "notifKey": f"staff-rework-{oid}-r{rwk}",
+                        "title": f"QC Rework #{rwk} — Order #PO-{oid}",
+                        "message": f"{fname} ({qty} units) returned to Stage 3 (75%){reasonSuffix}",
+                        "targetUrl": "/production/monitoring",
+                        "timeLabel": "Rework Needed · Open Monitoring →"
+                    })
+                elif status == "In Progress" and prog < 90.0:
+                    items.append({
+                        "notifKey": f"staff-active-{oid}",
+                        "title": f"Workshop Assembly — Order #PO-{oid}",
+                        "message": f"Materials dispatched for {fname} ({qty} units) · Currently at {int(round(prog))}%.",
+                        "targetUrl": "/production/monitoring",
+                        "timeLabel": f"Due {dueFmt} · Update Progress →"
+                    })
+                elif status in ("Draft", "Released"):
+                    items.append({
+                        "notifKey": f"staff-assigned-{oid}-{status.lower()}",
+                        "title": f"Order #PO-{oid} Assigned to You",
+                        "message": f"{fname} ({qty} units) scheduled {startFmt} to {dueFmt} ({status}).",
+                        "targetUrl": f"/production/orders/{oid}",
+                        "timeLabel": "Scheduled · View Order →"
+                    })
     except Exception:
         return []
     return items[:15]

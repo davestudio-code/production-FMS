@@ -1,5 +1,5 @@
 from datetime import date, timedelta
-from production.db import openTransaction
+from production.db import fetchAll, fetchOne, executeReturning
 
 class ProductionOutput:
     VALID_STATUSES = ("Pending", "Passed", "Failed", "Rework")
@@ -47,93 +47,84 @@ class ProductionOutput:
             raise ValueError("Quantity cannot be negative.")
 
         inspectorName = recordedBy or "Dave Cagalitan"
-        with openTransaction(conn) as connection:
-            with connection.cursor() as cursor:
-                cursor.execute("""
-                    INSERT INTO prod_productionoutput (order_id, furniture_id, quantity, quality_status, inspection_date, recorded_by, reason, inspector_id)
-                    VALUES (%s, %s, %s, %s, CURRENT_DATE, %s, %s, %s)
-                    RETURNING output_id, order_id, furniture_id, quantity, quality_status, inspection_date, recorded_by, reason, inspector_id
-                """, (orderID, furnitureID, quantity, qualityStatus, inspectorName, reason, inspectorID))
-                row = cursor.fetchone()
-                return cls(row)
+        sql = """
+            INSERT INTO prod_productionoutput (order_id, furniture_id, quantity, quality_status, inspection_date, recorded_by, reason, inspector_id)
+            VALUES (%s, %s, %s, %s, CURRENT_DATE, %s, %s, %s)
+            RETURNING output_id, order_id, furniture_id, quantity, quality_status, inspection_date, recorded_by, reason, inspector_id
+        """
+        row = executeReturning(sql, (orderID, furnitureID, quantity, qualityStatus, inspectorName, reason, inspectorID), conn=conn)
+        return cls(row)
 
     @classmethod
     def getAll(cls, conn=None, *, startDate=None, endDate=None, qualityStatus=None):
-        with openTransaction(conn) as connection:
-            with connection.cursor() as cursor:
-                query = """
-                    SELECT o.output_id,
-                           o.order_id,
-                           o.furniture_id,
-                           o.quantity,
-                           o.quality_status,
-                           o.inspection_date,
-                           o.recorded_by,
-                           o.reason,
-                           o.inspector_id,
-                           f.furniture_name,
-                           f.furniture_type
-                    FROM prod_productionoutput o
-                    JOIN prod_furniture f ON o.furniture_id = f.furniture_id
-                """
-                params = []
-                whereClauses = []
-                if startDate:
-                    whereClauses.append("o.inspection_date >= %s")
-                    params.append(startDate)
-                if endDate:
-                    nextDay = endDate + timedelta(days=1) if hasattr(endDate, "__add__") else endDate
-                    whereClauses.append("o.inspection_date < %s")
-                    params.append(nextDay)
-                if qualityStatus:
-                    whereClauses.append("o.quality_status = %s")
-                    params.append(qualityStatus)
-                if whereClauses:
-                    query += " WHERE " + " AND ".join(whereClauses)
-                query += " ORDER BY o.output_id DESC"
-                cursor.execute(query, tuple(params))
-                rows = cursor.fetchall()
-                return [cls(r) for r in rows]
+        query = """
+            SELECT o.output_id,
+                   o.order_id,
+                   o.furniture_id,
+                   o.quantity,
+                   o.quality_status,
+                   o.inspection_date,
+                   o.recorded_by,
+                   o.reason,
+                   o.inspector_id,
+                   f.furniture_name,
+                   f.furniture_type
+            FROM prod_productionoutput o
+            JOIN prod_furniture f ON o.furniture_id = f.furniture_id
+        """
+        params = []
+        whereClauses = []
+        if startDate:
+            whereClauses.append("o.inspection_date >= %s")
+            params.append(startDate)
+        if endDate:
+            nextDay = endDate + timedelta(days=1) if hasattr(endDate, "__add__") else endDate
+            whereClauses.append("o.inspection_date < %s")
+            params.append(nextDay)
+        if qualityStatus:
+            whereClauses.append("o.quality_status = %s")
+            params.append(qualityStatus)
+        if whereClauses:
+            query += " WHERE " + " AND ".join(whereClauses)
+        query += " ORDER BY o.output_id DESC"
+        rows = fetchAll(query, params, conn=conn)
+        return [cls(r) for r in rows]
 
     @classmethod
     def getByOrderID(cls, orderID, conn=None):
-        with openTransaction(conn) as connection:
-            with connection.cursor() as cursor:
-                cursor.execute("""
-                    SELECT o.output_id,
-                           o.order_id,
-                           o.furniture_id,
-                           o.quantity,
-                           o.quality_status,
-                           o.inspection_date,
-                           o.recorded_by,
-                           o.reason,
-                           o.inspector_id,
-                           f.furniture_name,
-                           f.furniture_type
-                    FROM prod_productionoutput o
-                    JOIN prod_furniture f ON o.furniture_id = f.furniture_id
-                    WHERE o.order_id = %s
-                    ORDER BY o.output_id DESC
-                """, (orderID,))
-                rows = cursor.fetchall()
-                return [cls(r) for r in rows]
+        query = """
+            SELECT o.output_id,
+                   o.order_id,
+                   o.furniture_id,
+                   o.quantity,
+                   o.quality_status,
+                   o.inspection_date,
+                   o.recorded_by,
+                   o.reason,
+                   o.inspector_id,
+                   f.furniture_name,
+                   f.furniture_type
+            FROM prod_productionoutput o
+            JOIN prod_furniture f ON o.furniture_id = f.furniture_id
+            WHERE o.order_id = %s
+            ORDER BY o.output_id DESC
+        """
+        rows = fetchAll(query, (orderID,), conn=conn)
+        return [cls(r) for r in rows]
 
     @classmethod
     def getOrderInspectionSummary(cls, orderID, conn=None):
-        with openTransaction(conn) as connection:
-            with connection.cursor() as cursor:
-                cursor.execute("""
-                    SELECT 
-                        COALESCE(SUM(CASE WHEN quality_status = 'Passed' THEN quantity ELSE 0 END), 0) AS total_passed,
-                        COALESCE(SUM(CASE WHEN quality_status = 'Failed' THEN quantity ELSE 0 END), 0) AS total_failed,
-                        COALESCE(SUM(CASE WHEN quality_status = 'Rework' THEN quantity ELSE 0 END), 0) AS total_rework
-                    FROM prod_productionoutput
-                    WHERE order_id = %s
-                """, (orderID,))
-                row = cursor.fetchone()
-                return {
-                    "passed": int(row["total_passed"]) if row else 0,
-                    "failed": int(row["total_failed"]) if row else 0,
-                    "rework": int(row["total_rework"]) if row else 0
-                }
+        query = """
+            SELECT 
+                COALESCE(SUM(CASE WHEN quality_status = 'Passed' THEN quantity ELSE 0 END), 0) AS total_passed,
+                COALESCE(SUM(CASE WHEN quality_status = 'Failed' THEN quantity ELSE 0 END), 0) AS total_failed,
+                COALESCE(SUM(CASE WHEN quality_status = 'Rework' THEN quantity ELSE 0 END), 0) AS total_rework
+            FROM prod_productionoutput
+            WHERE order_id = %s
+        """
+        row = fetchOne(query, (orderID,), conn=conn)
+        return {
+            "passed": int(row["total_passed"]) if row else 0,
+            "failed": int(row["total_failed"]) if row else 0,
+            "rework": int(row["total_rework"]) if row else 0
+        }

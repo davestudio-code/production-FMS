@@ -1,4 +1,5 @@
 import os
+import logging
 import psycopg2
 from psycopg2.extras import RealDictCursor
 from psycopg2.pool import ThreadedConnectionPool
@@ -6,6 +7,7 @@ from contextlib import contextmanager
 from dotenv import load_dotenv
 
 load_dotenv()
+logger = logging.getLogger("production.db")
 
 _dbPool = None
 
@@ -99,3 +101,62 @@ def openTransaction(externalConnection=None):
     finally:
         if not isRequestScoped:
             releaseConnection(conn)
+
+def _normalizeDbParams(params):
+    if params is None:
+        return ()
+    if isinstance(params, (list, tuple, dict)):
+        return params
+    return (params,)
+
+def fetchAll(sql, params=None, conn=None):
+    cleanParams = _normalizeDbParams(params)
+    try:
+        with openTransaction(conn) as connection:
+            with connection.cursor() as cursor:
+                cursor.execute(sql, cleanParams)
+                return cursor.fetchall()
+    except Exception as err:
+        snippet = " ".join(sql.split())[:90]
+        print(f"[DB Error] FetchAll failed: {err} | SQL: {snippet} | Params: {cleanParams}")
+        logger.exception("DB FetchAll error: %s | SQL: %s", err, snippet)
+        raise
+
+def fetchOne(sql, params=None, conn=None):
+    cleanParams = _normalizeDbParams(params)
+    try:
+        with openTransaction(conn) as connection:
+            with connection.cursor() as cursor:
+                cursor.execute(sql, cleanParams)
+                return cursor.fetchone()
+    except Exception as err:
+        snippet = " ".join(sql.split())[:90]
+        print(f"[DB Error] FetchOne failed: {err} | SQL: {snippet} | Params: {cleanParams}")
+        logger.exception("DB FetchOne error: %s | SQL: %s", err, snippet)
+        raise
+
+def execute(sql, params=None, conn=None):
+    cleanParams = _normalizeDbParams(params)
+    try:
+        with openTransaction(conn) as connection:
+            with connection.cursor() as cursor:
+                cursor.execute(sql, cleanParams)
+                return cursor.rowcount
+    except Exception as err:
+        snippet = " ".join(sql.split())[:90]
+        print(f"[DB Error] Execute failed: {err} | SQL: {snippet} | Params: {cleanParams}")
+        logger.exception("DB Execute error: %s | SQL: %s", err, snippet)
+        raise
+
+def executeReturning(sql, params=None, conn=None):
+    cleanParams = _normalizeDbParams(params)
+    try:
+        with openTransaction(conn) as connection:
+            with connection.cursor() as cursor:
+                cursor.execute(sql, cleanParams)
+                return cursor.fetchone()
+    except Exception as err:
+        snippet = " ".join(sql.split())[:90]
+        print(f"[DB Error] ExecuteReturning failed: {err} | SQL: {snippet} | Params: {cleanParams}")
+        logger.exception("DB ExecuteReturning error: %s | SQL: %s", err, snippet)
+        raise

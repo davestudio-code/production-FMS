@@ -1,6 +1,6 @@
 from datetime import date
 from decimal import Decimal
-from production.db import openTransaction
+from production.db import fetchAll, fetchOne, execute, executeReturning
 from production.cache import getCached, setCached, invalidateKeys
 from .billofmaterials import BillOfMaterials
 
@@ -126,14 +126,11 @@ class ProductionOrder:
 
         query += " ORDER BY po.order_id DESC"
 
-        with openTransaction(conn) as connection:
-            with connection.cursor() as cursor:
-                cursor.execute(query, tuple(params))
-                rows = cursor.fetchall()
-                result = [cls(row) for row in rows]
-                if not statusFilter and not searchQuery and conn is None and useCache:
-                    setCached("orders_all", result)
-                return result
+        rows = fetchAll(query, tuple(params), conn=conn)
+        result = [cls(row) for row in rows]
+        if not statusFilter and not searchQuery and conn is None and useCache:
+            setCached("orders_all", result)
+        return result
 
     @classmethod
     def getPlanningOrders(cls, statusFilter=None, searchQuery=None, conn=None):
@@ -158,11 +155,8 @@ class ProductionOrder:
 
         query += " ORDER BY po.due_date ASC NULLS LAST, po.planned_start_date ASC NULLS LAST, po.order_id DESC"
 
-        with openTransaction(conn) as connection:
-            with connection.cursor() as cursor:
-                cursor.execute(query, tuple(params))
-                rows = cursor.fetchall()
-                return [cls(row) for row in rows]
+        rows = fetchAll(query, tuple(params), conn=conn)
+        return [cls(row) for row in rows]
 
     @classmethod
     def getByID(cls, orderID, conn=None):
@@ -176,11 +170,8 @@ class ProductionOrder:
             LEFT JOIN public.employee emp ON emp.employee_id = po.assigned_to
             WHERE po.order_id = %s
         """
-        with openTransaction(conn) as connection:
-            with connection.cursor() as cursor:
-                cursor.execute(query, (orderID,))
-                row = cursor.fetchone()
-                return cls(row) if row else None
+        row = fetchOne(query, (orderID,), conn=conn)
+        return cls(row) if row else None
 
     @classmethod
     def getSummaryCounts(cls, conn=None):
@@ -198,20 +189,17 @@ class ProductionOrder:
                 COUNT(*) FILTER (WHERE status = 'Completed') AS completed_count
             FROM prod_productionorder
         """
-        with openTransaction(conn) as connection:
-            with connection.cursor() as cursor:
-                cursor.execute(query)
-                row = cursor.fetchone()
-                result = {
-                    "total": row["total_count"] if row else 0,
-                    "draft": row["draft_count"] if row else 0,
-                    "released": row["released_count"] if row else 0,
-                    "inProgress": row["in_progress_count"] if row else 0,
-                    "completed": row["completed_count"] if row else 0
-                }
-                if conn is None:
-                    setCached("orders_summary", result)
-                return result
+        row = fetchOne(query, conn=conn)
+        result = {
+            "total": row["total_count"] if row else 0,
+            "draft": row["draft_count"] if row else 0,
+            "released": row["released_count"] if row else 0,
+            "inProgress": row["in_progress_count"] if row else 0,
+            "completed": row["completed_count"] if row else 0
+        }
+        if conn is None:
+            setCached("orders_summary", result)
+        return result
 
     @classmethod
     def createOrder(cls, furnitureID, plannedQuantity, plannedStartDate=None, dueDate=None, purpose="Warehouse Restock", conn=None):
@@ -228,22 +216,21 @@ class ProductionOrder:
 
         orderPurpose = purpose if purpose in ("Warehouse Restock", "Scheduled Batch") else "Warehouse Restock"
 
-        with openTransaction(conn) as connection:
-            with connection.cursor() as cursor:
-                cursor.execute(
-                    """
-                    INSERT INTO prod_productionorder (
-                        furniture_id, planned_quantity,
-                        order_date, planned_start_date, due_date, status, purpose
-                    )
-                    VALUES (%s, %s, CURRENT_DATE, %s, %s, 'Draft', %s)
-                    RETURNING order_id
-                    """,
-                    (furnitureID, plannedQuantity, plannedStartDate, dueDate, orderPurpose)
-                )
-                newID = cursor.fetchone()["order_id"]
-                invalidateKeys("orders_all", "orders_summary")
-                return newID
+        newRow = executeReturning(
+            """
+            INSERT INTO prod_productionorder (
+                furniture_id, planned_quantity,
+                order_date, planned_start_date, due_date, status, purpose
+            )
+            VALUES (%s, %s, CURRENT_DATE, %s, %s, 'Draft', %s)
+            RETURNING order_id
+            """,
+            (furnitureID, plannedQuantity, plannedStartDate, dueDate, orderPurpose),
+            conn=conn
+        )
+        newID = newRow["order_id"]
+        invalidateKeys("orders_all", "orders_summary")
+        return newID
 
     @classmethod
     def updateStatus(cls, orderID, newStatus, conn=None):
@@ -265,14 +252,13 @@ class ProductionOrder:
         if newStatus not in allowedTransitions.get(currentStatus, []):
             raise ValueError(f"Invalid status transition from '{currentStatus}' to '{newStatus}'.")
 
-        with openTransaction(conn) as connection:
-            with connection.cursor() as cursor:
-                cursor.execute(
-                    "UPDATE prod_productionorder SET status = %s WHERE order_id = %s",
-                    (newStatus, orderID)
-                )
-                invalidateKeys("orders_all", "orders_summary")
-                return True
+        execute(
+            "UPDATE prod_productionorder SET status = %s WHERE order_id = %s",
+            (newStatus, orderID),
+            conn=conn
+        )
+        invalidateKeys("orders_all", "orders_summary")
+        return True
 
     @classmethod
     def updateSchedule(cls, orderID, plannedStartDate, dueDate, assignedTo=None, updateAssignment=False, conn=None):
@@ -280,63 +266,64 @@ class ProductionOrder:
             if dueDate < plannedStartDate:
                 raise ValueError("Target due date cannot be earlier than planned start date.")
 
-        with openTransaction(conn) as connection:
-            with connection.cursor() as cursor:
-                if updateAssignment:
-                    cursor.execute(
-                        """
-                        UPDATE prod_productionorder
-                        SET planned_start_date = %s, due_date = %s, assigned_to = %s
-                        WHERE order_id = %s
-                        """,
-                        (plannedStartDate, dueDate, assignedTo, orderID)
-                    )
-                else:
-                    cursor.execute(
-                        """
-                        UPDATE prod_productionorder
-                        SET planned_start_date = %s, due_date = %s
-                        WHERE order_id = %s
-                        """,
-                        (plannedStartDate, dueDate, orderID)
-                    )
-                invalidateKeys("orders_all", "orders_summary")
-                return True
+        if updateAssignment:
+            execute(
+                """
+                UPDATE prod_productionorder
+                SET planned_start_date = %s, due_date = %s, assigned_to = %s
+                WHERE order_id = %s
+                """,
+                (plannedStartDate, dueDate, assignedTo, orderID),
+                conn=conn
+            )
+        else:
+            execute(
+                """
+                UPDATE prod_productionorder
+                SET planned_start_date = %s, due_date = %s
+                WHERE order_id = %s
+                """,
+                (plannedStartDate, dueDate, orderID),
+                conn=conn
+            )
+        invalidateKeys("orders_all", "orders_summary")
+        return True
 
     @classmethod
     def canDelete(cls, orderID, conn=None):
-        with openTransaction(conn) as connection:
-            with connection.cursor() as cursor:
-                cursor.execute(
-                    "SELECT status FROM prod_productionorder WHERE order_id = %s",
-                    (orderID,)
-                )
-                row = cursor.fetchone()
-                if not row or row["status"] != "Draft":
-                    return False, "Only orders in Draft status can be deleted."
+        row = fetchOne(
+            "SELECT status FROM prod_productionorder WHERE order_id = %s",
+            (orderID,),
+            conn=conn
+        )
+        if not row or row["status"] != "Draft":
+            return False, "Only orders in Draft status can be deleted."
 
-                cursor.execute(
-                    "SELECT COUNT(*) AS c FROM prod_materialissuance WHERE order_id = %s",
-                    (orderID,)
-                )
-                if cursor.fetchone()["c"] > 0:
-                    return False, "Cannot delete order with issued materials."
+        rowMat = fetchOne(
+            "SELECT COUNT(*) AS c FROM prod_materialissuance WHERE order_id = %s",
+            (orderID,),
+            conn=conn
+        )
+        if rowMat and rowMat["c"] > 0:
+            return False, "Cannot delete order with issued materials."
 
-                cursor.execute(
-                    "SELECT COUNT(*) AS c FROM prod_productionmonitoring WHERE order_id = %s",
-                    (orderID,)
-                )
-                if cursor.fetchone()["c"] > 0:
-                    return False, "Cannot delete order with production monitoring progress."
+        rowMon = fetchOne(
+            "SELECT COUNT(*) AS c FROM prod_productionmonitoring WHERE order_id = %s",
+            (orderID,),
+            conn=conn
+        )
+        if rowMon and rowMon["c"] > 0:
+            return False, "Cannot delete order with production monitoring progress."
 
-                cursor.execute(
-                    "SELECT COUNT(*) AS c FROM prod_productionoutput WHERE order_id = %s",
-                    (orderID,)
-                )
-                if cursor.fetchone()["c"] > 0:
-                    return False, "Cannot delete order with inspection records."
+        rowOut = fetchOne(
+            "SELECT COUNT(*) AS c FROM prod_productionoutput WHERE order_id = %s",
+            (orderID,),
+            conn=conn
+        )
+        if rowOut and rowOut["c"] > 0:
+            return False, "Cannot delete order with inspection records."
 
-                return True, ""
+        return True, ""
 
     @classmethod
     def deleteOrder(cls, orderID, conn=None):
@@ -344,11 +331,10 @@ class ProductionOrder:
         if not allowed:
             raise ValueError(reason)
 
-        with openTransaction(conn) as connection:
-            with connection.cursor() as cursor:
-                cursor.execute(
-                    "DELETE FROM prod_productionorder WHERE order_id = %s AND status = 'Draft'",
-                    (orderID,)
-                )
-                invalidateKeys("orders_all", "orders_summary")
-                return True
+        execute(
+            "DELETE FROM prod_productionorder WHERE order_id = %s AND status = 'Draft'",
+            (orderID,),
+            conn=conn
+        )
+        invalidateKeys("orders_all", "orders_summary")
+        return True

@@ -1,11 +1,12 @@
 import os
+import math
 import re
 import logging
 from flask import Blueprint, render_template, request, redirect, url_for, flash, session, jsonify, send_from_directory
 from decimal import Decimal, InvalidOperation
 from datetime import datetime, date, timedelta
 from psycopg2.errors import UniqueViolation
-from .db import openTransaction
+from .db import openTransaction, fetchAll, fetchOne, execute, executeReturning
 from .auth import (
     authenticate_credentials,
     login_required,
@@ -89,7 +90,7 @@ def requireLogin():
         return redirect(url_for("production.login", next=request.path))
     if not sync_and_verify_session():
         _clearAuthSessionKeys()
-        flash("Access restricted to active Production Department Managers and Production Staff.", "warning")
+        flash("[403] Forbidden Access.", "warning")
         return redirect(url_for("production.login"))
 
 @productionBlueprint.after_request
@@ -296,10 +297,8 @@ def refreshCache():
 
 def getDatabaseStatus():
     try:
-        with openTransaction() as connection:
-            with connection.cursor() as cursor:
-                cursor.execute("SELECT 1")
-                return None
+        fetchOne("SELECT 1")
+        return None
     except Exception as connectionError:
         return f"Database Offline: {str(connectionError)}"
 
@@ -509,28 +508,25 @@ def index():
     prevWeeklyBatches = 0
     prevWeeklyUnits = 0
     try:
-        with openTransaction() as connection:
-            with connection.cursor() as cursor:
-                cursor.execute("""
-                    SELECT order_date, COUNT(*) AS order_count, COALESCE(SUM(planned_quantity), 0) AS total_units
-                    FROM prod_productionorder
-                    WHERE order_date >= %s AND order_date <= %s
-                    GROUP BY order_date
-                """, (monday, sunday))
-                for r in cursor.fetchall():
-                    dailyActivityMap[r["order_date"]] = {
-                        "orders": int(r["order_count"]),
-                        "units": int(r["total_units"])
-                    }
-                cursor.execute("""
-                    SELECT COUNT(*) AS order_count, COALESCE(SUM(planned_quantity), 0) AS total_units
-                    FROM prod_productionorder
-                    WHERE order_date >= %s AND order_date <= %s
-                """, (prevMonday, prevSunday))
-                prevRow = cursor.fetchone()
-                if prevRow:
-                    prevWeeklyBatches = int(prevRow.get("order_count") or 0)
-                    prevWeeklyUnits = int(prevRow.get("total_units") or 0)
+        dailyRows = fetchAll("""
+            SELECT order_date, COUNT(*) AS order_count, COALESCE(SUM(planned_quantity), 0) AS total_units
+            FROM prod_productionorder
+            WHERE order_date >= %s AND order_date <= %s
+            GROUP BY order_date
+        """, (monday, sunday))
+        for r in dailyRows:
+            dailyActivityMap[r["order_date"]] = {
+                "orders": int(r["order_count"]),
+                "units": int(r["total_units"])
+            }
+        prevRow = fetchOne("""
+            SELECT COUNT(*) AS order_count, COALESCE(SUM(planned_quantity), 0) AS total_units
+            FROM prod_productionorder
+            WHERE order_date >= %s AND order_date <= %s
+        """, (prevMonday, prevSunday))
+        if prevRow:
+            prevWeeklyBatches = int(prevRow.get("order_count") or 0)
+            prevWeeklyUnits = int(prevRow.get("total_units") or 0)
     except Exception:
         dailyActivityMap = {}
         prevWeeklyBatches = 0
@@ -810,6 +806,13 @@ def index():
     productsInStockPct = int(round(productsInStockCount / totalProducts * 100)) if totalProducts > 0 else None
     totalIncomingUnits = sum(int(s.get("total_incoming_qty") or 0) for s in stockouts)
 
+    if totalProducts == 0 or productsInStockCount == 0:
+        stockDotColor = "#9A4A3A"
+    elif productsInStockCount == totalProducts:
+        stockDotColor = "#66754C"
+    else:
+        stockDotColor = "#8E9B6D"
+
     awaitingQCUnits = sum(
         int(orderMap[m.orderID].plannedQuantity or 0)
         for m in activeMonitoring
@@ -856,116 +859,86 @@ def index():
 
         dashRings = [
             {
-                "label": "Schedule Health",
-                "value": schedVal,
-                "note": schedNote,
-                "dash": _ringDash(onSchedulePct) if onSchedulePct is not None else "",
-                "pct": max(0, min(100, int(round(onSchedulePct)))) if onSchedulePct is not None else 0,
-                "isAlert": bool(overdueOrders),
-                "color": "#66754C" if not overdueOrders else "#9A4A3A",
-                "url": url_for("production.planningList")
-            },
-            {
-                "label": "Workshop WIP",
-                "value": f"{activeWipUnits} {'Unit' if activeWipUnits == 1 else 'Units'}",
-                "note": wipNote,
+                "label": "In Progress",
+                "value": f"{inProgressOrders} {'Batch' if inProgressOrders == 1 else 'Batches'}",
+                "note": f"{activeWipUnits} units in workshop" if inProgressOrders else "No active batches",
                 "dash": _ringDash(avgProgressPct) if avgProgressPct is not None else "",
                 "pct": max(0, min(100, int(round(avgProgressPct)))) if avgProgressPct is not None else 0,
                 "isAlert": False,
-                "color": "#8E9B6D",
+                "showDot": False,
+                "color": "#66754C",
                 "url": url_for("production.monitoringList")
             },
             {
-                "label": "Quality Gate",
-                "value": qcVal,
-                "note": qcNote,
-                "dash": _ringDash(qcPassPct) if qcPassPct is not None else "",
-                "pct": max(0, min(100, int(round(qcPct)))),
+                "label": "Total Orders",
+                "value": str(len(allOrders)),
+                "note": f"{completedOrders} completed | {inProgressOrders} active",
+                "dash": _ringDash(int(round(completedOrders / len(allOrders) * 100))) if allOrders else "",
+                "pct": int(round(completedOrders / len(allOrders) * 100)) if allOrders else 0,
                 "isAlert": False,
+                "showDot": False,
                 "color": "#66754C",
-                "url": url_for("production.finishedGoodsList")
+                "url": url_for("production.orderList")
             },
             {
-                "label": "Inventory Products",
+                "label": "Inventory Stocks",
                 "value": f"{productsInStockCount} / {totalProducts}" if totalProducts > 0 else "0 / 0",
                 "note": fgNote,
                 "dash": _ringDash(productsInStockPct) if productsInStockPct is not None else "",
                 "pct": max(0, min(100, int(round(productsInStockPct)))) if productsInStockPct is not None else 0,
-                "isAlert": productsInStockCount == 0 and totalProducts > 0,
-                "color": "#66754C" if productsInStockCount > 0 else "#9A4A3A",
+                "isAlert": productsInStockCount == 0,
+                "showDot": True,
+                "color": stockDotColor,
                 "url": "/production/orders?stockouts=1" if stockouts else url_for("production.furnitureList")
             }
         ]
     else:
         myUncompleted = [o for o in uncompletedOrders if currentEmpID and o.assignedTo == currentEmpID]
         myInProgress = [o for o in myUncompleted if o.status == "In Progress"]
-        myReleased = [o for o in myUncompleted if o.status == "Released"]
-        myUnitsTotal = sum(int(o.plannedQuantity or 0) for o in myUncompleted)
-        myNeedsAssembly = []
-        myReadyQC = []
         myProgVals = []
         for o in myInProgress:
             mon = monitoringMap.get(o.orderID)
             prog = float(mon.progress or 0) if mon else 0.0
             myProgVals.append(prog)
-            if prog >= 90.0:
-                myReadyQC.append(o)
-            else:
-                myNeedsAssembly.append(o)
         myAvgProg = int(round(sum(myProgVals) / len(myProgVals))) if myProgVals else 0
-        myDated = sorted([o for o in myUncompleted if o.dueDate], key=lambda x: x.dueDate)
-        myOverdue = [o for o in myDated if o.dueDate < today]
 
-        if myOverdue:
-            deadlineVal = f"{len(myOverdue)} Overdue"
-            deadlineNote = f"Due: {myOverdue[0].dueDate.strftime('%b %d')}"
-        elif myDated:
-            deadlineVal = myDated[0].dueDate.strftime("%b %d")
-            deadlineNote = f"#PO-{myDated[0].orderID}"
-        else:
-            deadlineVal = "None"
-            deadlineNote = "None scheduled"
+        myAllOrders = [o for o in allOrders if currentEmpID and o.assignedTo == currentEmpID]
+        myCompleted = [o for o in myAllOrders if o.status == "Completed"]
+        myTotalPct = int(round(len(myCompleted) / len(myAllOrders) * 100)) if myAllOrders else 0
 
         dashRings = [
             {
-                "label": "My Workload",
-                "value": f"{len(myUncompleted)} {'Batch' if len(myUncompleted) == 1 else 'Batches'}",
-                "note": "Assigned to you" if myUncompleted else "Queue empty",
-                "dash": _ringDash(min(100, len(myUncompleted) * 25)),
-                "pct": min(100, len(myUncompleted) * 25) if myUncompleted else 0,
-                "isAlert": False,
-                "color": "#66754C",
-                "url": url_for("production.monitoringList")
-            },
-            {
-                "label": "In Assembly",
-                "value": f"{len(myNeedsAssembly)} Active",
-                "note": f"{myAvgProg}% completion" if myInProgress else "No active assembly",
+                "label": "In Progress",
+                "value": f"{len(myInProgress)} {'Batch' if len(myInProgress) == 1 else 'Batches'}",
+                "note": f"{myAvgProg}% avg progress" if myInProgress else "No active batches",
                 "dash": _ringDash(myAvgProg),
                 "pct": max(0, min(100, myAvgProg)),
                 "isAlert": False,
-                "color": "#8E9B6D",
-                "url": url_for("production.monitoringList")
-            },
-            {
-                "label": "Sent to QC",
-                "value": f"{len(myReadyQC)} {'Batch' if len(myReadyQC) == 1 else 'Batches'}",
-                "note": "Awaiting inspection" if myReadyQC else "None at Stage 4",
-                "dash": _ringDash(100 if myReadyQC else 0),
-                "pct": 100 if myReadyQC else 0,
-                "isAlert": False,
+                "showDot": False,
                 "color": "#66754C",
                 "url": url_for("production.monitoringList")
             },
             {
-                "label": "Next Deadline",
-                "value": deadlineVal,
-                "note": deadlineNote,
-                "dash": _ringDash(100 if (myDated and not myOverdue) else 0),
-                "pct": max(15, 100 - len(myOverdue) * 35) if myOverdue else (100 if myDated else 0),
-                "isAlert": bool(myOverdue),
-                "color": "#9A4A3A" if myOverdue else "#66754C",
-                "url": url_for("production.planningList")
+                "label": "Total Orders",
+                "value": str(len(myAllOrders)),
+                "note": f"{len(myCompleted)} completed | {len(myInProgress)} active",
+                "dash": _ringDash(myTotalPct),
+                "pct": myTotalPct,
+                "isAlert": False,
+                "showDot": False,
+                "color": "#66754C",
+                "url": url_for("production.orderList")
+            },
+            {
+                "label": "Inventory Stocks",
+                "value": f"{productsInStockCount} / {totalProducts}" if totalProducts > 0 else "0 / 0",
+                "note": fgNote,
+                "dash": _ringDash(productsInStockPct) if productsInStockPct is not None else "",
+                "pct": max(0, min(100, int(round(productsInStockPct)))) if productsInStockPct is not None else 0,
+                "isAlert": productsInStockCount == 0,
+                "showDot": True,
+                "color": stockDotColor,
+                "url": url_for("production.furnitureList")
             }
         ]
 
@@ -986,8 +959,43 @@ def index():
         ordersPerDay[i] = stats["orders"]
         unitsPassedPerDay[i] = sum(int(out.quantity or 0) for out in chartOutputs if _safeEventDate(out.inspectionDate) == dayDate)
 
-    chartMax = max(ordersPerDay + unitsPassedPerDay + [3])
-    chartMax = int(((chartMax + 2) // 3) * 3)
+    peak = max(ordersPerDay + unitsPassedPerDay)
+    if peak <= 3:
+        step, chartMax = 1, 3
+    elif peak <= 4:
+        step, chartMax = 1, 4
+    elif peak <= 6:
+        step, chartMax = 2, 6
+    elif peak <= 10:
+        step, chartMax = 5, 10
+    elif peak <= 15:
+        step, chartMax = 5, 15
+    elif peak <= 20:
+        step, chartMax = 5, 20
+    elif peak <= 30:
+        step, chartMax = 10, 30
+    elif peak <= 40:
+        step, chartMax = 10, 40
+    elif peak <= 50:
+        step, chartMax = 10, 50
+    elif peak <= 75:
+        step, chartMax = 25, 75
+    elif peak <= 100:
+        step, chartMax = 25, 100
+    else:
+        roughStep = peak / 4.0
+        mag = 10 ** math.floor(math.log10(roughStep))
+        norm = roughStep / mag
+        if norm <= 1.5:
+            step = int(1 * mag)
+        elif norm <= 3.5:
+            step = int(2.5 * mag) if mag >= 10 and int(2.5 * mag) == 2.5 * mag else int(2 * mag)
+        elif norm <= 7.5:
+            step = int(5 * mag)
+        else:
+            step = int(10 * mag)
+        chartMax = int(math.ceil(peak / step) * step)
+    tickVals = list(range(0, chartMax + step, step))
     chartLeft, chartRight, chartTop, chartBottom = 40.0, 580.0, 18.0, 190.0
     plotH = chartBottom - chartTop
     stepX = (chartRight - chartLeft) / 6.0
@@ -1045,7 +1053,7 @@ def index():
         "unitArea": unitArea,
         "daysData": daysData,
         "labels": labels,
-        "ticks": [{"v": int(chartMax * k / 3), "y": round(chartBottom - (k / 3) * plotH, 1)} for k in range(4)],
+        "ticks": [{"v": v, "y": round(chartBottom - (v / chartMax) * plotH, 1)} for v in tickVals],
         "totalUnits": sum(unitsPassedPerDay),
         "totalOrders": sum(ordersPerDay)
     }
@@ -1070,6 +1078,33 @@ def index():
             "show": count > 0
         })
         cumulative += pct
+
+    timelineScope = uncompletedOrders if isMgr else [o for o in uncompletedOrders if currentEmpID and o.assignedTo == currentEmpID]
+    overdueTimeline = sum(1 for o in timelineScope if o.dueDate and o.dueDate < today)
+    dueThisWeekTimeline = sum(1 for o in timelineScope if o.dueDate and today <= o.dueDate <= today + timedelta(days=7))
+    upcomingTimeline = sum(1 for o in timelineScope if o.dueDate and o.dueDate > today + timedelta(days=7))
+    unscheduledTimeline = sum(1 for o in timelineScope if not o.dueDate)
+
+    timelineSegmentsRaw = [
+        ("Overdue", overdueTimeline, "#9A4A3A"),
+        ("Due This Week", dueThisWeekTimeline, "#C28B38"),
+        ("Upcoming", upcomingTimeline, "#66754C"),
+        ("Unscheduled", unscheduledTimeline, "#D5C7AA")
+    ]
+    timelineTotal = sum(s[1] for s in timelineSegmentsRaw)
+    timelineSegments = []
+    cumulativeTimeline = 0.0
+    for label, count, color in timelineSegmentsRaw:
+        pct = (count / timelineTotal * 100) if timelineTotal > 0 else 0
+        timelineSegments.append({
+            "label": label,
+            "count": count,
+            "color": color,
+            "dash": f"{round(pct, 2)} {round(100 - pct, 2)}",
+            "offset": round((25 - cumulativeTimeline) % 100, 2),
+            "show": count > 0
+        })
+        cumulativeTimeline += pct
 
     activeOrdersList = []
     for o in uncompletedOrders:
@@ -1196,6 +1231,8 @@ def index():
         dashRings=dashRings,
         lineChart=lineChart,
         donutSegments=donutSegments,
+        timelineSegments=timelineSegments,
+        timelineTotal=timelineTotal,
         activeOrdersList=activeOrdersList,
         activeOrderSummary=activeOrderSummary,
         stockoutSummary=stockoutSummary,
@@ -2055,12 +2092,11 @@ def issueOrderMaterials(orderID):
                 integration.deduct_material_stock(r["materialID"], r["batchQuantity"], conn=conn)
                 MaterialIssuance.recordIssuance(orderID, r["materialID"], r["batchQuantity"], recordedBy=session.get("employee_name", "Dave Cagalitan"), conn=conn)
 
-            with conn.cursor() as cur:
-                cur.execute("""
-                    INSERT INTO prod_productionmonitoring (order_id, progress, start_date)
-                    VALUES (%s, 0.0, CURRENT_DATE)
-                    ON CONFLICT (order_id) DO NOTHING
-                """, (orderID,))
+            execute("""
+                INSERT INTO prod_productionmonitoring (order_id, progress, start_date)
+                VALUES (%s, 0.0, CURRENT_DATE)
+                ON CONFLICT (order_id) DO NOTHING
+            """, (orderID,), conn=conn)
 
             ProductionOrder.updateStatus(orderID, "In Progress", conn=conn)
 
@@ -2282,121 +2318,117 @@ def recordInspection(orderID):
 
     try:
         with openTransaction() as conn:
-            with conn.cursor() as cursor:
-                cursor.execute("""
-                    SELECT po.order_id, po.furniture_id, po.planned_quantity, po.status, po.assigned_to, f.furniture_name
-                    FROM prod_productionorder po
-                    JOIN prod_furniture f ON po.furniture_id = f.furniture_id
-                    WHERE po.order_id = %s
-                    FOR UPDATE
-                """, (orderID,))
-                orderRow = cursor.fetchone()
+            orderRow = fetchOne("""
+                SELECT po.order_id, po.furniture_id, po.planned_quantity, po.status, po.assigned_to, f.furniture_name
+                FROM prod_productionorder po
+                JOIN prod_furniture f ON po.furniture_id = f.furniture_id
+                WHERE po.order_id = %s
+                FOR UPDATE
+            """, (orderID,), conn=conn)
 
-                if not orderRow:
-                    flash("Production order not found.", "error")
-                    return redirect(url_for("production.finishedGoodsList"))
+            if not orderRow:
+                flash("Production order not found.", "error")
+                return redirect(url_for("production.finishedGoodsList"))
 
-                if orderRow["status"] != "In Progress":
-                    flash(f"Order #PO-{orderID} is '{orderRow['status']}'. Quality inspection is only allowed for 'In Progress' orders.", "warning")
-                    return redirect(url_for("production.finishedGoodsList"))
+            if orderRow["status"] != "In Progress":
+                flash(f"Order #PO-{orderID} is '{orderRow['status']}'. Quality inspection is only allowed for 'In Progress' orders.", "warning")
+                return redirect(url_for("production.finishedGoodsList"))
 
-                cursor.execute("""
-                    SELECT monitoring_id, progress, COALESCE(rework_count, 0) AS rework_count
-                    FROM prod_productionmonitoring
-                    WHERE order_id = %s
-                    FOR UPDATE
-                """, (orderID,))
-                monitoringRow = cursor.fetchone()
+            monitoringRow = fetchOne("""
+                SELECT monitoring_id, progress, COALESCE(rework_count, 0) AS rework_count
+                FROM prod_productionmonitoring
+                WHERE order_id = %s
+                FOR UPDATE
+            """, (orderID,), conn=conn)
 
-                if not monitoringRow or float(monitoringRow["progress"]) < 90.0:
-                    currentProg = int(round(float(monitoringRow["progress"]))) if monitoringRow else 0
-                    flash(f"Order #PO-{orderID} assembly is at {currentProg}%. Workshop assembly must reach at least 90% before inspection.", "warning")
-                    return redirect(url_for("production.finishedGoodsList"))
+            if not monitoringRow or float(monitoringRow["progress"]) < 90.0:
+                currentProg = int(round(float(monitoringRow["progress"]))) if monitoringRow else 0
+                flash(f"Order #PO-{orderID} assembly is at {currentProg}%. Workshop assembly must reach at least 90% before inspection.", "warning")
+                return redirect(url_for("production.finishedGoodsList"))
 
-                cursor.execute("""
-                    SELECT 
-                        COALESCE(SUM(CASE WHEN quality_status = 'Passed' THEN quantity ELSE 0 END), 0) AS total_passed,
-                        COALESCE(SUM(CASE WHEN quality_status = 'Failed' THEN quantity ELSE 0 END), 0) AS total_failed
-                    FROM prod_productionoutput
-                    WHERE order_id = %s
-                """, (orderID,))
-                countsRow = cursor.fetchone()
-                alreadyPassed = int(countsRow["total_passed"])
-                alreadyFailed = int(countsRow["total_failed"])
-                plannedQty = int(orderRow["planned_quantity"])
-                pendingQty = plannedQty - alreadyPassed - alreadyFailed
+            countsRow = fetchOne("""
+                SELECT 
+                    COALESCE(SUM(CASE WHEN quality_status = 'Passed' THEN quantity ELSE 0 END), 0) AS total_passed,
+                    COALESCE(SUM(CASE WHEN quality_status = 'Failed' THEN quantity ELSE 0 END), 0) AS total_failed
+                FROM prod_productionoutput
+                WHERE order_id = %s
+            """, (orderID,), conn=conn)
+            alreadyPassed = int(countsRow["total_passed"]) if countsRow else 0
+            alreadyFailed = int(countsRow["total_failed"]) if countsRow else 0
+            plannedQty = int(orderRow["planned_quantity"])
+            pendingQty = plannedQty - alreadyPassed - alreadyFailed
 
-                totalInspect = passedQty + failedQty + reworkQty
-                if pendingQty <= 0 or totalInspect != pendingQty:
-                    flash("Pending units changed, please refresh and try again.", "error")
-                    return redirect(url_for("production.finishedGoodsList"))
+            totalInspect = passedQty + failedQty + reworkQty
+            if pendingQty <= 0 or totalInspect != pendingQty:
+                flash("Pending units changed, please refresh and try again.", "error")
+                return redirect(url_for("production.finishedGoodsList"))
 
-                currentReworks = int(monitoringRow["rework_count"])
-                if reworkQty > 0 and currentReworks >= 2:
-                    flash(f"Order #PO-{orderID} has reached maximum allowed reworks (2). Units must either Pass or be marked as Failed/Scrapped.", "error")
-                    return redirect(url_for("production.finishedGoodsList"))
+            currentReworks = int(monitoringRow["rework_count"])
+            if reworkQty > 0 and currentReworks >= 2:
+                flash(f"Order #PO-{orderID} has reached maximum allowed reworks (2). Units must either Pass or be marked as Failed/Scrapped.", "error")
+                return redirect(url_for("production.finishedGoodsList"))
 
-                inspectorName = session.get("employee_name", "Dave Cagalitan")
-                rawUserID = session.get("user_id")
-                inspectorID = int(rawUserID) if (rawUserID and str(rawUserID).isdecimal()) else None
+            inspectorName = session.get("employee_name", "Dave Cagalitan")
+            rawUserID = session.get("user_id")
+            inspectorID = int(rawUserID) if (rawUserID and str(rawUserID).isdecimal()) else None
 
-                if passedQty > 0:
-                    ProductionOutput.recordOutput(
-                        orderID=orderID,
-                        furnitureID=orderRow["furniture_id"],
-                        quantity=passedQty,
-                        qualityStatus="Passed",
-                        recordedBy=inspectorName,
-                        reason=None,
-                        inspectorID=inspectorID,
-                        conn=conn
-                    )
-                    integration.add_finished_goods_stock(orderRow["furniture_id"], passedQty, conn=conn)
+            if passedQty > 0:
+                ProductionOutput.recordOutput(
+                    orderID=orderID,
+                    furnitureID=orderRow["furniture_id"],
+                    quantity=passedQty,
+                    qualityStatus="Passed",
+                    recordedBy=inspectorName,
+                    reason=None,
+                    inspectorID=inspectorID,
+                    conn=conn
+                )
+                integration.add_finished_goods_stock(orderRow["furniture_id"], passedQty, conn=conn)
 
-                if reworkQty > 0:
-                    ProductionOutput.recordOutput(
-                        orderID=orderID,
-                        furnitureID=orderRow["furniture_id"],
-                        quantity=reworkQty,
-                        qualityStatus="Rework",
-                        recordedBy=inspectorName,
-                        reason=reason,
-                        inspectorID=inspectorID,
-                        conn=conn
-                    )
-                    reworkProgress = ProductionMonitoring.REWORK_STAGE_PROGRESS
-                    ProductionMonitoring.updateProgressAndRework(
-                        monitoringRow["monitoring_id"],
-                        reworkProgress,
-                        currentReworks + 1,
-                        conn=conn
-                    )
+            if reworkQty > 0:
+                ProductionOutput.recordOutput(
+                    orderID=orderID,
+                    furnitureID=orderRow["furniture_id"],
+                    quantity=reworkQty,
+                    qualityStatus="Rework",
+                    recordedBy=inspectorName,
+                    reason=reason,
+                    inspectorID=inspectorID,
+                    conn=conn
+                )
+                reworkProgress = ProductionMonitoring.REWORK_STAGE_PROGRESS
+                ProductionMonitoring.updateProgressAndRework(
+                    monitoringRow["monitoring_id"],
+                    reworkProgress,
+                    currentReworks + 1,
+                    conn=conn
+                )
 
+            if failedQty > 0:
+                ProductionOutput.recordOutput(
+                    orderID=orderID,
+                    furnitureID=orderRow["furniture_id"],
+                    quantity=failedQty,
+                    qualityStatus="Failed",
+                    recordedBy=inspectorName,
+                    reason=reason,
+                    inspectorID=inspectorID,
+                    conn=conn
+                )
+
+            unitWord = "unit" if failedQty == 1 else "units"
+            if reworkQty == 0:
+                ProductionMonitoring.updateProgress(monitoringRow["monitoring_id"], 100.0, conn=conn)
+                ProductionOrder.updateStatus(orderID, "Completed", conn=conn)
+                msg = f"Order #PO-{orderID} finalized: {passedQty} passed & stocked to Finished Goods"
                 if failedQty > 0:
-                    ProductionOutput.recordOutput(
-                        orderID=orderID,
-                        furnitureID=orderRow["furniture_id"],
-                        quantity=failedQty,
-                        qualityStatus="Failed",
-                        recordedBy=inspectorName,
-                        reason=reason,
-                        inspectorID=inspectorID,
-                        conn=conn
-                    )
-
-                unitWord = "unit" if failedQty == 1 else "units"
-                if reworkQty == 0:
-                    ProductionMonitoring.updateProgress(monitoringRow["monitoring_id"], 100.0, conn=conn)
-                    ProductionOrder.updateStatus(orderID, "Completed", conn=conn)
-                    msg = f"Order #PO-{orderID} finalized: {passedQty} passed & stocked to Finished Goods"
-                    if failedQty > 0:
-                        msg += f", {failedQty} {unitWord} scrapped"
-                    flash(msg + ".", "success")
-                else:
-                    msg = f"Order #PO-{orderID} QC submitted: {passedQty} passed, {reworkQty} returned to workshop (Rework #{currentReworks + 1}/2 at {int(ProductionMonitoring.REWORK_STAGE_PROGRESS)}%)"
-                    if failedQty > 0:
-                        msg += f", {failedQty} {unitWord} scrapped"
-                    flash(msg + ".", "warning")
+                    msg += f", {failedQty} {unitWord} scrapped"
+                flash(msg + ".", "success")
+            else:
+                msg = f"Order #PO-{orderID} QC submitted: {passedQty} passed, {reworkQty} returned to workshop (Rework #{currentReworks + 1}/2 at {int(ProductionMonitoring.REWORK_STAGE_PROGRESS)}%)"
+                if failedQty > 0:
+                    msg += f", {failedQty} {unitWord} scrapped"
+                flash(msg + ".", "warning")
 
     except ValueError as valErr:
         flash(str(valErr), "warning")
@@ -2519,57 +2551,53 @@ def reportView():
     statusFilter = request.args.get("status", "All").strip()
 
     try:
-        with openTransaction() as conn:
-            with conn.cursor() as cur:
-                cur.execute("""
-                    SELECT po.order_id,
-                           po.planned_quantity,
-                           po.status,
-                           po.order_date,
-                           po.planned_start_date,
-                           po.due_date,
-                           f.furniture_name,
-                           f.furniture_type,
-                           COALESCE(pm.progress, 0.00) AS progress,
-                           pm.start_date AS actual_start_date,
-                           pm.completion_date,
-                           pc.cost_id,
-                           pc.material_cost,
-                           pc.labor_cost,
-                           pc.overhead_cost,
-                           pc.total_cost,
-                           pc.cost_date,
-                           COALESCE(iss.issued_material_cost, 0.00) AS issued_material_cost
-                    FROM prod_productionorder po
-                    JOIN prod_furniture f ON po.furniture_id = f.furniture_id
-                    LEFT JOIN prod_productionmonitoring pm ON po.order_id = pm.order_id
-                    LEFT JOIN prod_productioncost pc ON po.order_id = pc.order_id
-                    LEFT JOIN (
-                        SELECT mi.order_id,
-                               SUM(mi.quantity_issued * rm.unit_cost) AS issued_material_cost
-                        FROM prod_materialissuance mi
-                        JOIN raw_material rm ON mi.material_id = rm.raw_material_id
-                        GROUP BY mi.order_id
-                    ) iss ON po.order_id = iss.order_id
-                    ORDER BY po.order_id DESC
-                """)
-                rawOrders = cur.fetchall()
+        rawOrders = fetchAll("""
+            SELECT po.order_id,
+                   po.planned_quantity,
+                   po.status,
+                   po.order_date,
+                   po.planned_start_date,
+                   po.due_date,
+                   f.furniture_name,
+                   f.furniture_type,
+                   COALESCE(pm.progress, 0.00) AS progress,
+                   pm.start_date AS actual_start_date,
+                   pm.completion_date,
+                   pc.cost_id,
+                   pc.material_cost,
+                   pc.labor_cost,
+                   pc.overhead_cost,
+                   pc.total_cost,
+                   pc.cost_date,
+                   COALESCE(iss.issued_material_cost, 0.00) AS issued_material_cost
+            FROM prod_productionorder po
+            JOIN prod_furniture f ON po.furniture_id = f.furniture_id
+            LEFT JOIN prod_productionmonitoring pm ON po.order_id = pm.order_id
+            LEFT JOIN prod_productioncost pc ON po.order_id = pc.order_id
+            LEFT JOIN (
+                SELECT mi.order_id,
+                       SUM(mi.quantity_issued * rm.unit_cost) AS issued_material_cost
+                FROM prod_materialissuance mi
+                JOIN raw_material rm ON mi.material_id = rm.raw_material_id
+                GROUP BY mi.order_id
+            ) iss ON po.order_id = iss.order_id
+            ORDER BY po.order_id DESC
+        """)
 
-                cur.execute("""
-                    SELECT rm.raw_material_id,
-                           im.item_name AS material_name,
-                           im.unit,
-                           rm.unit_cost,
-                           COALESCE(SUM(mi.quantity_issued), 0) AS total_quantity_issued,
-                           COALESCE(SUM(mi.quantity_issued * rm.unit_cost), 0.00) AS total_material_expense,
-                           COUNT(DISTINCT mi.order_id) AS orders_consumed_count
-                    FROM prod_materialissuance mi
-                    JOIN raw_material rm ON mi.material_id = rm.raw_material_id
-                    JOIN item_master im ON rm.item_id = im.item_id
-                    GROUP BY rm.raw_material_id, im.item_name, im.unit, rm.unit_cost
-                    ORDER BY total_material_expense DESC
-                """)
-                materialUsageRows = cur.fetchall()
+        materialUsageRows = fetchAll("""
+            SELECT rm.raw_material_id,
+                   im.item_name AS material_name,
+                   im.unit,
+                   rm.unit_cost,
+                   COALESCE(SUM(mi.quantity_issued), 0) AS total_quantity_issued,
+                   COALESCE(SUM(mi.quantity_issued * rm.unit_cost), 0.00) AS total_material_expense,
+                   COUNT(DISTINCT mi.order_id) AS orders_consumed_count
+            FROM prod_materialissuance mi
+            JOIN raw_material rm ON mi.material_id = rm.raw_material_id
+            JOIN item_master im ON rm.item_id = im.item_id
+            GROUP BY rm.raw_material_id, im.item_name, im.unit, rm.unit_cost
+            ORDER BY total_material_expense DESC
+        """)
 
         allOrders = []
         for r in rawOrders:

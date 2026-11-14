@@ -1,5 +1,5 @@
 from decimal import Decimal
-from production.db import openTransaction
+from production.db import fetchAll, fetchOne
 from production.cache import getCached, setCached
 
 class Material:
@@ -28,26 +28,22 @@ class Material:
             if cached is not None:
                 return cached
 
-        with openTransaction(conn) as connection:
-            with connection.cursor() as cursor:
-                cursor.execute(
-                    """
-                    SELECT rm.raw_material_id AS material_id,
-                           im.item_code,
-                           im.item_name AS material_name,
-                           im.unit,
-                           rm.unit_cost,
-                           rm.current_stock
-                    FROM raw_material rm
-                    JOIN item_master im ON rm.item_id = im.item_id
-                    ORDER BY im.item_name ASC
-                    """
-                )
-                rows = cursor.fetchall()
-                result = [cls(row) for row in rows]
-                if conn is None and useCache:
-                    setCached("materials_all", result)
-                return result
+        sql = """
+            SELECT rm.raw_material_id AS material_id,
+                   im.item_code,
+                   im.item_name AS material_name,
+                   im.unit,
+                   rm.unit_cost,
+                   rm.current_stock
+            FROM raw_material rm
+            JOIN item_master im ON rm.item_id = im.item_id
+            ORDER BY im.item_name ASC
+        """
+        rows = fetchAll(sql, conn=conn)
+        result = [cls(row) for row in rows]
+        if conn is None and useCache:
+            setCached("materials_all", result)
+        return result
 
     @classmethod
     def getByID(cls, materialID, conn=None):
@@ -58,21 +54,16 @@ class Material:
                     if mat.materialID == materialID:
                         return mat
 
-        with openTransaction(conn) as connection:
-            with connection.cursor() as cursor:
-                cursor.execute(
-                    """
-                    SELECT rm.raw_material_id AS material_id,
-                           im.item_code,
-                           im.item_name AS material_name,
-                           im.unit,
-                           rm.unit_cost,
-                           rm.current_stock
-                    FROM raw_material rm
-                    JOIN item_master im ON rm.item_id = im.item_id
-                    WHERE rm.raw_material_id = %s
-                    """,
-                    (materialID,)
-                )
-                row = cursor.fetchone()
-                return cls(row) if row else None
+        sql = """
+            SELECT rm.raw_material_id AS material_id,
+                   im.item_code,
+                   im.item_name AS material_name,
+                   im.unit,
+                   rm.unit_cost,
+                   rm.current_stock
+            FROM raw_material rm
+            JOIN item_master im ON rm.item_id = im.item_id
+            WHERE rm.raw_material_id = %s
+        """
+        row = fetchOne(sql, (materialID,), conn=conn)
+        return cls(row) if row else None

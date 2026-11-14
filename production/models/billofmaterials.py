@@ -1,5 +1,5 @@
 from decimal import Decimal
-from production.db import openTransaction
+from production.db import fetchAll, fetchOne, execute, executeReturning
 from production.cache import invalidateKeys
 from .bomitem import BOMItem
 
@@ -14,49 +14,43 @@ class BillOfMaterials:
 
     @classmethod
     def getByFurnitureID(cls, furnitureID, autoCreate=False, conn=None):
-        with openTransaction(conn) as connection:
-            with connection.cursor() as cursor:
-                cursor.execute(
-                    "SELECT bom_id, furniture_id FROM prod_billofmaterials WHERE furniture_id = %s",
-                    (furnitureID,)
-                )
-                row = cursor.fetchone()
-                if row:
-                    return cls(row)
+        row = fetchOne(
+            "SELECT bom_id, furniture_id FROM prod_billofmaterials WHERE furniture_id = %s",
+            (furnitureID,),
+            conn=conn
+        )
+        if row:
+            return cls(row)
 
-                if autoCreate:
-                    cursor.execute(
-                        "INSERT INTO prod_billofmaterials (furniture_id) VALUES (%s) ON CONFLICT (furniture_id) DO NOTHING",
-                        (furnitureID,)
-                    )
-                    cursor.execute(
-                        "SELECT bom_id, furniture_id FROM prod_billofmaterials WHERE furniture_id = %s",
-                        (furnitureID,)
-                    )
-                    newRow = cursor.fetchone()
-                    if newRow:
-                        return cls(newRow)
+        if autoCreate:
+            execute(
+                "INSERT INTO prod_billofmaterials (furniture_id) VALUES (%s) ON CONFLICT (furniture_id) DO NOTHING",
+                (furnitureID,),
+                conn=conn
+            )
+            newRow = fetchOne(
+                "SELECT bom_id, furniture_id FROM prod_billofmaterials WHERE furniture_id = %s",
+                (furnitureID,),
+                conn=conn
+            )
+            if newRow:
+                return cls(newRow)
 
-                return None
+        return None
 
     def getItems(self, conn=None):
-        with openTransaction(conn) as connection:
-            with connection.cursor() as cursor:
-                cursor.execute(
-                    """
-                    SELECT bi.bom_item_id, bi.bom_id, bi.material_id, bi.quantity_required,
-                           im.item_code, im.item_name AS material_name, im.unit, rm.unit_cost,
-                           rm.current_stock
-                    FROM prod_bomitem bi
-                    JOIN raw_material rm ON bi.material_id = rm.raw_material_id
-                    JOIN item_master im ON rm.item_id = im.item_id
-                    WHERE bi.bom_id = %s
-                    ORDER BY bi.bom_item_id ASC
-                    """,
-                    (self.bomID,)
-                )
-                rows = cursor.fetchall()
-                return [BOMItem(row) for row in rows]
+        sql = """
+            SELECT bi.bom_item_id, bi.bom_id, bi.material_id, bi.quantity_required,
+                   im.item_code, im.item_name AS material_name, im.unit, rm.unit_cost,
+                   rm.current_stock
+            FROM prod_bomitem bi
+            JOIN raw_material rm ON bi.material_id = rm.raw_material_id
+            JOIN item_master im ON rm.item_id = im.item_id
+            WHERE bi.bom_id = %s
+            ORDER BY bi.bom_item_id ASC
+        """
+        rows = fetchAll(sql, (self.bomID,), conn=conn)
+        return [BOMItem(row) for row in rows]
 
     def addMaterial(self, materialID, quantityRequired, conn=None):
         cleanQty = Decimal(str(quantityRequired))
@@ -65,31 +59,25 @@ class BillOfMaterials:
         if not cleanQty.is_finite() or cleanQty.is_nan():
             raise ValueError("Invalid quantity format.")
 
-        with openTransaction(conn) as connection:
-            with connection.cursor() as cursor:
-                cursor.execute(
-                    """
-                    INSERT INTO prod_bomitem (bom_id, material_id, quantity_required)
-                    VALUES (%s, %s, %s)
-                    ON CONFLICT (bom_id, material_id)
-                    DO UPDATE SET quantity_required = EXCLUDED.quantity_required
-                    RETURNING bom_item_id, (xmax <> 0) AS was_updated
-                    """,
-                    (self.bomID, materialID, cleanQty)
-                )
-                res = cursor.fetchone()
-                invalidateKeys("furniture_all")
-                return res["bom_item_id"], res["was_updated"]
+        sql = """
+            INSERT INTO prod_bomitem (bom_id, material_id, quantity_required)
+            VALUES (%s, %s, %s)
+            ON CONFLICT (bom_id, material_id)
+            DO UPDATE SET quantity_required = EXCLUDED.quantity_required
+            RETURNING bom_item_id, (xmax <> 0) AS was_updated
+        """
+        res = executeReturning(sql, (self.bomID, materialID, cleanQty), conn=conn)
+        invalidateKeys("furniture_all")
+        return res["bom_item_id"], res["was_updated"]
 
     def removeMaterial(self, bomItemID, conn=None):
-        with openTransaction(conn) as connection:
-            with connection.cursor() as cursor:
-                cursor.execute(
-                    "DELETE FROM prod_bomitem WHERE bom_item_id = %s AND bom_id = %s",
-                    (bomItemID, self.bomID)
-                )
-                invalidateKeys("furniture_all")
-                return True
+        execute(
+            "DELETE FROM prod_bomitem WHERE bom_item_id = %s AND bom_id = %s",
+            (bomItemID, self.bomID),
+            conn=conn
+        )
+        invalidateKeys("furniture_all")
+        return True
 
     def calculateRequirements(self, plannedQuantity, conn=None):
         items = self.getItems(conn)

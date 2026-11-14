@@ -11,7 +11,7 @@
 
 <div class="card" style="margin-bottom: 20px;">
     <div
-        style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 14px;{% if selectedOrder %} padding-bottom: 16px; border-bottom: 1px solid var(--bd); margin-bottom: 16px;{% endif %}">
+        style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 14px; padding-bottom: 16px; border-bottom: 1px solid var(--bd); margin-bottom: 16px;">
         <div style="display: flex; gap: 12px; align-items: center; flex-wrap: wrap;">
             <div style="display: inline-flex; border: 1px solid var(--bd); border-radius: 6px; overflow: hidden;">
                 <a href="/production/requirement?filter=active{% if selectedOrder and selectedOrder.status in ('Draft', 'Released') %}&order_id={{ selectedOrder.orderID }}{% endif %}"
@@ -27,7 +27,7 @@
             <label style="font-weight: 600; font-size: 13.5px;">Order:</label>
             <select id="orderSelect"
                 onchange="window.location.href='/production/requirement?filter={{ filterType }}&order_id=' + this.value"
-                style="min-width: 320px;">
+                style="min-width: 320px;" {% if not displayedOrders %}disabled{% endif %}>
                 {% for ord in displayedOrders %}
                 <option value="{{ ord.orderID }}" {{ 'selected' if selectedOrder and selectedOrder.orderID==ord.orderID
                     else '' }}>
@@ -38,11 +38,6 @@
                 <option value="">No Production Orders Found</option>
                 {% endfor %}
             </select>
-
-            {% if not displayedOrders and isManager %}
-            <a href="/production/orders" class="actionButton secondary"
-                style="padding: 6px 12px; font-size: 12.5px; text-decoration: none;">+ Create Order</a>
-            {% endif %}
         </div>
 
         {% if selectedOrder %}
@@ -260,6 +255,16 @@
                 {% endif %}
             </table>
         </div>
+    </div>
+    {% else %}
+    <div style="text-align: center; padding: 36px 16px; color: var(--mt);">
+        {% if allOrdersCount == 0 %}
+        <p style="margin: 0 0 8px 0; font-size: 14px; font-weight: 600; color: var(--tx);">No production orders found.</p>
+        <span style="font-size: 12.5px;">Create production orders in <a href="/production/orders" style="color: var(--p); font-weight: 600;">Production Orders</a> to check material requirements.</span>
+        {% else %}
+        <p style="margin: 0 0 8px 0; font-size: 14px; font-weight: 600; color: var(--tx);">No orders requiring material allocation.</p>
+        <span style="font-size: 12.5px;">All current production orders have been verified. Switch to <a href="/production/requirement?filter=all" style="color: var(--p); font-weight: 600;">All Orders</a> to view past allocations.</span>
+        {% endif %}
     </div>
     {% endif %}
 </div>

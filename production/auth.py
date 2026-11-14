@@ -165,15 +165,15 @@ def authenticate_credentials(email, password):
                     if not record["password_matches"]:
                         return None, "Invalid email or password."
                     if not record.get("employee_id") or not record.get("is_active"):
-                        return None, "This employee account is inactive or unlinked."
+                        return None, "Your account has been disabled. Please contact hr suppot."
                     if not is_authorized_production_employee(
                         record.get("department_id"),
                         record.get("position_id"),
                         record.get("is_active")
                     ):
-                        return None, "Access restricted to active Production Department Managers and Production Staff."
+                        return None, "[403] Forbidden Access."
                     if record.get("module_active") is False:
-                        return None, "Your access to the Production module has been disabled."
+                        return None, "Your account has been disabled. Please contact hr support."
                     access_lvl = _sync_employee_auth_links(
                         cur,
                         record["employee_id"],
@@ -192,7 +192,7 @@ def authenticate_credentials(email, password):
                         emp_record.get("position_id"),
                         emp_record.get("is_active")
                     ):
-                        return None, "Access restricted to active Production Department Managers and Production Staff."
+                        return None, "[403] Forbidden Access."
                     new_auth_uid = str(uuid.uuid4())
                     app_meta = json.dumps({"provider": "email", "providers": ["email"]})
                     user_meta = json.dumps({"email_verified": True})
@@ -463,7 +463,7 @@ def manager_required(f):
         if not session.get("user_id"):
             return redirect(url_for("production.login", next=request.path))
         if not is_manager_session():
-            flash("Access restricted to Production Manager only.", "danger")
+            flash("[403] Forbidden Access.", "danger")
             return redirect(url_for("production.index"))
         return f(*args, **kwargs)
     return decorated_function
