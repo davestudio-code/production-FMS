@@ -34,8 +34,9 @@
 <div class="headerRow" id="reportPageHeader">
     <div>
         <h2>Production Reports</h2>
-        <span style="color: var(--mt); font-size: 13.5px;">Batch cost performance, raw material consumption, and
-            dispatch audit trail</span>
+        <span style="color: var(--mt); font-size: 13.5px;">Order by batch cost performance, raw material consumption,
+            and
+            material issuance audits trail</span>
     </div>
     <div id="reportActionBtnGroup">
         <button type="button" class="actionButton secondary" onclick="window.print()">&darr; Export / Print
@@ -139,7 +140,8 @@
                                 <div class="progressTrack">
                                     <span class="progressFill" style="width: {{ r.progress | round | int }}%;"></span>
                                 </div>
-                                <span style="font-size: 12px; font-weight: 700; color: var(--p);">{{ r.progress | round |
+                                <span style="font-size: 12px; font-weight: 700; color: var(--p);">{{ r.progress | round
+                                    |
                                     int }}%</span>
                             </div>
                         </td>

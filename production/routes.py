@@ -813,6 +813,15 @@ def index():
     else:
         stockDotColor = "#8E9B6D"
 
+    if totalProducts == 0:
+        fgNote = "No products registered"
+    elif not stockouts:
+        fgNote = "All products stocked"
+    elif totalIncomingUnits > 0:
+        fgNote = f"{totalIncomingUnits} incoming"
+    else:
+        fgNote = f"{len(stockouts)} out of stock"
+
     awaitingQCUnits = sum(
         int(orderMap[m.orderID].plannedQuantity or 0)
         for m in activeMonitoring
@@ -849,13 +858,6 @@ def index():
             qcVal = "0 Pending"
             qcPct = 0
             qcNote = "No batches at QC"
-
-        if not stockouts:
-            fgNote = "All products stocked"
-        elif totalIncomingUnits > 0:
-            fgNote = f"{totalIncomingUnits} incoming"
-        else:
-            fgNote = f"{len(stockouts)} out of stock"
 
         dashRings = [
             {

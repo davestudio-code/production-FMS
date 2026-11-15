@@ -6,8 +6,9 @@ class Material:
     def __init__(self, data=None):
         if data:
             self.materialID = data.get("material_id")
-            self.itemCode = data.get("item_code") or f"RM-{self.materialID:03d}" if self.materialID else ""
+            self.itemCode = data.get("item_code") or (f"RM-{self.materialID:03d}" if self.materialID else "")
             self.materialName = data.get("material_name")
+            self.materialType = data.get("material_type") or ""
             self.unit = data.get("unit")
             rawCost = data.get("unit_cost")
             self.unitCost = Decimal(str(rawCost)) if rawCost is not None else Decimal("0.00")
@@ -17,6 +18,7 @@ class Material:
             self.materialID = None
             self.itemCode = ""
             self.materialName = ""
+            self.materialType = ""
             self.unit = ""
             self.unitCost = Decimal("0.00")
             self.currentStock = Decimal("0.000")
@@ -32,12 +34,13 @@ class Material:
             SELECT rm.raw_material_id AS material_id,
                    im.item_code,
                    im.item_name AS material_name,
+                   rm.material_type,
                    im.unit,
                    rm.unit_cost,
                    rm.current_stock
             FROM raw_material rm
             JOIN item_master im ON rm.item_id = im.item_id
-            ORDER BY im.item_name ASC
+            ORDER BY im.item_code ASC, rm.raw_material_id ASC
         """
         rows = fetchAll(sql, conn=conn)
         result = [cls(row) for row in rows]
@@ -58,6 +61,7 @@ class Material:
             SELECT rm.raw_material_id AS material_id,
                    im.item_code,
                    im.item_name AS material_name,
+                   rm.material_type,
                    im.unit,
                    rm.unit_cost,
                    rm.current_stock

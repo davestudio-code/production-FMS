@@ -9,16 +9,376 @@
 </div>
 
 <style>
-.bomSelectBar {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    flex-wrap: wrap;
-    gap: 14px;
-    padding-bottom: 16px;
-    border-bottom: 1px solid var(--bd);
-    margin-bottom: 16px;
-}
+    .bomSelectBar {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        flex-wrap: wrap;
+        gap: 14px;
+        padding-bottom: 16px;
+        border-bottom: 1px solid var(--bd);
+        margin-bottom: 20px;
+    }
+
+    .bomProductHeader {
+        display: flex;
+        align-items: baseline;
+        justify-content: space-between;
+        gap: 14px;
+        margin-bottom: 14px;
+        flex-wrap: wrap;
+    }
+
+    .bomProductTitleWrap {
+        display: flex;
+        flex-direction: column;
+        gap: 2px;
+    }
+
+    .bomProductName {
+        font-size: 20px;
+        font-weight: 700;
+        color: var(--tx);
+        margin: 0;
+        letter-spacing: -0.01em;
+    }
+
+    .bomCategoryText {
+        font-size: 13px;
+        font-weight: 500;
+        color: var(--mt);
+    }
+
+    .recipeAddStrip {
+        padding: 6px 0 18px 0;
+        border-bottom: 1px solid var(--bd);
+        margin-bottom: 20px;
+    }
+
+    .recipeAddGrid {
+        display: grid;
+        grid-template-columns: minmax(280px, 1fr) 168px auto;
+        gap: 12px;
+        align-items: end;
+    }
+
+    @media (max-width: 760px) {
+        .recipeAddGrid {
+            grid-template-columns: 1fr;
+        }
+    }
+
+    .recipeFieldLabel {
+        font-size: 12px;
+        font-weight: 600;
+        color: var(--mt);
+        display: block;
+        margin-bottom: 6px;
+    }
+
+    .materialFieldWrap {
+        position: relative;
+        width: 100%;
+    }
+
+    #bomItemForm input.materialSearchInput {
+        width: 100%;
+        height: 40px;
+        padding: 8px 38px 8px 13px;
+        background: #ffffff;
+        border: 1px solid var(--bd);
+        border-radius: 7px;
+        font-size: 13.5px;
+        font-weight: 500;
+        color: var(--tx);
+        box-sizing: border-box;
+        transition: border-color 0.15s ease, box-shadow 0.15s ease;
+    }
+
+    #bomItemForm input.materialSearchInput:focus {
+        border-color: var(--p);
+        box-shadow: 0 0 0 3px rgba(102, 117, 76, 0.14);
+        outline: none;
+    }
+
+    #bomItemForm input.materialSearchInput.hasError {
+        border-color: #9a4a3a !important;
+        box-shadow: 0 0 0 3px rgba(154, 74, 58, 0.14) !important;
+    }
+
+    #bomItemForm button.materialDropdownToggle {
+        position: absolute;
+        right: 2px;
+        top: 2px;
+        width: 34px;
+        height: 36px;
+        min-width: 0;
+        padding: 0 !important;
+        margin: 0;
+        border: none !important;
+        background: transparent !important;
+        color: var(--mt) !important;
+        cursor: pointer;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        border-radius: 0 6px 6px 0;
+        box-shadow: none !important;
+        transform: none !important;
+    }
+
+    #bomItemForm button.materialDropdownToggle:hover {
+        color: var(--p) !important;
+        background: transparent !important;
+        transform: none !important;
+    }
+
+    .materialLedgerMenu {
+        display: none;
+        position: absolute;
+        top: calc(100% + 5px);
+        left: 0;
+        width: 100%;
+        min-width: min(560px, calc(100vw - 48px));
+        background: #ffffff;
+        border: 1px solid var(--bd);
+        border-radius: 8px;
+        box-shadow: 0 10px 28px rgba(43, 51, 31, 0.14);
+        z-index: 150;
+        max-height: 290px;
+        overflow: hidden;
+        flex-direction: column;
+    }
+
+    .materialLedgerMenu.isOpen {
+        display: flex;
+    }
+
+    .materialLedgerHead {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        padding: 8px 14px;
+        background: #faf8f3;
+        border-bottom: 1px solid var(--bd);
+        font-size: 11.5px;
+        font-weight: 600;
+        color: var(--mt);
+        user-select: none;
+    }
+
+    .materialLedgerList {
+        overflow-y: auto;
+        max-height: 246px;
+    }
+
+    .materialLedgerRow {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        padding: 9px 14px;
+        border-bottom: 1px solid rgba(228, 219, 199, 0.45);
+        cursor: pointer;
+        font-size: 13px;
+        transition: background 0.1s ease;
+    }
+
+    .materialLedgerRow:last-child {
+        border-bottom: none;
+    }
+
+    .materialLedgerRow:hover,
+    .materialLedgerRow.isHighlighted {
+        background: rgba(102, 117, 76, 0.08);
+    }
+
+    .materialLedgerRow.isSelected {
+        background: rgba(102, 117, 76, 0.15);
+    }
+
+    .matColCode {
+        width: 72px;
+        font-family: monospace;
+        font-weight: 700;
+        font-size: 12px;
+        color: var(--p);
+        flex-shrink: 0;
+    }
+
+    .matColName {
+        flex: 1;
+        min-width: 130px;
+        font-weight: 600;
+        color: var(--tx);
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+    }
+
+    .matColCategory {
+        width: 96px;
+        font-size: 12px;
+        color: var(--mt);
+        flex-shrink: 0;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+    }
+
+    .matColStock {
+        width: 92px;
+        font-size: 12px;
+        color: var(--mt);
+        text-align: right;
+        flex-shrink: 0;
+        font-variant-numeric: tabular-nums;
+    }
+
+    .matColCost {
+        width: 90px;
+        font-size: 13px;
+        font-weight: 700;
+        color: var(--tx);
+        text-align: right;
+        flex-shrink: 0;
+        font-variant-numeric: tabular-nums;
+    }
+
+    .materialLedgerEmpty {
+        padding: 20px;
+        text-align: center;
+        color: var(--mt);
+        font-size: 12.5px;
+    }
+
+    .recipeQtyField {
+        position: relative;
+        width: 100%;
+    }
+
+    #bomItemForm input.recipeQtyInput {
+        width: 100%;
+        height: 40px;
+        padding: 8px 54px 8px 12px;
+        background: #ffffff;
+        border: 1px solid var(--bd);
+        border-radius: 7px;
+        font-size: 13.5px;
+        font-weight: 600;
+        color: var(--tx);
+        box-sizing: border-box;
+        font-variant-numeric: tabular-nums;
+    }
+
+    #bomItemForm input.recipeQtyInput:focus {
+        border-color: var(--p);
+        box-shadow: 0 0 0 3px rgba(102, 117, 76, 0.14);
+        outline: none;
+    }
+
+    .recipeQtySuffix {
+        position: absolute;
+        right: 11px;
+        top: 50%;
+        transform: translateY(-50%);
+        font-size: 11.5px;
+        font-weight: 600;
+        color: var(--mt);
+        pointer-events: none;
+        max-width: 44px;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+    }
+
+    .bomTable th {
+        text-transform: none;
+        letter-spacing: normal;
+        font-size: 12.5px;
+        font-weight: 600;
+    }
+
+    .bomTable td {
+        font-variant-numeric: tabular-nums;
+    }
+
+    .bomReceiptFooter {
+        display: flex;
+        justify-content: flex-end;
+        margin-top: 18px;
+        padding-top: 16px;
+        border-top: 1px dashed var(--bd);
+    }
+
+    .bomReceiptTotals {
+        width: 100%;
+        max-width: 340px;
+    }
+
+    .receiptRow {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        gap: 16px;
+        padding: 4px 0;
+    }
+
+    .receiptLabel {
+        color: var(--mt);
+        font-size: 13px;
+    }
+
+    .receiptValue {
+        font-weight: 600;
+        color: var(--tx);
+        font-size: 13.5px;
+        text-align: right;
+        font-variant-numeric: tabular-nums;
+    }
+
+    .receiptBatchWrap {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+    }
+
+    input.receiptBatchInput {
+        width: 58px;
+        height: 28px;
+        padding: 2px 6px;
+        font-size: 13px;
+        font-weight: 700;
+        text-align: center;
+        border: 1px solid var(--bd);
+        border-radius: 5px;
+        background: #ffffff;
+        color: var(--tx);
+        font-variant-numeric: tabular-nums;
+    }
+
+    input.receiptBatchInput:focus {
+        border-color: var(--p);
+        outline: none;
+    }
+
+    .receiptTotalRule {
+        border-top: 1.5px solid var(--bd);
+        margin: 8px 0;
+    }
+
+    .receiptTotalLabel {
+        font-size: 14px;
+        font-weight: 700;
+        color: var(--tx);
+    }
+
+    .receiptTotalValue {
+        font-size: 18px;
+        font-weight: 700;
+        color: var(--p);
+        text-align: right;
+        font-variant-numeric: tabular-nums;
+    }
 </style>
 
 <div class="card" style="margin-bottom: 20px;">
@@ -52,230 +412,338 @@
     </div>
 
     {% if selectedFurniture %}
-    <div class="headerRow" style="margin-bottom: 14px; align-items: center;">
-        <div>
-            <h3 style="font-size: 16px; margin: 0 0 4px;">BOM &bull; {{ selectedFurniture.furnitureName }}</h3>
-            <span style="color: var(--mt); font-size: 12.5px;">Standard Bill of Materials &bull; Basis: 1 Finished
-                Unit</span>
-        </div>
-
-        {% if isManager %}
-        <div
-            style="display: flex; align-items: center; gap: 8px; background: rgba(102, 117, 76, 0.08); padding: 7px 14px; border-radius: 8px; border: 1px solid rgba(102, 117, 76, 0.25);">
-            <span style="font-size: 12px; color: var(--mt);">Standard Unit Cost:</span>
-            <b style="font-size: 15px; color: var(--p);">₱{{ "{:,.2f}".format(unitTotalCost) }}</b>
-        </div>
-        {% endif %}
-    </div>
-
-    <div
-        style="display: grid; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); gap: 14px; padding: 14px 0; border-top: 1px solid var(--bd); border-bottom: 1px solid var(--bd); margin-bottom: 16px;">
-        <div>
-            <span style="font-size: 11.5px; color: var(--mt); display: block; text-transform: uppercase;">BOM
-                Components</span>
-            <b style="font-size: 15px;">{{ bomItems|length }} {{ 'item' if bomItems|length == 1 else 'items' }}</b>
-        </div>
-        <div>
-            <span style="font-size: 11.5px; color: var(--mt); display: block; text-transform: uppercase;">Standard
-                Material Cost</span>
-            <b style="font-size: 15px;">₱{{ "{:,.2f}".format(unitTotalCost) }}</b>
-        </div>
-        <div>
-            <span style="font-size: 11.5px; color: var(--mt); display: block; text-transform: uppercase;">Product
-                Category</span>
-            <b style="font-size: 15px;">{{ selectedFurniture.furnitureType }}</b>
-        </div>
-        <div>
-            <span style="font-size: 11.5px; color: var(--mt); display: block; text-transform: uppercase;">BOM
-                Basis</span>
-            <b style="font-size: 15px;">1 finished unit</b>
+    <div class="bomProductHeader">
+        <div class="bomProductTitleWrap">
+            <h3 class="bomProductName">{{ selectedFurniture.furnitureName }}</h3>
+            <span class="bomCategoryText">{{ selectedFurniture.furnitureType }}</span>
         </div>
     </div>
 
+    {% if isManager %}
+    <div class="recipeAddStrip">
+        <form method="POST" action="/production/bom/items/add" id="bomItemForm">
+            <input type="hidden" name="furnitureID" value="{{ selectedFurniture.furnitureID }}">
+            <input type="hidden" name="materialID" id="bomSelectedMaterialId" required>
 
-    <div style="margin-top: 10px;">
-        <div class="headerRow" style="margin-bottom: 12px;">
-            <div>
-                <h3 style="font-size: 15px; margin: 0;">Standard BOM Components</h3>
-                <span style="color: var(--mt); font-size: 12.5px;">Required materials and standard cost per 1 finished
-                    unit</span>
-            </div>
-        </div>
+            <div class="recipeAddGrid">
+                <div class="formGroup" style="margin-bottom: 0;">
+                    <label class="recipeFieldLabel">Raw material</label>
+                    <div class="materialFieldWrap" id="materialFieldWrap">
+                        <input type="text" id="materialSearchInput" class="materialSearchInput"
+                            placeholder="Type or click to select raw material..." autocomplete="off" required>
+                        <button type="button" class="materialDropdownToggle" id="materialDropdownToggle" tabindex="-1"
+                            aria-label="Toggle material list">
+                            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                                stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"
+                                style="width: 15px; height: 15px; flex-shrink: 0; display: block;">
+                                <polyline points="6 9 12 15 18 9"></polyline>
+                            </svg>
+                        </button>
 
-        <div class="tableContainer">
-            <table>
-                <thead>
-                    <tr>
-                        <th style="width: 110px;">ITEM ID</th>
-                        <th>Raw Material</th>
-                        <th style="text-align: right;">Qty / Unit</th>
-                        {% if isManager %}
-                        <th style="text-align: right;">Unit Cost</th>
-                        <th style="text-align: right;">Line Total</th>
-                        <th style="text-align: center; width: 90px;">Action</th>
-                        {% endif %}
-                    </tr>
-                </thead>
-                <tbody>
-                    {% for item in bomItems %}
-                    <tr>
-                        <td><span style="font-family: monospace; font-size: 12.5px; font-weight: 600;">{{ item.itemCode
-                                }}</span></td>
-                        <td><b>{{ item.materialName }}</b></td>
-                        <td style="text-align: right;">{{
-                            "{:,.3f}".format(item.quantityRequired).rstrip('0').rstrip('.') or '0' }} {{ item.unit }}
-                        </td>
-                        {% if isManager %}
-                        <td style="text-align: right; color: var(--mt);">₱{{ "{:,.2f}".format(item.unitCost) }}</td>
-                        <td style="text-align: right;"><b>₱{{ "{:,.2f}".format(item.quantityRequired * item.unitCost)
-                                }}</b></td>
-                        <td style="text-align: center;">
-                            <form method="POST" action="/production/bom/items/delete/{{ item.bomItemID }}"
-                                style="display: inline;" data-material-name="{{ item.materialName }}"
-                                onsubmit="return confirm('Remove \'' + (this.dataset.materialName || 'this item') + '\' from this BOM?');">
-                                <input type="hidden" name="furnitureID" value="{{ selectedFurniture.furnitureID }}">
-                                <button type="submit" class="actionButton secondary"
-                                    style="padding: 4px 10px; font-size: 12px; color: #9a4a3a; border-color: rgba(154, 74, 58, 0.3);">Remove</button>
-                            </form>
-                        </td>
-                        {% endif %}
-                    </tr>
-                    {% else %}
-                    <tr>
-                        <td colspan="{{ '6' if isManager else '3' }}"
-                            style="text-align: center; color: var(--mt); padding: 24px;">No material components in this
-                            BOM yet.</td>
-                    </tr>
-                    {% endfor %}
-                </tbody>
-                {% if bomItems and isManager %}
-                <tfoot>
-                    <tr style="background: rgba(0,0,0,0.02); font-weight: 700;">
-                        <td colspan="4"
-                            style="text-align: right; padding: 12px 14px; font-size: 13px; text-transform: uppercase; color: var(--mt);">
-                            BOM Total:</td>
-                        <td style="text-align: right; padding: 12px 14px; font-size: 14px; color: var(--p);">₱{{
-                            "{:,.2f}".format(unitTotalCost) }}</td>
-                        <td></td>
-                    </tr>
-                </tfoot>
-                {% endif %}
-            </table>
-        </div>
-
-        {% if isManager %}
-        <div style="margin-top: 18px; padding-top: 16px; border-top: 1px solid var(--bd);">
-            <form method="POST" action="/production/bom/items/add">
-                <input type="hidden" name="furnitureID" value="{{ selectedFurniture.furnitureID }}">
-                <div style="display: flex; gap: 12px; flex-wrap: wrap; align-items: flex-end;">
-                    <div class="formGroup" style="flex: 1; min-width: 260px; margin-bottom: 0;">
-                        <label style="font-size: 12px; font-weight: 600;">+ Add Raw Material</label>
-                        <select name="materialID" required style="font-size: 13.5px;">
-                            <option value="">Choose Material...</option>
-                            {% for mat in materials %}
-                            <option value="{{ mat.materialID }}">{{ mat.itemCode }} &ndash; {{ mat.materialName }} ({{
-                                mat.unit }} &bull; ₱{{ "{:,.2f}".format(mat.unitCost) }})</option>
-                            {% endfor %}
-                        </select>
+                        <div class="materialLedgerMenu" id="materialLedgerMenu">
+                            <div class="materialLedgerHead">
+                                <span class="matColCode">Code</span>
+                                <span class="matColName">Material</span>
+                                <span class="matColCategory">Category</span>
+                                <span class="matColStock">Stock</span>
+                                <span class="matColCost">Unit cost</span>
+                            </div>
+                            <div class="materialLedgerList" id="materialLedgerList">
+                                {% for mat in materials %}
+                                <div class="materialLedgerRow" data-id="{{ mat.materialID }}"
+                                    data-code="{{ mat.itemCode }}" data-name="{{ mat.materialName }}"
+                                    data-category="{{ mat.materialType }}" data-unit="{{ mat.unit }}"
+                                    data-cost='{{ "{:,.2f}".format(mat.unitCost) }}'
+                                    data-stock='{{ "{:,.0f}".format(mat.currentStock) }}'>
+                                    <span class="matColCode">{{ mat.itemCode }}</span>
+                                    <span class="matColName">{{ mat.materialName }}</span>
+                                    <span class="matColCategory">{{ mat.materialType if mat.materialType else 'Material' }}</span>
+                                    <span class="matColStock">{{ "{:,.0f}".format(mat.currentStock) }} {{ mat.unit }}</span>
+                                    <span class="matColCost">₱{{ "{:,.2f}".format(mat.unitCost) }}</span>
+                                </div>
+                                {% endfor %}
+                                <div class="materialLedgerEmpty" id="materialLedgerEmpty" style="display: none;">No matching materials found</div>
+                            </div>
+                        </div>
                     </div>
-                    <div class="formGroup" style="width: 160px; margin-bottom: 0;">
-                        <label style="font-size: 12px; font-weight: 600;">Qty / Unit</label>
-                        <input type="number" name="quantityRequired" placeholder="e.g. 2.5" min="0.001" step="0.001"
-                            required style="font-size: 13.5px;">
+                </div>
+
+                <div class="formGroup" style="margin-bottom: 0;">
+                    <label class="recipeFieldLabel">Qty per unit</label>
+                    <div class="recipeQtyField">
+                        <input type="number" name="quantityRequired" id="bomQuantityRequired" placeholder="0.000"
+                            min="0.001" step="0.001" required class="recipeQtyInput">
+                        <span class="recipeQtySuffix" id="recipeQtySuffix">unit</span>
                     </div>
-                    <button type="submit" class="actionButton"
-                        style="height: 38px; padding: 0 18px; font-size: 13px;">Add to BOM</button>
                 </div>
-            </form>
-        </div>
-        {% endif %}
 
-        <div style="margin-top: 28px; padding-top: 22px; border-top: 1.5px solid var(--bd);">
-            <div class="headerRow" style="margin-bottom: 14px; align-items: center;">
-                <div>
-                    <h3 style="font-size: 15px; margin: 0 0 4px;">Batch Requirement Calculator</h3>
-                    <span style="color: var(--mt); font-size: 12.5px;">Simulate total raw material demand and cost for
-                        batch production</span>
-                </div>
-                {% if isManager %}
-                <div
-                    style="display: flex; align-items: center; gap: 8px; background: rgba(102, 117, 76, 0.08); padding: 7px 14px; border-radius: 8px; border: 1px solid rgba(102, 117, 76, 0.25);">
-                    <span style="font-size: 12px; color: var(--mt);">Batch Total Cost:</span>
-                    <b style="font-size: 15px; color: var(--p);">₱{{ "{:,.2f}".format(batchTotalCost) }}</b>
-                </div>
-                {% endif %}
+                <button type="submit" class="actionButton" id="addBomSubmitBtn"
+                    style="height: 40px; padding: 0 20px; font-size: 13px; font-weight: 600; white-space: nowrap;">
+                    + Add to BOM
+                </button>
             </div>
+        </form>
+    </div>
+    {% endif %}
 
-            <form method="GET" action="/production/bom"
-                style="display: flex; gap: 10px; align-items: center; margin-bottom: 16px; flex-wrap: wrap;">
-                <input type="hidden" name="furniture_id" value="{{ selectedFurniture.furnitureID }}">
-                <label style="font-size: 13px; font-weight: 600;">Batch Size (Units to Produce):</label>
-                <input type="number" name="batch_qty" value="{{ batchQuantity }}" min="1" step="1"
-                    style="width: 90px; font-weight: 700; padding: 6px 12px; font-size: 13.5px;">
-                <button type="submit" class="actionButton secondary"
-                    style="padding: 7px 14px; font-size: 13px;">Calculate Preview</button>
-            </form>
+    <div class="headerRow" style="margin-bottom: 10px;">
+        <div>
+            <h3 style="font-size: 15px; margin: 0;">Standard BOM Components</h3>
+            <span style="color: var(--mt); font-size: 12.5px;">Material requirements per unit</span>
+        </div>
+    </div>
 
-            <div class="tableContainer">
-                <table>
-                    <thead>
-                        <tr>
-                            <th style="width: 110px;">ITEM ID</th>
-                            <th>Raw Material</th>
-                            <th style="text-align: right;">Qty / Unit</th>
-                            <th style="text-align: right;">Required for Batch ({{ batchQuantity }} {{ 'unit' if
-                                batchQuantity == 1 else 'units' }})</th>
-                            {% if isManager %}
-                            <th style="text-align: right;">Unit Cost</th>
-                            <th style="text-align: right;">Line Total</th>
-                            {% endif %}
-                        </tr>
-                    </thead>
-                    <tbody>
-                        {% for req in requirements %}
-                        <tr>
-                            <td><span style="font-family: monospace; font-size: 12.5px; font-weight: 600;">{{
-                                    req.itemCode }}</span></td>
-                            <td><b>{{ req.materialName }}</b></td>
-                            <td style="text-align: right;">{{
-                                "{:,.3f}".format(req.quantityRequired).rstrip('0').rstrip('.') or '0' }} {{ req.unit }}
-                            </td>
-                            <td style="text-align: right;"><b>{{
-                                    "{:,.3f}".format(req.batchQuantity).rstrip('0').rstrip('.') or '0' }} {{ req.unit
-                                    }}</b></td>
-                            {% if isManager %}
-                            <td style="text-align: right; color: var(--mt);">₱{{ "{:,.2f}".format(req.unitCost) }}</td>
-                            <td style="text-align: right;"><b>₱{{ "{:,.2f}".format(req.batchCost) }}</b></td>
-                            {% endif %}
-                        </tr>
-                        {% else %}
-                        <tr>
-                            <td colspan="{{ '6' if isManager else '4' }}"
-                                style="text-align: center; color: var(--mt); padding: 18px;">Add components to the BOM
-                                above to calculate batch requirements.</td>
-                        </tr>
-                        {% endfor %}
-                    </tbody>
-                    {% if requirements and isManager %}
-                    <tfoot>
-                        <tr style="background: rgba(0,0,0,0.02); font-weight: 700;">
-                            <td colspan="5"
-                                style="text-align: right; padding: 12px 14px; font-size: 13px; text-transform: uppercase; color: var(--mt);">
-                                Batch Total Cost:</td>
-                            <td style="text-align: right; padding: 12px 14px; font-size: 14px; color: var(--p);">₱{{
-                                "{:,.2f}".format(batchTotalCost) }}</td>
-                        </tr>
-                    </tfoot>
+    <div class="tableContainer">
+        <table class="bomTable">
+            <thead>
+                <tr>
+                    <th style="width: 110px;">Item code</th>
+                    <th>Raw material</th>
+                    <th style="text-align: right;">Qty per unit</th>
+                    {% if isManager %}
+                    <th style="text-align: right;">Unit cost</th>
+                    <th style="text-align: right;">Line total</th>
+                    <th style="text-align: center; width: 92px;">Action</th>
                     {% endif %}
-                </table>
+                </tr>
+            </thead>
+            <tbody>
+                {% for item in bomItems %}
+                <tr>
+                    <td><span style="font-family: monospace; font-size: 12.5px; font-weight: 600;">{{ item.itemCode }}</span></td>
+                    <td><b>{{ item.materialName }}</b></td>
+                    <td style="text-align: right;">{{ "{:,.3f}".format(item.quantityRequired).rstrip('0').rstrip('.') or '0' }} {{ item.unit }}</td>
+                    {% if isManager %}
+                    <td style="text-align: right; color: var(--mt);">₱{{ "{:,.2f}".format(item.unitCost) }}</td>
+                    <td style="text-align: right;"><b>₱{{ "{:,.2f}".format(item.quantityRequired * item.unitCost) }}</b></td>
+                    <td style="text-align: center;">
+                        <form method="POST" action="/production/bom/items/delete/{{ item.bomItemID }}"
+                            style="display: inline;" data-material-name="{{ item.materialName }}"
+                            onsubmit="return confirm('Remove \'' + (this.dataset.materialName || 'this item') + '\' from this BOM?');">
+                            <input type="hidden" name="furnitureID" value="{{ selectedFurniture.furnitureID }}">
+                            <button type="submit" class="actionButton secondary"
+                                style="padding: 4px 10px; font-size: 12px; color: #9a4a3a; border-color: rgba(154, 74, 58, 0.3);">Remove</button>
+                        </form>
+                    </td>
+                    {% endif %}
+                </tr>
+                {% else %}
+                <tr>
+                    <td colspan="{{ '6' if isManager else '3' }}"
+                        style="text-align: center; color: var(--mt); padding: 28px;">No material components in this BOM yet.</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+
+    {% if isManager %}
+    <div class="bomReceiptFooter">
+        <div class="bomReceiptTotals">
+            <div class="receiptRow">
+                <span class="receiptLabel">Standard unit cost</span>
+                <span class="receiptValue" id="receiptUnitCost">₱{{ "{:,.2f}".format(unitTotalCost) }}</span>
+            </div>
+            <div class="receiptRow">
+                <span class="receiptLabel">Batch multiplier</span>
+                <div class="receiptBatchWrap">
+                    <input type="number" id="receiptBatchInput" value="{{ batchQuantity }}" min="1" step="1" class="receiptBatchInput" title="Batch units to produce">
+                    <span class="receiptLabel">units</span>
+                </div>
+            </div>
+            <div class="receiptTotalRule"></div>
+            <div class="receiptRow">
+                <span class="receiptTotalLabel">Batch total cost</span>
+                <span class="receiptTotalValue" id="receiptBatchTotal">₱{{ "{:,.2f}".format(batchTotalCost) }}</span>
             </div>
         </div>
     </div>
+    {% endif %}
     {% else %}
     <div style="text-align: center; padding: 36px 16px; color: var(--mt);">
-        <p style="margin: 0 0 8px 0; font-size: 14px; font-weight: 600; color: var(--tx);">No products registered yet.</p>
-        <span style="font-size: 12.5px;">Add furniture items in <a href="/production/furniture" style="color: var(--p); font-weight: 600;">Product Master</a> first to configure their Bill of Materials.</span>
+        <p style="margin: 0 0 8px 0; font-size: 14px; font-weight: 600; color: var(--tx);">No products registered yet.
+        </p>
+        <span style="font-size: 12.5px;">Add furniture items in <a href="/production/furniture"
+                style="color: var(--p); font-weight: 600;">Product Master</a> first to configure their Bill of
+            Materials.</span>
     </div>
     {% endif %}
 </div>
+
+<script>
+    document.addEventListener('DOMContentLoaded', function () {
+        var form = document.getElementById('bomItemForm');
+        var input = document.getElementById('materialSearchInput');
+        var toggleBtn = document.getElementById('materialDropdownToggle');
+        var menu = document.getElementById('materialLedgerMenu');
+        var hiddenId = document.getElementById('bomSelectedMaterialId');
+        var qtyInput = document.getElementById('bomQuantityRequired');
+        var qtySuffix = document.getElementById('recipeQtySuffix');
+        var wrap = document.getElementById('materialFieldWrap');
+        var emptyEl = document.getElementById('materialLedgerEmpty');
+
+        if (!input || !menu) return;
+
+        var rows = Array.prototype.slice.call(menu.querySelectorAll('.materialLedgerRow'));
+        var currentIndex = -1;
+
+        function openMenu() {
+            menu.classList.add('isOpen');
+            input.classList.remove('hasError');
+            filterRows(input.value);
+        }
+
+        function closeMenu() {
+            menu.classList.remove('isOpen');
+            clearHighlight();
+            currentIndex = -1;
+        }
+
+        function selectRow(row) {
+            if (!row) return;
+            var id = row.getAttribute('data-id');
+            var code = row.getAttribute('data-code');
+            var name = row.getAttribute('data-name');
+            var unit = row.getAttribute('data-unit');
+            var cost = row.getAttribute('data-cost');
+
+            hiddenId.value = id;
+            input.value = code + ' ' + name + ' (₱' + cost + ' / ' + unit + ')';
+            if (qtySuffix) {
+                qtySuffix.textContent = unit;
+            }
+
+            rows.forEach(function (r) {
+                r.classList.toggle('isSelected', r === row);
+            });
+
+            closeMenu();
+            if (qtyInput) {
+                qtyInput.focus();
+                qtyInput.select();
+            }
+        }
+
+        function filterRows(query) {
+            var q = (query || '').toLowerCase().trim();
+            var matchCount = 0;
+            rows.forEach(function (row) {
+                var code = (row.getAttribute('data-code') || '').toLowerCase();
+                var name = (row.getAttribute('data-name') || '').toLowerCase();
+                var cat = (row.getAttribute('data-category') || '').toLowerCase();
+                var match = !q || code.indexOf(q) !== -1 || name.indexOf(q) !== -1 || cat.indexOf(q) !== -1;
+                row.style.display = match ? 'flex' : 'none';
+                if (match) matchCount++;
+            });
+            if (emptyEl) {
+                emptyEl.style.display = matchCount === 0 ? 'block' : 'none';
+            }
+        }
+
+        function clearHighlight() {
+            rows.forEach(function (r) { r.classList.remove('isHighlighted'); });
+        }
+
+        function highlightRow(index) {
+            var visible = rows.filter(function (r) { return r.style.display !== 'none'; });
+            if (!visible.length) return;
+            if (index < 0) index = visible.length - 1;
+            if (index >= visible.length) index = 0;
+            clearHighlight();
+            visible[index].classList.add('isHighlighted');
+            visible[index].scrollIntoView({ block: 'nearest' });
+            currentIndex = index;
+        }
+
+        input.addEventListener('focus', function () {
+            openMenu();
+        });
+
+        input.addEventListener('input', function () {
+            hiddenId.value = '';
+            if (!menu.classList.contains('isOpen')) {
+                openMenu();
+            } else {
+                filterRows(this.value);
+            }
+            currentIndex = -1;
+        });
+
+        input.addEventListener('keydown', function (e) {
+            var visible = rows.filter(function (r) { return r.style.display !== 'none'; });
+            if (e.key === 'ArrowDown') {
+                e.preventDefault();
+                if (!menu.classList.contains('isOpen')) {
+                    openMenu();
+                }
+                highlightRow(currentIndex + 1);
+            } else if (e.key === 'ArrowUp') {
+                e.preventDefault();
+                highlightRow(currentIndex - 1);
+            } else if (e.key === 'Enter') {
+                if (menu.classList.contains('isOpen')) {
+                    e.preventDefault();
+                    if (currentIndex >= 0 && currentIndex < visible.length) {
+                        selectRow(visible[currentIndex]);
+                    } else if (visible.length === 1) {
+                        selectRow(visible[0]);
+                    }
+                }
+            } else if (e.key === 'Escape') {
+                e.preventDefault();
+                closeMenu();
+            }
+        });
+
+        if (toggleBtn) {
+            toggleBtn.addEventListener('click', function (e) {
+                e.preventDefault();
+                e.stopPropagation();
+                if (menu.classList.contains('isOpen')) {
+                    closeMenu();
+                } else {
+                    input.focus();
+                    openMenu();
+                }
+            });
+        }
+
+        rows.forEach(function (row) {
+            row.addEventListener('mousedown', function (e) {
+                e.preventDefault();
+                selectRow(this);
+            });
+        });
+
+        document.addEventListener('click', function (e) {
+            if (wrap && !wrap.contains(e.target)) {
+                closeMenu();
+            }
+        });
+
+        if (form) {
+            form.addEventListener('submit', function (e) {
+                if (!hiddenId.value) {
+                    e.preventDefault();
+                    input.classList.add('hasError');
+                    input.focus();
+                    openMenu();
+                }
+            });
+        }
+
+        var batchInput = document.getElementById('receiptBatchInput');
+        var batchTotalEl = document.getElementById('receiptBatchTotal');
+        var unitCostVal = parseFloat('{{ unitTotalCost }}') || 0;
+
+        if (batchInput && batchTotalEl) {
+            batchInput.addEventListener('input', function () {
+                var qty = parseInt(this.value, 10);
+                if (isNaN(qty) || qty < 1) qty = 1;
+                var total = unitCostVal * qty;
+                batchTotalEl.textContent = '₱' + total.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+            });
+        }
+    });
+</script>
 {% endblock %}

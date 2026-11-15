@@ -6,112 +6,120 @@
 {{ page_header("Product Master", "A list of all furnitures that can be produced in the workshop.") }}
 
 <style>
-.productIdBadge {
-    font-family: monospace;
-    font-size: 12.5px;
-    font-weight: 600;
-    color: var(--mt);
-    letter-spacing: -0.2px;
-}
-.productNameText {
-    font-weight: 600;
-    color: var(--tx);
-    font-size: 13.5px;
-}
-.categoryText {
-    font-size: 13px;
-    font-weight: 500;
-    color: var(--mt);
-}
-.productBomBox {
-    display: flex;
-    flex-direction: column;
-    gap: 2px;
-}
-.productBomCost {
-    font-size: 13.5px;
-    font-weight: 700;
-    color: var(--p);
-}
-.productBomMeta {
-    font-size: 11.5px;
-    color: var(--mt);
-    display: flex;
-    align-items: center;
-    gap: 5px;
-}
-.productBomLink {
-    color: var(--p);
-    font-weight: 600;
-    text-decoration: none;
-    font-size: 11.5px;
-    transition: color 0.15s ease;
-}
-.productBomLink:hover {
-    text-decoration: underline;
-    color: #4f5d3b;
-}
-.productBomBox.unconfigured {
-    display: inline-flex;
-    align-items: center;
-}
-.bomSetupBadge {
-    text-decoration: none;
-    cursor: pointer;
-    font-size: 11px;
-    transition: all 0.15s ease;
-}
-.bomSetupBadge:hover {
-    background: #edd8b4;
-    border-color: #baa887;
-    color: #433924;
-}
-.productRowActions {
-    display: inline-flex;
-    gap: 6px;
-    align-items: center;
-    justify-content: center;
-}
-.productRowActions .actionButton.secondary {
-    padding: 5px 10px;
-    font-size: 12px;
-    border-radius: 6px;
-    background: #fff;
-    border: 1px solid var(--bd);
-    color: var(--tx);
-    font-weight: 500;
-    display: inline-flex;
-    align-items: center;
-    gap: 4px;
-    transition: all 0.15s ease;
-}
-.productRowActions .actionButton.secondary:hover {
-    background: rgba(0, 0, 0, 0.03);
-    border-color: #baa887;
-    color: var(--tx);
-}
-.productRowActions .deleteActionBtn {
-    color: #9a4a3a !important;
-    border-color: rgba(154, 74, 58, 0.25) !important;
-}
-.productRowActions .deleteActionBtn:hover {
-    background: rgba(154, 74, 58, 0.08) !important;
-    border-color: #9a4a3a !important;
-}
-.furnitureTable td {
-    vertical-align: middle;
-}
+    .productIdBadge {
+        font-family: monospace;
+        font-size: 12.5px;
+        font-weight: 600;
+        color: var(--mt);
+        letter-spacing: -0.2px;
+    }
+
+    .productNameText {
+        font-weight: 600;
+        color: var(--tx);
+        font-size: 13.5px;
+    }
+
+    .categoryText {
+        font-size: 13px;
+        font-weight: 500;
+        color: var(--mt);
+    }
+
+    .productBomBox {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        text-align: center;
+    }
+
+    .productBomCost {
+        font-size: 13.5px;
+        font-weight: 700;
+        color: var(--p);
+        text-decoration: none;
+        display: inline-block;
+        transition: color 0.15s ease, text-decoration 0.15s ease;
+    }
+
+    .productBomCost:hover {
+        text-decoration: underline;
+        color: #4f5d3b;
+    }
+
+    .productBomBox.unconfigured {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+    }
+
+    .bomSetupBadge {
+        text-decoration: none;
+        cursor: pointer;
+        font-size: 11px;
+        transition: all 0.15s ease;
+    }
+
+    .bomSetupBadge:hover {
+        background: #edd8b4;
+        border-color: #baa887;
+        color: #433924;
+    }
+
+    .productRowActions {
+        display: inline-flex;
+        gap: 6px;
+        align-items: center;
+        justify-content: center;
+    }
+
+    .productRowActions .actionButton.secondary {
+        padding: 5px 10px;
+        font-size: 12px;
+        border-radius: 6px;
+        background: #fff;
+        border: 1px solid var(--bd);
+        color: var(--tx);
+        font-weight: 500;
+        display: inline-flex;
+        align-items: center;
+        gap: 4px;
+        transition: all 0.15s ease;
+    }
+
+    .productRowActions .actionButton.secondary:hover {
+        background: rgba(0, 0, 0, 0.03);
+        border-color: #baa887;
+        color: var(--tx);
+    }
+
+    .productRowActions .deleteActionBtn {
+        color: #9a4a3a !important;
+        border-color: rgba(154, 74, 58, 0.25) !important;
+    }
+
+    .productRowActions .deleteActionBtn:hover {
+        background: rgba(154, 74, 58, 0.08) !important;
+        border-color: #9a4a3a !important;
+    }
+
+    .furnitureTable td {
+        vertical-align: middle;
+    }
 </style>
 
 <div class="card">
     <div class="workspaceToolbar">
         <div class="workspaceFilterTabs" role="tablist" id="furnitureCategoryTabs">
-            <button type="button" class="workspaceTabBtn active" data-category="" onclick="setFurnitureCategoryTab(this)">
+            <button type="button" class="workspaceTabBtn active" data-category=""
+                onclick="setFurnitureCategoryTab(this)">
                 <span>All</span>
                 <span class="workspaceTabCount">{{ furnitureItems|length }}</span>
             </button>
             {% for cat in categories %}
-            <button type="button" class="workspaceTabBtn" data-category="{{ cat }}" onclick="setFurnitureCategoryTab(this)">
+            <button type="button" class="workspaceTabBtn" data-category="{{ cat }}"
+                onclick="setFurnitureCategoryTab(this)">
                 <span>{{ cat }}</span>
                 <span class="workspaceTabCount">{{ categoryCounts.get(cat, 0) }}</span>
             </button>
@@ -119,7 +127,8 @@
         </div>
 
         {% if isManager %}
-        <button type="button" class="actionButton" style="padding: 8px 16px; font-size: 13px; white-space: nowrap;" onclick="openModal('addFurnitureModal')">+ Add New Product</button>
+        <button type="button" class="actionButton" style="padding: 8px 16px; font-size: 13px; white-space: nowrap;"
+            onclick="openModal('addFurnitureModal')">+ Add New Product</button>
         {% endif %}
         <input type="hidden" id="furnitureCategorySelect" value="">
     </div>
@@ -131,7 +140,7 @@
                     <th style="width: 110px;">Product ID</th>
                     <th style="min-width: 200px;">Product Name</th>
                     <th style="width: 140px;">Category</th>
-                    <th style="min-width: 250px;">Bill of Materials</th>
+                    <th style="width: 170px; text-align: center;">Bill of Materials</th>
                     <th style="width: 170px; text-align: center;">Actions</th>
                 </tr>
             </thead>
@@ -144,21 +153,21 @@
                     <td>
                         <span class="categoryText">{{ item.furnitureType }}</span>
                     </td>
-                    <td>
+                    <td style="text-align: center;">
                         {% if item.hasBOM %}
                         <div class="productBomBox">
-                            <span class="productBomCost">₱{{ "{:,.2f}".format(item.bomCost) }}</span>
-                            <div class="productBomMeta">
-                                <span>{{ item.componentCount }} component{{ '' if item.componentCount == 1 else 's' }}</span>
-                                <span>&bull;</span>
-                                <a href="/production/bom?furniture_id={{ item.furnitureID }}" class="productBomLink">View Recipe &rarr;</a>
-                            </div>
+                            <a href="/production/bom?furniture_id={{ item.furnitureID }}" class="productBomCost" title="View Bill of Materials">₱{{ "{:,.2f}".format(item.bomCost) }}</a>
                         </div>
                         {% else %}
                         <div class="productBomBox unconfigured">
                             {% if isManager %}
-                            <a href="/production/bom?furniture_id={{ item.furnitureID }}" class="statusBadge draft bomSetupBadge" title="Configure BOM recipe">
-                                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/></svg>
+                            <a href="/production/bom?furniture_id={{ item.furnitureID }}"
+                                class="statusBadge draft bomSetupBadge" title="Configure BOM recipe">
+                                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                                    stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                                    <path d="M12 20h9" />
+                                    <path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z" />
+                                </svg>
                                 <span>Not Configured</span>
                             </a>
                             {% else %}
@@ -170,22 +179,30 @@
                     <td style="text-align: center;">
                         {% if isManager %}
                         <div class="productRowActions">
-                            <button type="button" class="actionButton secondary"
-                                data-id="{{ item.furnitureID }}"
-                                data-name="{{ item.furnitureName }}"
-                                data-type="{{ item.furnitureType }}"
-                                onclick="openEditModalFromButton(this)"
-                                title="Edit product details">
-                                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/></svg>
+                            <button type="button" class="actionButton secondary" data-id="{{ item.furnitureID }}"
+                                data-name="{{ item.furnitureName }}" data-type="{{ item.furnitureType }}"
+                                onclick="openEditModalFromButton(this)" title="Edit product details">
+                                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                                    stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                                    <path d="M12 20h9" />
+                                    <path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z" />
+                                </svg>
                                 Edit
                             </button>
                             <form method="POST" action="/production/furniture/delete/{{ item.furnitureID }}"
-                                style="display: inline; margin: 0;"
-                                data-name="{{ item.furnitureName }}"
+                                style="display: inline; margin: 0;" data-name="{{ item.furnitureName }}"
                                 onsubmit="return confirm('Are you sure you want to delete \'' + (this.dataset.name || 'this product') + '\'?');">
                                 <button type="submit" class="actionButton secondary deleteActionBtn"
                                     title="Delete product">
-                                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/><line x1="10" y1="11" x2="10" y2="17"/><line x1="14" y1="11" x2="14" y2="17"/></svg>
+                                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                                        stroke-width="2" stroke-linecap="round" stroke-linejoin="round"
+                                        aria-hidden="true">
+                                        <polyline points="3 6 5 6 21 6" />
+                                        <path
+                                            d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
+                                        <line x1="10" y1="11" x2="10" y2="17" />
+                                        <line x1="14" y1="11" x2="14" y2="17" />
+                                    </svg>
                                     Delete
                                 </button>
                             </form>

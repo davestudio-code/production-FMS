@@ -4,7 +4,7 @@
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>Velmora Co. &middot; Production ERP</title>
+    <title>Velmora Co.</title>
     <link rel="icon" type="image/png" href="/production/static/images/velmora-logo.png">
     <link rel="stylesheet" href="/production/static/css/style.css?v=20261114c">
 </head>
@@ -19,7 +19,7 @@
                     </div>
                     <div class="navBrandText">
                         <h1>velmora co.</h1>
-                        <span>Manufacturing &middot; Production</span>
+                        <span>Production</span>
                     </div>
                 </a>
                 <button id="hamburgerBtn" class="hamburgerBtn" onclick="toggleMobileNav()"
@@ -34,8 +34,10 @@
                 <a href="/production/" class="{{ 'active' if activeTab == 'dashboard' else '' }}">
                     <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
                         stroke-linecap="round" stroke-linejoin="round">
-                        <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"></path>
-                        <polyline points="9 22 9 12 15 12 15 22"></polyline>
+                        <rect width="7" height="9" x="3" y="3" rx="1"></rect>
+                        <rect width="7" height="5" x="14" y="3" rx="1"></rect>
+                        <rect width="7" height="9" x="14" y="12" rx="1"></rect>
+                        <rect width="7" height="5" x="3" y="16" rx="1"></rect>
                     </svg>
                     <span>Dashboard</span>
                 </a>
@@ -359,7 +361,12 @@
                     <span style="font-size: 12px; color: var(--mt);">Manage your personal details and security
                         credentials</span>
                 </div>
-                <button type="button" class="modalClose" onclick="window.closeAccountSettingsModal()" aria-label="Close modal"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg></button>
+                <button type="button" class="modalClose" onclick="window.closeAccountSettingsModal()"
+                    aria-label="Close modal"><svg width="15" height="15" viewBox="0 0 24 24" fill="none"
+                        stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+                        <line x1="18" y1="6" x2="6" y2="18"></line>
+                        <line x1="6" y1="6" x2="18" y2="18"></line>
+                    </svg></button>
             </div>
 
             <div class="accountModalTabs">
@@ -748,7 +755,7 @@
             const navLinks = document.querySelectorAll('.navLinksContainer a');
             const mainContainer = document.querySelector('main');
 
-function getSkeletonHtml(targetUrl) {
+            function getSkeletonHtml(targetUrl) {
                 let targetPath = '/production';
                 try {
                     targetPath = new URL(targetUrl || window.location.href, window.location.origin).pathname.replace(/\/+$/, '') || '/production';
@@ -1087,20 +1094,18 @@ function getSkeletonHtml(targetUrl) {
 
                 if (targetPath === '/production/furniture') {
                     const furnCols = [
-                        { colW: '14%', w: '75px', h: '20px', br: '5px' },
-                        { colW: '28%', w: '160px', h: '16px' },
-                        { colW: '16%', w: '85px', h: '22px', br: '9999px' },
-                        { colW: '18%', w: '110px', h: '16px' },
-                        { colW: '12%', w: '70px', h: '16px' },
-                        { colW: '12%', w: '60px', h: '28px', br: '6px', align: 'right' }
+                        { colW: '15%', w: '75px', h: '20px', br: '5px' },
+                        { colW: '35%', w: '160px', h: '16px' },
+                        { colW: '18%', w: '85px', h: '22px', br: '9999px' },
+                        { colW: '16%', w: '70px', h: '16px', align: 'center' },
+                        { colW: '16%', w: '75px', h: '28px', br: '6px', align: 'center' }
                     ];
                     const furnHeadCols = [
-                        { colW: '14%', w: '70px' },
-                        { colW: '28%', w: '110px' },
-                        { colW: '16%', w: '75px' },
-                        { colW: '18%', w: '85px' },
-                        { colW: '12%', w: '55px' },
-                        { colW: '12%', w: '45px', align: 'right' }
+                        { colW: '15%', w: '70px' },
+                        { colW: '35%', w: '110px' },
+                        { colW: '18%', w: '75px' },
+                        { colW: '16%', w: '95px', align: 'center' },
+                        { colW: '16%', w: '55px', align: 'center' }
                     ];
                     return `
                         <div class="skeletonContainer">
@@ -1555,12 +1560,12 @@ function getSkeletonHtml(targetUrl) {
                     }
                     return 'Search production orders, #PO, or products...';
                 }
-                if (p === '/production/furniture') return 'Search catalog products or categories...';
-                if (p === '/production/bom') return 'Search BOM components...';
-                if (p === '/production/planning') return 'Search scheduled orders, #PO, or products...';
-                if (p === '/production/requirement') return 'Search required raw materials...';
-                if (p === '/production/issuance') return 'Search orders awaiting material dispatch...';
-                if (p === '/production/monitoring') return 'Search workshop orders, #PO, products, or stage...';
+                if (p === '/production/furniture') return 'Search product by its name or id...';
+                if (p === '/production/bom') return 'Search...';
+                if (p === '/production/planning') return 'Search orders...';
+                if (p === '/production/requirement') return 'Search...';
+                if (p === '/production/issuance') return 'Search orders awaiting material issuance...';
+                if (p === '/production/monitoring') return 'Search orders...';
                 if (p === '/production/finished-goods') {
                     const qaSec = document.getElementById('qaActiveSectionInput');
                     if (qaSec && qaSec.value === 'history') {
@@ -1568,9 +1573,9 @@ function getSkeletonHtml(targetUrl) {
                     }
                     return 'Search orders awaiting QC (#PO or product)...';
                 }
-                if (p === '/production/costing') return 'Search batch cost sheets by order or product...';
-                if (p === '/production/reports') return 'Search report & audit records...';
-                if (p === '/production/materials') return 'Search raw materials...';
+                if (p === '/production/costing') return 'Search orders...';
+                if (p === '/production/reports') return 'Search...';
+                if (p === '/production/materials') return 'Search...';
                 return 'Search orders or products (Press Enter)...';
             }
 
