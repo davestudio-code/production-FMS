@@ -1,6 +1,7 @@
 from decimal import Decimal
-from production.db import fetchAll, fetchOne, executeReturning
+from production.db import fetchAll, fetchOne, execute, executeReturning
 from production.cache import getCached, setCached, invalidateKeys
+from production.timefmt import toManilaDatetime
 
 def get_material_stock(materialID, conn=None):
     row = fetchOne(
@@ -47,7 +48,7 @@ def add_finished_goods_stock(furnitureID, quantity, conn=None):
     itemRow = fetchOne("""
         SELECT item_id
         FROM item_master
-        WHERE (item_type = 'Finished Goods' AND LOWER(TRIM(item_name)) = LOWER(TRIM(%s)))
+        WHERE (item_type IN ('Finished Goods', 'FINISHED') AND LOWER(TRIM(item_name)) = LOWER(TRIM(%s)))
            OR item_code = %s
         ORDER BY (CASE WHEN LOWER(TRIM(item_name)) = LOWER(TRIM(%s)) THEN 1 ELSE 2 END) ASC
         LIMIT 1
@@ -55,12 +56,18 @@ def add_finished_goods_stock(furnitureID, quantity, conn=None):
 
     if itemRow:
         itemID = itemRow["item_id"]
+        execute("""
+            UPDATE item_master
+            SET quantity = COALESCE(quantity, 0) + %s,
+                is_archived = false
+            WHERE item_id = %s
+        """, (float(addQty), itemID), conn=conn)
     else:
         itemRow = executeReturning("""
-            INSERT INTO item_master (item_code, item_name, unit, description, item_type)
-            VALUES (%s, %s, 'pcs', %s, 'Finished Goods')
+            INSERT INTO item_master (item_code, item_name, unit, description, item_type, quantity, is_archived)
+            VALUES (%s, %s, 'pcs', %s, 'Finished Goods', %s, false)
             RETURNING item_id
-        """, (itemCode, furnName, f"Produced {furnName}"), conn=conn)
+        """, (itemCode, furnName, f"Produced {furnName}", float(addQty)), conn=conn)
         itemID = itemRow["item_id"]
 
     row = executeReturning("""
@@ -81,7 +88,7 @@ def get_finished_goods_stock(furnitureID, conn=None):
         LEFT JOIN LATERAL (
             SELECT im.item_id
             FROM item_master im
-            WHERE (im.item_type = 'Finished Goods' AND LOWER(TRIM(item_name)) = LOWER(TRIM(f.furniture_name)))
+            WHERE (im.item_type IN ('Finished Goods', 'FINISHED') AND LOWER(TRIM(item_name)) = LOWER(TRIM(f.furniture_name)))
                OR im.item_code = 'FG-' || LPAD(f.furniture_id::text, 3, '0')
             ORDER BY (CASE WHEN LOWER(TRIM(item_name)) = LOWER(TRIM(f.furniture_name)) THEN 1 ELSE 2 END) ASC
             LIMIT 1
@@ -106,7 +113,7 @@ def get_warehouse_stockouts(conn=None):
             LEFT JOIN LATERAL (
                 SELECT im.item_id, im.item_code, im.item_name
                 FROM item_master im
-                WHERE (im.item_type = 'Finished Goods' AND LOWER(TRIM(item_name)) = LOWER(TRIM(f.furniture_name)))
+                WHERE (im.item_type IN ('Finished Goods', 'FINISHED') AND LOWER(TRIM(item_name)) = LOWER(TRIM(f.furniture_name)))
                    OR im.item_code = 'FG-' || LPAD(f.furniture_id::text, 3, '0')
             ORDER BY (CASE WHEN LOWER(TRIM(item_name)) = LOWER(TRIM(f.furniture_name)) THEN 1 ELSE 2 END) ASC
             LIMIT 1
@@ -155,7 +162,7 @@ def publish_production_cost(orderID, conn=None):
                 "laborCost": Decimal(str(row["labor_cost"])),
                 "overheadCost": Decimal(str(row["overhead_cost"])),
                 "totalCost": Decimal(str(row["total_cost"])),
-                "costDate": str(row["cost_date"]) if row["cost_date"] else None
+                "costDate": toManilaDatetime(row["cost_date"]).isoformat() if row["cost_date"] else None
             }
         return None
     except Exception:

@@ -12,27 +12,33 @@
 <div class="card">
     <div class="workspaceToolbar">
         <div class="workspaceFilterTabs" role="tablist" id="issuanceFilterTabs">
-            <button type="button" class="workspaceTabBtn active" data-issuance-tab="all"
-                onclick="setIssuanceTab(this, 'all')">
+            <button type="button" class="workspaceTabBtn {{ 'active' if activeIssuanceTab in ('all', '') else '' }}"
+                data-issuance-tab="all" onclick="setIssuanceTab(this, 'all')">
                 <span>Awaiting Dispatch</span>
                 <span class="workspaceTabCount">{{ issuanceSummary.queueCount }}</span>
             </button>
-            <button type="button" class="workspaceTabBtn" data-issuance-tab="ready"
-                onclick="setIssuanceTab(this, 'ready')">
+            <button type="button" class="workspaceTabBtn {{ 'active' if activeIssuanceTab == 'ready' else '' }}"
+                data-issuance-tab="ready" onclick="setIssuanceTab(this, 'ready')">
                 <span class="tabStatusDot completed"></span>
                 <span>Ready to Issue</span>
                 <span class="workspaceTabCount">{{ issuanceSummary.readyCount }}</span>
             </button>
             <button type="button"
-                class="workspaceTabBtn stockoutTab {{ 'hasAlerts' if issuanceSummary.shortageCount > 0 else '' }}"
+                class="workspaceTabBtn stockoutTab {{ 'hasAlerts' if issuanceSummary.shortageCount > 0 else '' }} {{ 'active' if activeIssuanceTab == 'shortage' else '' }}"
                 data-issuance-tab="shortage" onclick="setIssuanceTab(this, 'shortage')">
                 <span class="stockoutExclaim">!</span>
                 <span>Stock Alerts</span>
                 <span class="workspaceTabCount">{{ issuanceSummary.shortageCount }}</span>
             </button>
+            <button type="button" class="workspaceTabBtn {{ 'active' if activeIssuanceTab == 'rework' else '' }}"
+                data-issuance-tab="rework" onclick="setIssuanceTab(this, 'rework')">
+                <span class="tabStatusDot inProgress"></span>
+                <span>Rework Replacements</span>
+                <span class="workspaceTabCount">{{ issuanceSummary.reworkCount }}</span>
+            </button>
             <span class="workspaceTabDivider" aria-hidden="true"></span>
-            <button type="button" class="workspaceTabBtn" data-issuance-tab="history"
-                onclick="setIssuanceTab(this, 'history')">
+            <button type="button" class="workspaceTabBtn {{ 'active' if activeIssuanceTab == 'history' else '' }}"
+                data-issuance-tab="history" onclick="setIssuanceTab(this, 'history')">
                 <span class="tabStatusDot released"></span>
                 <span>Dispatch History</span>
                 <span class="workspaceTabCount">{{ issuanceSummary.historyCount }}</span>
@@ -45,7 +51,7 @@
         </div>
     </div>
 
-    <div id="issuanceQueueSection">
+    <div id="issuanceQueueSection" style="display: {{ 'none' if activeIssuanceTab in ('rework', 'history') else '' }};">
         {% if releasedOrders %}
         <div class="issueQueueList">
             {% for order in releasedOrders %}
@@ -207,15 +213,229 @@
         {% endif %}
     </div>
 
-    <div id="issuanceHistorySection" style="display: none;">
+    <div id="issuanceReworkSection" style="display: {{ '' if activeIssuanceTab == 'rework' else 'none' }};">
+        {% if reworkOrders %}
+        <div class="issueQueueList">
+            {% for order in reworkOrders %}
+            <div class="issueOrderCard reworkOrderCard"
+                data-search="po-{{ order.orderID }} {{ order.furnitureName|lower }} {{ (order.assignedStaffName or 'unassigned')|lower }} {% for comp in order.reworkComponents %}{{ comp.materialName|lower }} {% endfor %} {{ (order.reworkReason or '')|lower }}">
+                <div class="issueCardHeader">
+                    <div class="issueCardTitleGroup">
+                        <a href="/production/orders/{{ order.orderID }}" class="issueOrderRef">#PO-{{ order.orderID
+                            }}</a>
+                        <span class="issueProductTitle">{{ order.furnitureName }}</span>
+                        <span class="statusBadge inProgress">Rework #{{ order.reworkRound }}/2</span>
+                        <span class="issueTypeChip">{{ order.reworkUnitsInRound }} {{ 'unit' if order.reworkUnitsInRound
+                            == 1 else 'units' }} in round</span>
+                        {% if order.hasShortageInRework %}
+                        <span class="statusBadge alert">Stock Shortage</span>
+                        {% endif %}
+                    </div>
+
+                    <div class="issueCardActions">
+                        <a href="/production/orders/{{ order.orderID }}" class="actionButton secondary"
+                            style="padding: 7px 12px; font-size: 12.5px; text-decoration: none;">
+                            View Order
+                        </a>
+                        <a href="/production/finished-goods?tab=rework" class="actionButton secondary"
+                            style="padding: 7px 12px; font-size: 12.5px; text-decoration: none;">
+                            Finished Goods QC &rarr;
+                        </a>
+                    </div>
+                </div>
+
+                <div class="issueMetaStrip">
+                    <div class="issueMetaCell">
+                        <span class="issueMetaLabel">Rework Scope (Round #{{ order.reworkRound }})</span>
+                        <span class="issueMetaValue">{{ order.reworkUnitsInRound }} rework {{ 'unit' if
+                            order.reworkUnitsInRound == 1 else 'units' }} &middot; {{ order.plannedQuantity }}
+                            planned</span>
+                    </div>
+                    <div class="issueMetaCell">
+                        <span class="issueMetaLabel">Assigned Staff</span>
+                        <span class="issueMetaValue">{{ order.assignedStaffName or 'Unassigned' }}</span>
+                    </div>
+                    <div class="issueMetaCell">
+                        <span class="issueMetaLabel">Workshop Stage</span>
+                        <span class="issueMetaValue">{{ order.monitoring.progress|round|int }}% (Active Rework)</span>
+                    </div>
+                    <div class="issueMetaCell">
+                        <span class="issueMetaLabel">QC Rework Note</span>
+                        <span class="issueMetaValue" style="font-weight: 500;">{{ order.reworkReason or '—' }}</span>
+                    </div>
+                </div>
+
+                <div class="issuePickBody">
+                    {% if order.hasShortageInRework %}
+                    <div
+                        style="margin-bottom: 12px; padding: 10px 14px; border-radius: 8px; background: #fdf3f1; border: 1px solid #e7b8ae; color: #7a3427; font-size: 12.5px; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px;">
+                        <div>
+                            <b>Stock Shortage Detected:</b> Inventory stock cannot cover full replacement for one or
+                            more BOM parts. Wait for Inventory to replenish stock, or scrap the {{
+                            order.reworkUnitsInRound }} rework unit(s) as Failed.
+                        </div>
+                        <a href="/production/finished-goods?tab=rework" class="actionButton secondary"
+                            style="padding: 5px 11px; font-size: 12px; color: #7a3427; border-color: #d99b8e; text-decoration: none;">
+                            Scrap Failed Units in QC &rarr;
+                        </a>
+                    </div>
+                    {% endif %}
+
+                    <div class="issuePickTitleRow">
+                        <span class="issuePickHeading">Rework #{{ order.reworkRound }} BOM Replacement Allowance</span>
+                    </div>
+
+                    {% if order.reworkComponents %}
+                    <div class="issuePickTableWrap" style="margin-bottom: 14px;">
+                        <table class="issuePickTable">
+                            <thead>
+                                <tr>
+                                    <th>BOM Component</th>
+                                    <th style="text-align: right;">Per Unit</th>
+                                    <th style="text-align: right;">Round #{{ order.reworkRound }} Cap</th>
+                                    <th style="text-align: right;">Replaced</th>
+                                    <th style="text-align: right;">Remaining Cap</th>
+                                    <th style="text-align: right;">On Hand</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for comp in order.reworkComponents %}
+                                {% set puStr = "{:,.3f}".format(comp.perUnitQty).rstrip('0').rstrip('.') or '0' %}
+                                {% set capStr = "{:,.3f}".format(comp.roundCap).rstrip('0').rstrip('.') or '0' %}
+                                {% set issStr = "{:,.3f}".format(comp.alreadyIssuedRound).rstrip('0').rstrip('.') or '0'
+                                %}
+                                {% set remStr = "{:,.3f}".format(comp.remainingCap).rstrip('0').rstrip('.') or '0' %}
+                                {% set ohStr = "{:,.3f}".format(comp.onHand).rstrip('0').rstrip('.') or '0' %}
+                                <tr>
+                                    <td>
+                                        <b>{{ comp.materialName }}</b>
+                                        {% if comp.itemCode %}
+                                        <span class="issueCodeChip">{{ comp.itemCode }}</span>
+                                        {% endif %}
+                                    </td>
+                                    <td style="text-align: right; color: var(--mt);">{{ puStr }} {{ comp.unit }}</td>
+                                    <td style="text-align: right;">{{ capStr }} {{ comp.unit }}</td>
+                                    <td style="text-align: right;">{{ issStr }} {{ comp.unit }}</td>
+                                    <td
+                                        style="text-align: right; font-weight: 700; color: {{ 'var(--p)' if comp.remainingCap > 0 else 'var(--mt)' }};">
+                                        {{ remStr }} {{ comp.unit }}</td>
+                                    <td
+                                        style="text-align: right; font-weight: 600; color: {{ 'var(--rd)' if (comp.remainingCap > 0 and comp.onHand < comp.perUnitQty) or comp.onHand <= 0 else 'var(--p)' }};">
+                                        {{ ohStr }} {{ comp.unit }}</td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+
+                    {% if isManager %}
+                    {% set selectableComps = [] %}
+                    {% for comp in order.reworkComponents %}
+                    {% if comp.remainingCap > 0 %}
+                    {% set _ = selectableComps.append(comp) %}
+                    {% endif %}
+                    {% endfor %}
+
+                    {% if selectableComps %}
+                    <form method="POST" action="/production/issuance/rework/{{ order.orderID }}"
+                        class="reworkReplaceForm" data-order-id="{{ order.orderID }}"
+                        onsubmit="return window.submitReworkReplacement(this, {{ order.orderID }});"
+                        style="background: #faf8f2; border: 1px solid var(--bd); border-radius: 10px; padding: 14px;">
+                        <div
+                            style="display: grid; grid-template-columns: minmax(180px, 1.4fr) minmax(110px, 0.7fr) minmax(200px, 1.8fr) auto; gap: 10px; align-items: end;">
+                            <div>
+                                <label
+                                    style="display: block; font-size: 11px; font-weight: 700; text-transform: uppercase; color: var(--mt); margin-bottom: 4px;">BOM
+                                    Material</label>
+                                <select name="materialID" required class="reworkMatSelect"
+                                    onchange="window.updateReworkFormHint(this.form)"
+                                    style="width: 100%; height: 36px; border: 1px solid var(--bd); border-radius: 7px; padding: 0 10px; background: #fff; font-size: 13px;">
+                                    {% for comp in selectableComps %}
+                                    {% set remStr = "{:,.3f}".format(comp.remainingCap).rstrip('0').rstrip('.') or '0'
+                                    %}
+                                    {% set ohStr = "{:,.3f}".format(comp.onHand).rstrip('0').rstrip('.') or '0' %}
+                                    <option value="{{ comp.materialID }}" data-remaining="{{ comp.remainingCap }}"
+                                        data-onhand="{{ comp.onHand }}" data-unit="{{ comp.unit }}"
+                                        data-unitcost="{{ comp.unitCost }}" data-name="{{ comp.materialName }}">
+                                        {{ comp.materialName }} (Rem: {{ remStr }} {{ comp.unit }} · Stock: {{ ohStr }})
+                                    </option>
+                                    {% endfor %}
+                                </select>
+                            </div>
+
+                            <div>
+                                <label
+                                    style="display: block; font-size: 11px; font-weight: 700; text-transform: uppercase; color: var(--mt); margin-bottom: 4px;">Replace
+                                    Qty</label>
+                                <input type="number" name="quantity" step="0.001" min="0.001" required
+                                    placeholder="0.00" class="reworkQtyInput"
+                                    oninput="window.updateReworkFormHint(this.form)"
+                                    style="width: 100%; height: 36px; border: 1px solid var(--bd); border-radius: 7px; padding: 0 10px; background: #fff; font-size: 13px; box-sizing: border-box;">
+                            </div>
+
+                            <div>
+                                <label
+                                    style="display: block; font-size: 11px; font-weight: 700; text-transform: uppercase; color: var(--mt); margin-bottom: 4px;">Reason
+                                    (Required, Max 255)</label>
+                                <input type="text" name="reason" maxlength="255" required
+                                    placeholder="e.g. Replace cracked leg / single-use varnish for rework"
+                                    style="width: 100%; height: 36px; border: 1px solid var(--bd); border-radius: 7px; padding: 0 10px; background: #fff; font-size: 13px; box-sizing: border-box;">
+                            </div>
+
+                            <div>
+                                <button type="submit" class="actionButton"
+                                    style="height: 36px; padding: 0 16px; font-size: 12.5px; white-space: nowrap;">
+                                    Issue Replacement
+                                </button>
+                            </div>
+                        </div>
+
+                        <div class="reworkFormHint" style="margin-top: 8px; font-size: 12px; color: var(--mt);"></div>
+                        <div class="reworkShortageWarn"
+                            style="display: none; margin-top: 8px; padding: 8px 12px; border-radius: 6px; background: #fdf3f1; border: 1px solid #e7b8ae; color: #7a3427; font-size: 12px;">
+                        </div>
+                    </form>
+                    {% else %}
+                    <div
+                        style="padding: 10px 14px; border-radius: 8px; background: #faf8f2; border: 1px solid var(--bd); color: var(--mt); font-size: 12.5px;">
+                        Full BOM replacement cap for Rework #{{ order.reworkRound }} has already been issued.
+                    </div>
+                    {% endif %}
+                    {% else %}
+                    <span style="font-size: 12px; color: var(--mt); font-style: italic;">Awaiting Manager Replacement
+                        Dispatch</span>
+                    {% endif %}
+                    {% endif %}
+                </div>
+            </div>
+            {% endfor %}
+            <div id="issuanceReworkEmptyFilter"
+                style="display: none; text-align: center; padding: 32px 16px; color: var(--mt); font-size: 13px;">
+                No active rework replacement orders match your search.
+            </div>
+        </div>
+        {% else %}
+        <div style="text-align: center; padding: 36px 16px; color: var(--mt);">
+            <p style="margin: 0 0 8px 0; font-size: 14px; font-weight: 600; color: var(--tx);">No active rework orders
+                requiring replacements.</p>
+            <span style="font-size: 12.5px;">Orders sent back for Rework on <a href="/production/finished-goods"
+                    style="color: var(--p); font-weight: 600;">Finished Goods QC</a> appear here until Stage 4 assembly
+                resumes.</span>
+        </div>
+        {% endif %}
+    </div>
+
+    <div id="issuanceHistorySection" style="display: {{ '' if activeIssuanceTab == 'history' else 'none' }};">
         <div class="tableContainer">
             <table>
                 <thead>
                     <tr>
-                        <th style="width: 95px;">Issuance</th>
+                        <th style="width: 90px;">Issuance</th>
+                        <th>Type</th>
                         <th>Order &amp; Product</th>
                         <th>Material</th>
                         <th style="text-align: right;">Qty Issued</th>
+                        <th>Reason</th>
                         <th>Date Issued</th>
                         <th>Recorded By</th>
                     </tr>
@@ -224,8 +444,17 @@
                     {% for iss in issuances %}
                     {% set issuedStr = "{:,.3f}".format(iss.quantityIssued).rstrip('0').rstrip('.') or '0' %}
                     <tr class="issueHistoryRow"
-                        data-search="iss-{{ iss.issuanceID }} po-{{ iss.orderID }} {{ iss.furnitureName|lower }} {{ iss.materialName|lower }} {{ iss.recordedBy|lower }}">
+                        data-search="iss-{{ iss.issuanceID }} po-{{ iss.orderID }} {{ iss.issuanceType|lower }} {{ iss.furnitureName|lower }} {{ iss.materialName|lower }} {{ (iss.reason or '')|lower }} {{ iss.recordedBy|lower }}">
                         <td><b style="color: var(--tx);">#ISS-{{ iss.issuanceID }}</b></td>
+                        <td>
+                            {% if iss.isReworkReplacement %}
+                            <span class="statusBadge inProgress" style="font-size: 11px; white-space: nowrap;">Rework
+                                #{{ iss.reworkRound }} Replacement</span>
+                            {% else %}
+                            <span class="statusBadge completed"
+                                style="font-size: 11px; white-space: nowrap;">Initial</span>
+                            {% endif %}
+                        </td>
                         <td>
                             <a href="/production/orders/{{ iss.orderID }}" class="issueOrderRef">#PO-{{ iss.orderID
                                 }}</a>
@@ -235,18 +464,19 @@
                         <td><b>{{ iss.materialName }}</b></td>
                         <td style="text-align: right; font-weight: 700; color: var(--p);">{{ issuedStr }} {{ iss.unit }}
                         </td>
+                        <td style="max-width: 240px; font-size: 12.5px; color: var(--tx);">{{ iss.reason or '—' }}</td>
                         <td>{{ iss.formattedIssueDate }}</td>
                         <td style="color: var(--mt);">{{ iss.recordedBy }}</td>
                     </tr>
                     {% else %}
                     <tr>
-                        <td colspan="6" style="text-align: center; color: var(--mt); padding: 28px; font-size: 13px;">
+                        <td colspan="8" style="text-align: center; color: var(--mt); padding: 28px; font-size: 13px;">
                             No material issuances recorded yet.
                         </td>
                     </tr>
                     {% endfor %}
                     <tr id="issuanceHistoryEmptyFilter" style="display: none;">
-                        <td colspan="6" style="text-align: center; color: var(--mt); padding: 26px; font-size: 13px;">
+                        <td colspan="8" style="text-align: center; color: var(--mt); padding: 26px; font-size: 13px;">
                             No dispatch records match your search.
                         </td>
                     </tr>
@@ -257,7 +487,7 @@
 </div>
 
 <script>
-    window._issuanceActiveTab = 'all';
+    window._issuanceActiveTab = '{{ activeIssuanceTab|default("all") }}';
 
     window.confirmIssueDispatch = function (form, orderID) {
         if (form.dataset.submitting === '1') return false;
@@ -276,18 +506,95 @@
         return true;
     };
 
+    window.updateReworkFormHint = function (form) {
+        if (!form) return;
+        var sel = form.querySelector('select[name="materialID"]');
+        var qtyInput = form.querySelector('input[name="quantity"]');
+        var hintEl = form.querySelector('.reworkFormHint');
+        var warnEl = form.querySelector('.reworkShortageWarn');
+        if (!sel || !sel.options.length) return;
+        var opt = sel.options[sel.selectedIndex];
+        var rem = parseFloat(opt.getAttribute('data-remaining') || '0');
+        var onHand = parseFloat(opt.getAttribute('data-onhand') || '0');
+        var unit = opt.getAttribute('data-unit') || '';
+        var unitCost = parseFloat(opt.getAttribute('data-unitcost') || '0');
+        var matName = opt.getAttribute('data-name') || 'Material';
+        var typedQty = parseFloat(qtyInput && qtyInput.value ? qtyInput.value : '0');
+
+        if (qtyInput && rem > 0) {
+            qtyInput.max = rem;
+        }
+
+        if (hintEl) {
+            var costNote = typedQty > 0 ? (' · Added Cost: ₱' + (typedQty * unitCost).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })) : '';
+            hintEl.textContent = matName + ' — Max remaining this round: ' + rem + ' ' + unit + ' · Inventory On Hand: ' + onHand + ' ' + unit + costNote;
+        }
+
+        if (warnEl) {
+            if (typedQty > 0 && typedQty > onHand) {
+                warnEl.innerHTML = '<b>Insufficient Stock:</b> Requested ' + typedQty + ' ' + unit + ', only ' + onHand + ' ' + unit + ' available. You can wait for Inventory to replenish stock, or <a href="/production/finished-goods?tab=rework" style="color: #7a3427; font-weight: 700;">scrap the rework units as Failed in Finished Goods QC &rarr;</a>';
+                warnEl.style.display = 'block';
+            } else if (typedQty > 0 && typedQty > rem) {
+                warnEl.textContent = 'Quantity exceeds this rework round remaining cap (' + rem + ' ' + unit + ').';
+                warnEl.style.display = 'block';
+            } else if (onHand <= 0) {
+                warnEl.innerHTML = '<b>Out of Stock:</b> ' + matName + ' has 0 ' + unit + ' on hand. Wait for Inventory to replenish stock, or <a href="/production/finished-goods?tab=rework" style="color: #7a3427; font-weight: 700;">scrap the rework units as Failed in Finished Goods QC &rarr;</a>';
+                warnEl.style.display = 'block';
+            } else {
+                warnEl.style.display = 'none';
+            }
+        }
+    };
+
+    window.submitReworkReplacement = function (form, orderID) {
+        if (form.dataset.submitting === '1') return false;
+        var sel = form.querySelector('select[name="materialID"]');
+        var qtyInput = form.querySelector('input[name="quantity"]');
+        var reasonInput = form.querySelector('input[name="reason"]');
+        var opt = sel && sel.options.length ? sel.options[sel.selectedIndex] : null;
+        var qtyVal = parseFloat(qtyInput && qtyInput.value ? qtyInput.value : '0');
+        var remVal = opt ? parseFloat(opt.getAttribute('data-remaining') || '0') : 0;
+        var reasonVal = (reasonInput ? reasonInput.value : '').trim();
+
+        if (!opt || isNaN(qtyVal) || qtyVal <= 0 || !reasonVal) {
+            return false;
+        }
+        if (qtyVal > remVal) {
+            alert('Requested quantity exceeds the remaining Rework Round cap of ' + remVal + ' ' + (opt.getAttribute('data-unit') || '') + '.');
+            return false;
+        }
+
+        form.dataset.submitting = '1';
+        if (window.tabHtmlCache) {
+            window.tabHtmlCache.clear();
+        }
+        var btn = form.querySelector('button[type="submit"]');
+        if (btn) {
+            btn.disabled = true;
+            btn.textContent = 'Issuing...';
+        }
+        return true;
+    };
+
     window.setIssuanceTab = function (btn, tab) {
         window._issuanceActiveTab = tab || 'all';
         document.querySelectorAll('#issuanceFilterTabs .workspaceTabBtn').forEach(function (b) {
-            b.classList.toggle('active', b === btn);
+            b.classList.toggle('active', b === btn || b.getAttribute('data-issuance-tab') === window._issuanceActiveTab);
         });
         var queueSec = document.getElementById('issuanceQueueSection');
+        var reworkSec = document.getElementById('issuanceReworkSection');
         var histSec = document.getElementById('issuanceHistorySection');
         if (window._issuanceActiveTab === 'history') {
             if (queueSec) queueSec.style.display = 'none';
+            if (reworkSec) reworkSec.style.display = 'none';
             if (histSec) histSec.style.display = '';
+        } else if (window._issuanceActiveTab === 'rework') {
+            if (queueSec) queueSec.style.display = 'none';
+            if (reworkSec) reworkSec.style.display = '';
+            if (histSec) histSec.style.display = 'none';
         } else {
             if (queueSec) queueSec.style.display = '';
+            if (reworkSec) reworkSec.style.display = 'none';
             if (histSec) histSec.style.display = 'none';
         }
         window.filterIssuanceWorkspace();
@@ -310,7 +617,22 @@
             return;
         }
 
-        var cards = document.querySelectorAll('.issueOrderCard');
+        if (window._issuanceActiveTab === 'rework') {
+            var rCards = document.querySelectorAll('.reworkOrderCard');
+            var visibleRework = 0;
+            rCards.forEach(function (card) {
+                var matchQ = !q || (card.getAttribute('data-search') || '').includes(q);
+                card.style.display = matchQ ? '' : 'none';
+                if (matchQ) visibleRework++;
+            });
+            var emptyRework = document.getElementById('issuanceReworkEmptyFilter');
+            if (emptyRework && rCards.length > 0) {
+                emptyRework.style.display = visibleRework === 0 ? '' : 'none';
+            }
+            return;
+        }
+
+        var cards = document.querySelectorAll('#issuanceQueueSection .issueOrderCard');
         var visibleCards = 0;
         cards.forEach(function (card) {
             var st = card.getAttribute('data-issuance-state') || '';
@@ -325,5 +647,15 @@
             emptyQueue.style.display = visibleCards === 0 ? '' : 'none';
         }
     };
+
+    (function initReworkForms() {
+        document.querySelectorAll('.reworkReplaceForm').forEach(function (form) {
+            window.updateReworkFormHint(form);
+        });
+        var activeBtn = document.querySelector('#issuanceFilterTabs .workspaceTabBtn[data-issuance-tab="' + window._issuanceActiveTab + '"]');
+        if (activeBtn) {
+            window.setIssuanceTab(activeBtn, window._issuanceActiveTab);
+        }
+    })();
 </script>
 {% endblock %}

@@ -20,14 +20,13 @@
 
 <div class="dashGridTop dashRow">
     <div class="card dashCommandCard">
-        <div class="dashTelemetryRibbon">
+        <div class="dashTelemetryRibbon{{ ' isTwoCols' if dashRings|length == 2 else '' }}">
             {% for ring in dashRings %}
             <a class="dashTelemetryItem" href="{{ ring.url }}">
                 <div class="dashTelemetryTop">
                     <span class="dashTelemetryLabel">{{ ring.label }}</span>
                     {% if ring.showDot %}
-                    <span class="dashTelemetryDot" style="background: {{ ring.color }};"
-                        aria-hidden="true"></span>
+                    <span class="dashTelemetryDot" style="background: {{ ring.color }};" aria-hidden="true"></span>
                     {% endif %}
                 </div>
                 <div class="dashTelemetryVal">{{ ring.value }}</div>
@@ -42,7 +41,8 @@
                     <h3 class="dashChartTitle">Weekly Output</h3>
                     <div class="dashLegend">
                         <span class="dashLegendItem"><i class="dashLegendLine qc"></i>Passed QC</span>
-                        <span class="dashLegendItem"><i class="dashLegendLine order"></i>Orders Created</span>
+                        <span class="dashLegendItem"><i class="dashLegendLine order"></i>{% if isManager %}Orders
+                            Created{% else %}Assigned Orders{% endif %}</span>
                     </div>
                 </div>
                 <div class="dashWeekNav">
@@ -130,8 +130,8 @@
                     {% for seg in donutSegments %}
                     {% if seg.show %}
                     <circle class="dashDonutSegment" cx="21" cy="21" r="15.915" fill="none" stroke="{{ seg.color }}"
-                        stroke-width="5" stroke-dasharray="{{ seg.dash }}" stroke-dashoffset="{{ seg.offset }}" tabindex="0"
-                        role="graphics-symbol" aria-label="{{ seg.label }}: {{ seg.count }} orders"
+                        stroke-width="5" stroke-dasharray="{{ seg.dash }}" stroke-dashoffset="{{ seg.offset }}"
+                        tabindex="0" role="graphics-symbol" aria-label="{{ seg.label }}: {{ seg.count }} orders"
                         data-tooltip="{{ seg.label }}: {{ seg.count }} orders"></circle>
                     {% endif %}
                     {% endfor %}
@@ -161,8 +161,8 @@
                     {% for seg in timelineSegments %}
                     {% if seg.show %}
                     <circle class="dashDonutSegment" cx="21" cy="21" r="15.915" fill="none" stroke="{{ seg.color }}"
-                        stroke-width="5" stroke-dasharray="{{ seg.dash }}" stroke-dashoffset="{{ seg.offset }}" tabindex="0"
-                        role="graphics-symbol" aria-label="{{ seg.label }}: {{ seg.count }} orders"
+                        stroke-width="5" stroke-dasharray="{{ seg.dash }}" stroke-dashoffset="{{ seg.offset }}"
+                        tabindex="0" role="graphics-symbol" aria-label="{{ seg.label }}: {{ seg.count }} orders"
                         data-tooltip="{{ seg.label }}: {{ seg.count }} orders"></circle>
                     {% endif %}
                     {% endfor %}
@@ -289,15 +289,15 @@
         <div style="text-align: center; color: var(--mt); padding: 28px 0; font-size: 12.5px;">
             <i class="fas fa-circle-check"
                 style="color: var(--p); font-size: 20px; display: block; margin-bottom: 6px;"></i>
-            All catalog furniture products are currently stocked in inventory.
+            All products are currently stocked in inventory.
         </div>
         {% endif %}
     </div>
     {% else %}
     <div class="card">
         <div class="dashCardHead" style="margin-bottom: 12px;">
-            <h3>Assembly Stage Progress</h3>
-            <a href="/production/monitoring">Update Floor &rarr;</a>
+            <h3>Assigned Order Progress</h3>
+            <a href="/production/monitoring">View all</a>
         </div>
         {% if activeStageBatches > 0 %}
         <div class="dashStageList">

@@ -29,11 +29,20 @@
         </div>
 
         <div class="workspaceMetaGroup">
+            {% if summary.outOfSyncCount > 0 %}
+            <span class="workspaceMetaPill warn"><b>{{ summary.outOfSyncCount }}</b> Need Cost Sync</span>
+            {% endif %}
             <span class="workspaceMetaPill success">Recorded Total: <b>₱{{ "{:,.2f}".format(summary.totalCost)
                     }}</b></span>
         </div>
         <input type="hidden" id="costingFilterSelect" value="">
     </div>
+
+    {% if summary.outOfSyncCount > 0 %}
+    <div style="margin-bottom: 14px; padding: 11px 14px; background: #fbf4e4; border: 1px solid #e2c88b; border-left: 4px solid #b7791f; border-radius: 8px; font-size: 12.5px; color: #694511;">
+        <b>Cost Sheet Update Required:</b> {{ summary.outOfSyncCount }} saved order{{ '' if summary.outOfSyncCount == 1 else 's' }} received rework replacement materials after costing was saved. Click <b>Sync &amp; Update</b> on highlighted rows to refresh Material Cost and Cost / Finished Unit.
+    </div>
+    {% endif %}
 
     <div class="tableContainer">
         <table class="costTable">
@@ -70,12 +79,18 @@
                         <div>
                             <b>₱{{ "{:,.2f}".format(ord.materialCost) }}</b>
                         </div>
+                        {% if ord.costOutOfSync %}
+                        <div style="font-size: 11px; color: #8a5315; font-weight: 600; margin-top: 2px;">
+                            Live Issued: ₱{{ "{:,.2f}".format(ord.actualMaterialCost) }} (+₱{{ "{:,.2f}".format(ord.costDelta) }})
+                        </div>
+                        {% else %}
                         <div style="font-size: 11px; color: var(--mt);">materials only</div>
+                        {% endif %}
                     </td>
                     <td data-label="Labor">
                         <form id="costForm_{{ ord.orderID }}" method="POST"
                             action="/production/costing/save/{{ ord.orderID }}">
-                            <input type="hidden" name="materialCost" value="{{ ord.materialCost }}">
+                            <input type="hidden" name="materialCost" value="{{ ord.actualMaterialCost if ord.costOutOfSync else ord.materialCost }}">
                             <input type="hidden" name="overheadCost" value="0.00">
                         </form>
                         <input type="number" form="costForm_{{ ord.orderID }}" name="laborCost"
@@ -84,6 +99,9 @@
                     </td>
                     <td data-label="Total Cost">
                         <b style="color: var(--tx); font-size: 14px;">₱{{ "{:,.2f}".format(ord.totalCost) }}</b>
+                        {% if ord.costOutOfSync %}
+                        <div style="font-size: 11px; color: #8a5315; margin-top: 2px;">Synced: ₱{{ "{:,.2f}".format(ord.syncedTotalCost) }}</div>
+                        {% endif %}
                     </td>
                     <td data-label="Planned Unit Cost">
                         <span style="font-weight: 500;">₱{{ "{:,.2f}".format(ord.unitCost) }}</span>
@@ -92,6 +110,9 @@
                         {% if ord.costPerGoodUnit is not none %}
                         <span style="font-weight: 700; color: var(--p);">₱{{ "{:,.2f}".format(ord.costPerGoodUnit)
                             }}</span>
+                        {% if ord.costOutOfSync and ord.syncedCostPerGoodUnit is not none %}
+                        <div style="font-size: 11px; color: #8a5315;">Synced: ₱{{ "{:,.2f}".format(ord.syncedCostPerGoodUnit) }}</div>
+                        {% endif %}
                         <small style="display: block; font-size: 11px; color: var(--mt);">({{ ord.passedUnits }}
                             passed)</small>
                         {% else %}
@@ -99,7 +120,10 @@
                         {% endif %}
                     </td>
                     <td data-label="Action">
-                        {% if ord.hasCostSheet %}
+                        {% if ord.costOutOfSync %}
+                        <button type="submit" form="costForm_{{ ord.orderID }}" name="syncActual" value="1"
+                            class="actionButton costSaveBtn">Sync &amp; Update</button>
+                        {% elif ord.hasCostSheet %}
                         <button type="submit" form="costForm_{{ ord.orderID }}"
                             class="actionButton secondary costSaveBtn">Update</button>
                         {% else %}

@@ -1,6 +1,6 @@
 from decimal import Decimal
-from datetime import date
 from production.db import fetchAll, fetchOne, executeReturning
+from production.timefmt import formatManilaDateTime
 
 class ProductionCost:
     DEFAULT_OVERHEAD_PERCENT = Decimal("0.00")
@@ -57,12 +57,7 @@ class ProductionCost:
 
     @property
     def formattedCostDate(self):
-        if not self.costDate:
-            return "-"
-        try:
-            return self.costDate.strftime("%b. %d, %Y")
-        except AttributeError:
-            return str(self.costDate)
+        return formatManilaDateTime(self.costDate)
 
     @classmethod
     def calculateOverhead(cls, materialCost=None):
@@ -156,13 +151,13 @@ class ProductionCost:
 
         sql = """
             INSERT INTO prod_productioncost (order_id, material_cost, labor_cost, overhead_cost, total_cost, cost_date)
-            VALUES (%s, %s, %s, %s, %s, CURRENT_DATE)
+            VALUES (%s, %s, %s, %s, %s, NOW())
             ON CONFLICT (order_id)
             DO UPDATE SET material_cost = EXCLUDED.material_cost,
                           labor_cost = EXCLUDED.labor_cost,
                           overhead_cost = EXCLUDED.overhead_cost,
                           total_cost = EXCLUDED.total_cost,
-                          cost_date = CURRENT_DATE
+                          cost_date = NOW()
             RETURNING cost_id, order_id, material_cost, labor_cost, overhead_cost, total_cost, cost_date
         """
         row = executeReturning(sql, (orderID, mat, lab, over, total), conn=conn)

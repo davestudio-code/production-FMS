@@ -112,7 +112,7 @@ class Furniture:
         cleanType = furnitureType.strip()
         sql = "UPDATE prod_furniture SET furniture_name = %s, furniture_type = %s WHERE furniture_id = %s RETURNING furniture_id, furniture_name, furniture_type"
         row = executeReturning(sql, (cleanName, cleanType, furnitureID), conn=conn)
-        invalidateKeys("furniture_all", "furniture_categories")
+        invalidateKeys("furniture_all", "furniture_categories", "orders_all", "orders_summary")
         return cls(row) if row else None
 
     @classmethod

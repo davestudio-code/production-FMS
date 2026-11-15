@@ -19,14 +19,14 @@ window.syncStageProofRequirement = function () {
     photoInput.required = isStage4;
 
     if (photoLabel) {
-        photoLabel.textContent = isStage4 ? 'Stage 4 Photo Proof *' : 'Workshop Photo Proof';
+        photoLabel.textContent = isStage4 ? 'Stage 4 Attachment *' : 'Attachment';
     }
     if (reqBadge) {
         reqBadge.textContent = isStage4 ? 'Required' : 'Optional on Stages 1–3';
         reqBadge.style.color = isStage4 ? 'var(--rd)' : 'var(--mt)';
     }
     if (submitBtn && submitBtn.textContent !== 'Optimizing photo...') {
-        submitBtn.textContent = isStage4 ? 'Submit for QC' : 'Save Milestone';
+        submitBtn.textContent = isStage4 ? 'Submit for QC' : 'Update Progress';
     }
 };
 

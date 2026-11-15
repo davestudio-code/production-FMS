@@ -242,6 +242,23 @@ button.qaPassAllLink:hover {
     transition: width 0.3s ease;
 }
 
+button.qaScrapBtn {
+    height: 32px;
+    padding: 0 13px;
+    font-size: 12.5px;
+    font-weight: 600;
+    background: #ffffff;
+    color: #9a4a3a;
+    border: 1px solid #d99b8e;
+    border-radius: 8px;
+}
+
+button.qaScrapBtn:hover {
+    background: #faebea;
+    border-color: #9a4a3a;
+    color: #7d3627;
+}
+
 @media (max-width: 640px) {
     .tableContainer {
         overflow-x: visible;

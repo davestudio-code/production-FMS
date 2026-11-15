@@ -112,7 +112,7 @@
                             {% endif %}
                         </div>
                         <div style="font-size: 11px; color: var(--mt); margin-top: 2px;">
-                            Planned {{ mon.formattedStartDate }}
+                            Started {{ mon.formattedStartDate }}
                         </div>
                     </td>
                     <td data-label="Progress">
@@ -230,10 +230,11 @@
 </div>
 
 {% if isProdStaff %}
-{% call modal("stageUpdateModal", "Log Workshop Stage", title_id="stageModalTitle", subtitle_id="stageModalSubtitle", max_width="480px") %}
+{% call modal("stageUpdateModal", "Log Workshop Stage", title_id="stageModalTitle", subtitle_id="stageModalSubtitle",
+max_width="480px") %}
 <form id="stageUpdateForm" method="POST" action="" enctype="multipart/form-data">
     <div class="formGroup">
-        <label for="stageModalProgress">Workshop Milestone</label>
+        <label for="stageModalProgress">Order Progress</label>
         <select id="stageModalProgress" name="progress" required onchange="window.syncStageProofRequirement()">
             <option value="25">Stage 1: Cutting &amp; Sizing (25%)</option>
             <option value="50">Stage 2: Joinery &amp; Assembly (50%)</option>
@@ -264,15 +265,14 @@
         </div>
     </div>
     <div class="formGroup">
-        <label for="stageModalNote">Workshop Note <span
+        <label for="stageModalNote">Progress Note <span
                 style="font-weight: 400; color: var(--mt);">(Optional)</span></label>
         <input type="text" id="stageModalNote" name="stageNote" maxlength="300"
             placeholder="e.g. latest progress of this furniture">
     </div>
     <div style="display: flex; justify-content: flex-end; gap: 10px; margin-top: 18px;">
-        <button type="button" class="actionButton secondary"
-            onclick="closeModal('stageUpdateModal')">Cancel</button>
-        <button type="submit" id="stageModalSubmitBtn" class="actionButton">Save Milestone</button>
+        <button type="button" class="actionButton secondary" onclick="closeModal('stageUpdateModal')">Cancel</button>
+        <button type="submit" id="stageModalSubmitBtn" class="actionButton">Update Progress</button>
     </div>
 </form>
 {% endcall %}

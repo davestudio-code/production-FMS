@@ -3726,6 +3726,10 @@ button.accountModalTabBtn.active {
     border-bottom: 1px solid var(--bd);
 }
 
+.dashTelemetryRibbon.isTwoCols {
+    grid-template-columns: repeat(2, 1fr);
+}
+
 .dashTelemetryItem {
     display: flex;
     flex-direction: column;
@@ -3957,7 +3961,8 @@ button.accountModalTabBtn.active {
 
 @media (max-width: 768px) {
     .dashGridRings,
-    .dashTelemetryRibbon {
+    .dashTelemetryRibbon,
+    .dashTelemetryRibbon.isTwoCols {
         grid-template-columns: 1fr;
     }
 

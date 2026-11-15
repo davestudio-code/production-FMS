@@ -5,9 +5,9 @@ import urllib.error
 import urllib.parse
 import urllib.request
 import uuid
-from datetime import date
 from production.db import fetchAll, fetchOne, executeReturning
 from production.auth import PRODUCTION_DEPARTMENT_ID, STAFF_POSITION_ID
+from production.timefmt import manilaToday, formatManilaDateTime
 
 
 def isValidActiveProdStaff(employeeID, conn=None):
@@ -190,16 +190,11 @@ class ProductionAttachment:
 
     @property
     def stageLabel(self):
-        return self.STAGE_NAMES.get(self.stageProgress, f"{self.stageProgress}% Milestone")
+        return self.STAGE_NAMES.get(self.stageProgress, f"{self.stageProgress}% Progress")
 
     @property
     def formattedCreatedAt(self):
-        if not self.createdAt:
-            return "-"
-        try:
-            return self.createdAt.strftime("%b. %d, %Y · %I:%M %p")
-        except AttributeError:
-            return str(self.createdAt)
+        return formatManilaDateTime(self.createdAt)
 
     @classmethod
     def createAttachment(cls, orderID=None, stageProgress=None, note=None, fileName=None, fileUrl=None, uploadedBy=None, entityType="stage_proof", conn=None):
@@ -281,7 +276,7 @@ def _fmtShortDate(val):
 
 def getLiveNotificationsForUser(employeeID=None, isManager=False, isProdStaff=False, conn=None):
     items = []
-    todayVal = date.today()
+    todayVal = manilaToday()
     try:
         if isManager:
             rows = fetchAll(
@@ -353,7 +348,11 @@ def getLiveNotificationsForUser(employeeID=None, isManager=False, isProdStaff=Fa
                        f.furniture_name,
                        COALESCE(pm.progress, 0.0) AS progress,
                        COALESCE(pm.rework_count, 0) AS rework_count,
-                       rwk_out.reason AS rework_reason
+                       rwk_out.reason AS rework_reason,
+                       COALESCE(rwk_rep.replacement_count, 0) AS replacement_count,
+                       rwk_rep.last_issuance_id AS last_replacement_id,
+                       rwk_rep.last_reason AS replacement_reason,
+                       rwk_rep.materials_summary AS replacement_materials
                 FROM prod_productionorder po
                 JOIN prod_furniture f ON f.furniture_id = po.furniture_id
                 LEFT JOIN prod_productionmonitoring pm ON pm.order_id = po.order_id
@@ -365,6 +364,22 @@ def getLiveNotificationsForUser(employeeID=None, isManager=False, isProdStaff=Fa
                     ORDER BY outp.output_id DESC
                     LIMIT 1
                 ) rwk_out ON true
+                LEFT JOIN LATERAL (
+                    SELECT COUNT(*)::int AS replacement_count,
+                           MAX(mi.issuance_id) AS last_issuance_id,
+                           (ARRAY_AGG(mi.reason ORDER BY mi.issuance_id DESC))[1] AS last_reason,
+                           STRING_AGG(
+                               im.item_name || ' (' || TRIM(TRAILING '.' FROM TRIM(TRAILING '0' FROM TO_CHAR(mi.quantity_issued, 'FM999999990.000'))) || ' ' || im.unit || ')',
+                               ', ' ORDER BY mi.issuance_id ASC
+                           ) AS materials_summary
+                    FROM prod_materialissuance mi
+                    JOIN raw_material rm ON rm.raw_material_id = mi.material_id
+                    JOIN item_master im ON im.item_id = rm.item_id
+                    WHERE mi.order_id = po.order_id
+                      AND COALESCE(pm.rework_count, 0) > 0
+                      AND mi.issuance_type = 'Rework Replacement'
+                      AND mi.rework_round = COALESCE(pm.rework_count, 0)
+                ) rwk_rep ON true
                 WHERE po.assigned_to = %s
                   AND po.status != 'Completed'
                 ORDER BY (po.status = 'In Progress') DESC, po.due_date ASC NULLS LAST, po.order_id DESC
@@ -380,10 +395,24 @@ def getLiveNotificationsForUser(employeeID=None, isManager=False, isProdStaff=Fa
                 prog = float(r.get("progress") or 0.0)
                 rwk = int(r.get("rework_count") or 0)
                 reason = (r.get("rework_reason") or "").strip()
+                repCount = int(r.get("replacement_count") or 0)
+                lastRepID = int(r.get("last_replacement_id") or 0)
+                repMaterials = (r.get("replacement_materials") or "").strip()
+                repReason = (r.get("replacement_reason") or "").strip()
                 startFmt = _fmtShortDate(r.get("planned_start_date"))
                 dueFmt = _fmtShortDate(r.get("due_date"))
 
                 if status == "In Progress" and rwk > 0 and prog < 90.0:
+                    if repCount > 0 and lastRepID > 0:
+                        matMsg = repMaterials or f"{repCount} replacement line(s)"
+                        repReasonSuffix = f" Reason: {repReason}" if repReason else ""
+                        items.append({
+                            "notifKey": f"staff-rework-mat-{oid}-r{rwk}-{lastRepID}",
+                            "title": f"Replacement Materials Issued — Order #PO-{oid}",
+                            "message": f"Rework #{rwk} for {fname}: {matMsg}.{repReasonSuffix}",
+                            "targetUrl": f"/production/orders/{oid}",
+                            "timeLabel": "Materials Ready · View Order →"
+                        })
                     reasonSuffix = f": {reason}" if reason else "."
                     items.append({
                         "notifKey": f"staff-rework-{oid}-r{rwk}",

@@ -1,6 +1,6 @@
-from datetime import date
 from decimal import Decimal
 from production.db import fetchAll, fetchOne, executeReturning
+from production.timefmt import manilaToday, toManilaDate, formatManilaDateTime, formatManilaDateOnly
 
 class ProductionMonitoring:
     STAGE_LABELS = {
@@ -20,6 +20,7 @@ class ProductionMonitoring:
             self.progress = float(rawProgress) if rawProgress is not None else 0.0
             self.startDate = data.get("start_date")
             self.completionDate = data.get("completion_date")
+            self.updatedAt = data.get("updated_at")
             self.furnitureName = data.get("furniture_name", "")
             self.plannedQuantity = data.get("planned_quantity", 0)
             self.orderStatus = data.get("order_status", "")
@@ -36,6 +37,7 @@ class ProductionMonitoring:
             self.progress = 0.0
             self.startDate = None
             self.completionDate = None
+            self.updatedAt = None
             self.furnitureName = ""
             self.plannedQuantity = 0
             self.orderStatus = ""
@@ -46,37 +48,24 @@ class ProductionMonitoring:
 
     @property
     def formattedStartDate(self):
-        if not self.startDate:
-            return "-"
-        try:
-            return self.startDate.strftime("%b. %d, %Y")
-        except AttributeError:
-            return str(self.startDate)
+        return formatManilaDateTime(self.startDate)
 
     @property
     def formattedDueDate(self):
-        if not self.dueDate:
-            return None
-        try:
-            return self.dueDate.strftime("%b. %d, %Y")
-        except AttributeError:
-            return str(self.dueDate)
+        return formatManilaDateOnly(self.dueDate) if self.dueDate else None
 
     @property
     def formattedCompletionDate(self):
-        if not self.completionDate:
-            return None
-        try:
-            return self.completionDate.strftime("%b. %d, %Y")
-        except AttributeError:
-            return str(self.completionDate)
+        return formatManilaDateTime(self.completionDate) if self.completionDate else None
 
     @property
     def dueStatus(self):
         if not self.dueDate or self.completionDate or self.orderStatus != "In Progress":
             return None
-        d = self.dueDate if hasattr(self.dueDate, "year") else date.fromisoformat(str(self.dueDate))
-        today = date.today()
+        d = toManilaDate(self.dueDate)
+        if not d:
+            return None
+        today = manilaToday()
         daysLeft = (d - today).days
         if daysLeft < 0:
             return {"label": f"{abs(daysLeft)}d Overdue", "isOverdue": True}
@@ -94,6 +83,7 @@ class ProductionMonitoring:
                    pm.progress,
                    pm.start_date,
                    pm.completion_date,
+                   pm.updated_at,
                    COALESCE(pm.rework_count, 0) AS rework_count,
                    po.planned_quantity,
                    po.status AS order_status,
@@ -119,6 +109,7 @@ class ProductionMonitoring:
                    pm.progress,
                    pm.start_date,
                    pm.completion_date,
+                   pm.updated_at,
                    COALESCE(pm.rework_count, 0) AS rework_count,
                    po.planned_quantity,
                    po.status AS order_status,
@@ -144,6 +135,7 @@ class ProductionMonitoring:
                    pm.progress,
                    pm.start_date,
                    pm.completion_date,
+                   pm.updated_at,
                    COALESCE(pm.rework_count, 0) AS rework_count,
                    po.planned_quantity,
                    po.status AS order_status,
@@ -167,9 +159,10 @@ class ProductionMonitoring:
         sql = """
             UPDATE prod_productionmonitoring
             SET progress = %s,
-                completion_date = CASE WHEN %s >= 100.0 THEN CURRENT_DATE ELSE NULL END
+                completion_date = CASE WHEN %s >= 100.0 THEN NOW() ELSE NULL END,
+                updated_at = NOW()
             WHERE monitoring_id = %s
-            RETURNING monitoring_id, order_id, progress, start_date, completion_date, rework_count
+            RETURNING monitoring_id, order_id, progress, start_date, completion_date, rework_count, updated_at
         """
         row = executeReturning(sql, (val, val, monitoringID), conn=conn)
         return cls(row) if row else None
@@ -181,9 +174,10 @@ class ProductionMonitoring:
             UPDATE prod_productionmonitoring
             SET progress = %s,
                 rework_count = %s,
-                completion_date = CASE WHEN %s >= 100.0 THEN CURRENT_DATE ELSE NULL END
+                completion_date = CASE WHEN %s >= 100.0 THEN NOW() ELSE NULL END,
+                updated_at = NOW()
             WHERE monitoring_id = %s
-            RETURNING monitoring_id, order_id, progress, start_date, completion_date, rework_count
+            RETURNING monitoring_id, order_id, progress, start_date, completion_date, rework_count, updated_at
         """
         row = executeReturning(sql, (val, reworkCount, val, monitoringID), conn=conn)
         return cls(row) if row else None

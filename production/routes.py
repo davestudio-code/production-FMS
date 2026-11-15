@@ -38,6 +38,14 @@ from .models.workflow import (
 from . import integration
 from .cache import clearAllCache, invalidateKeys
 from .security import check_ip_security, record_failed_login, record_successful_login, get_client_ip
+from .timefmt import (
+    manilaNow,
+    manilaToday,
+    toManilaDatetime,
+    toManilaDate,
+    formatManilaDateTime,
+    formatManilaDateOnly
+)
 
 productionBlueprint = Blueprint(
     "production",
@@ -53,16 +61,7 @@ logger = logging.getLogger(__name__)
 def dateFmtFilter(val):
     if not val:
         return ""
-    if hasattr(val, "strftime"):
-        return val.strftime("%b. %d, %Y")
-    try:
-        from datetime import datetime, date
-        s = str(val).strip()
-        if "T" in s or " " in s:
-            return datetime.fromisoformat(s).strftime("%b. %d, %Y")
-        return date.fromisoformat(s).strftime("%b. %d, %Y")
-    except Exception:
-        return str(val)
+    return formatManilaDateTime(val, fallback="")
 
 def _clearAuthSessionKeys():
     for key in (
@@ -353,17 +352,31 @@ def index():
         allOrders = []
         materials = []
 
-    draftOrders = sum(1 for o in allOrders if o.status == "Draft")
-    releasedOrders = sum(1 for o in allOrders if o.status == "Released")
-    inProgressOrders = sum(1 for o in allOrders if o.status == "In Progress")
-    completedOrders = sum(1 for o in allOrders if o.status == "Completed")
+    isMgr = is_manager_session()
+    currentEmpID = session.get("employee_id")
+    orderMap = {o.orderID: o for o in allOrders}
+
+    def _matchesEmp(val, target):
+        if not val or not target:
+            return False
+        return str(val).strip() == str(target).strip()
+
+    scopedOrders = allOrders if isMgr else [
+        o for o in allOrders if _matchesEmp(getattr(o, "assignedTo", None), currentEmpID)
+    ]
+
+    draftOrders = sum(1 for o in scopedOrders if o.status == "Draft")
+    releasedOrders = sum(1 for o in scopedOrders if o.status == "Released")
+    inProgressOrders = sum(1 for o in scopedOrders if o.status == "In Progress")
+    completedOrders = sum(1 for o in scopedOrders if o.status == "Completed")
     lowStockMaterials = [m for m in materials if m.currentStock <= Decimal("0.000")]
 
     stockouts = []
-    try:
-        stockouts = integration.get_warehouse_stockouts()
-    except Exception:
-        stockouts = []
+    if isMgr:
+        try:
+            stockouts = integration.get_warehouse_stockouts()
+        except Exception:
+            stockouts = []
 
     try:
         allMonitoring = ProductionMonitoring.getAll()
@@ -371,7 +384,14 @@ def index():
         allMonitoring = []
 
     activeMonitoring = [m for m in allMonitoring if m.orderStatus == "In Progress"]
-    activeStageBatches = len(activeMonitoring)
+    scopedMonitoring = activeMonitoring if isMgr else [
+        m for m in activeMonitoring
+        if _matchesEmp(
+            m.assignedTo or (getattr(orderMap.get(m.orderID), "assignedTo", None) if orderMap.get(m.orderID) else None),
+            currentEmpID
+        )
+    ]
+    activeStageBatches = len(scopedMonitoring)
 
     stagesConfig = [
         {"name": "Cutting & Sizing", "threshold": 25},
@@ -384,7 +404,7 @@ def index():
     stageReadiness = []
     for sc in stagesConfig:
         if activeStageBatches > 0:
-            clearedCount = sum(1 for m in activeMonitoring if m.progress >= sc["threshold"])
+            clearedCount = sum(1 for m in scopedMonitoring if m.progress >= sc["threshold"])
             pct = int(round((clearedCount / activeStageBatches) * 100))
         else:
             clearedCount = 0
@@ -397,18 +417,18 @@ def index():
 
     utilizationPercent = min(100, (inProgressOrders * 35) + (releasedOrders * 20) + (draftOrders * 10))
 
-    activeWipUnits = sum(int(o.plannedQuantity or 0) for o in allOrders if o.status == "In Progress")
-    readyForIssuanceUnits = sum(int(o.plannedQuantity or 0) for o in allOrders if o.status == "Released")
-    awaitingQCOrders = sum(1 for m in allMonitoring if m.orderStatus == "In Progress" and m.progress and m.progress >= 90)
-    needsPlanCount = sum(1 for o in allOrders if o.status == "Draft" and (not o.dueDate or not o.assignedTo))
+    activeWipUnits = sum(int(o.plannedQuantity or 0) for o in scopedOrders if o.status == "In Progress")
+    readyForIssuanceUnits = sum(int(o.plannedQuantity or 0) for o in scopedOrders if o.status == "Released")
+    awaitingQCOrders = sum(1 for m in scopedMonitoring if m.orderStatus == "In Progress" and m.progress and m.progress >= 90)
+    needsPlanCount = sum(1 for o in scopedOrders if o.status == "Draft" and (not o.dueDate or not o.assignedTo))
 
-    today = date.today()
-    datedOrdersTotal = sum(1 for o in allOrders if o.dueDate)
-    onTimeOrders = sum(1 for o in allOrders if o.dueDate and (o.status == "Completed" or o.dueDate >= today))
+    today = manilaToday()
+    datedOrdersTotal = sum(1 for o in scopedOrders if o.dueDate)
+    onTimeOrders = sum(1 for o in scopedOrders if o.dueDate and (o.status == "Completed" or o.dueDate >= today))
     otdRate = int(round((onTimeOrders / datedOrdersTotal) * 100)) if datedOrdersTotal > 0 else 100
 
     metricsData = {
-        "totalOrders": len(allOrders),
+        "totalOrders": len(scopedOrders),
         "draftOrders": draftOrders,
         "releasedOrders": releasedOrders,
         "inProgressOrders": inProgressOrders,
@@ -425,7 +445,7 @@ def index():
         "utilizationPercent": utilizationPercent
     }
 
-    uncompletedOrders = [o for o in allOrders if o.status != "Completed"]
+    uncompletedOrders = [o for o in scopedOrders if o.status != "Completed"]
     overdueOrders = [o for o in uncompletedOrders if o.dueDate and o.dueDate < today]
     dueTodayOrders = [o for o in uncompletedOrders if o.dueDate and o.dueDate == today]
     dueThisWeekOrders = [o for o in uncompletedOrders if o.dueDate and 0 < (o.dueDate - today).days <= 7]
@@ -508,25 +528,56 @@ def index():
     prevWeeklyBatches = 0
     prevWeeklyUnits = 0
     try:
-        dailyRows = fetchAll("""
-            SELECT order_date, COUNT(*) AS order_count, COALESCE(SUM(planned_quantity), 0) AS total_units
-            FROM prod_productionorder
-            WHERE order_date >= %s AND order_date <= %s
-            GROUP BY order_date
-        """, (monday, sunday))
-        for r in dailyRows:
-            dailyActivityMap[r["order_date"]] = {
-                "orders": int(r["order_count"]),
-                "units": int(r["total_units"])
-            }
-        prevRow = fetchOne("""
-            SELECT COUNT(*) AS order_count, COALESCE(SUM(planned_quantity), 0) AS total_units
-            FROM prod_productionorder
-            WHERE order_date >= %s AND order_date <= %s
-        """, (prevMonday, prevSunday))
-        if prevRow:
-            prevWeeklyBatches = int(prevRow.get("order_count") or 0)
-            prevWeeklyUnits = int(prevRow.get("total_units") or 0)
+        if isMgr:
+            dailyRows = fetchAll("""
+                SELECT (order_date AT TIME ZONE 'Asia/Manila')::date AS order_day,
+                       COUNT(*) AS order_count,
+                       COALESCE(SUM(planned_quantity), 0) AS total_units
+                FROM prod_productionorder
+                WHERE (order_date AT TIME ZONE 'Asia/Manila')::date >= %s
+                  AND (order_date AT TIME ZONE 'Asia/Manila')::date <= %s
+                GROUP BY 1
+            """, (monday, sunday))
+            for r in dailyRows:
+                dailyActivityMap[r["order_day"]] = {
+                    "orders": int(r["order_count"]),
+                    "units": int(r["total_units"])
+                }
+            prevRow = fetchOne("""
+                SELECT COUNT(*) AS order_count, COALESCE(SUM(planned_quantity), 0) AS total_units
+                FROM prod_productionorder
+                WHERE (order_date AT TIME ZONE 'Asia/Manila')::date >= %s
+                  AND (order_date AT TIME ZONE 'Asia/Manila')::date <= %s
+            """, (prevMonday, prevSunday))
+            if prevRow:
+                prevWeeklyBatches = int(prevRow.get("order_count") or 0)
+                prevWeeklyUnits = int(prevRow.get("total_units") or 0)
+        elif currentEmpID:
+            dailyRows = fetchAll("""
+                SELECT (order_date AT TIME ZONE 'Asia/Manila')::date AS order_day,
+                       COUNT(*) AS order_count,
+                       COALESCE(SUM(planned_quantity), 0) AS total_units
+                FROM prod_productionorder
+                WHERE (order_date AT TIME ZONE 'Asia/Manila')::date >= %s
+                  AND (order_date AT TIME ZONE 'Asia/Manila')::date <= %s
+                  AND assigned_to = %s
+                GROUP BY 1
+            """, (monday, sunday, int(currentEmpID)))
+            for r in dailyRows:
+                dailyActivityMap[r["order_day"]] = {
+                    "orders": int(r["order_count"]),
+                    "units": int(r["total_units"])
+                }
+            prevRow = fetchOne("""
+                SELECT COUNT(*) AS order_count, COALESCE(SUM(planned_quantity), 0) AS total_units
+                FROM prod_productionorder
+                WHERE (order_date AT TIME ZONE 'Asia/Manila')::date >= %s
+                  AND (order_date AT TIME ZONE 'Asia/Manila')::date <= %s
+                  AND assigned_to = %s
+            """, (prevMonday, prevSunday, int(currentEmpID)))
+            if prevRow:
+                prevWeeklyBatches = int(prevRow.get("order_count") or 0)
+                prevWeeklyUnits = int(prevRow.get("total_units") or 0)
     except Exception:
         dailyActivityMap = {}
         prevWeeklyBatches = 0
@@ -565,7 +616,7 @@ def index():
     weekDateRangeStr = f"{monday.strftime('%b %d')} – {sunday.strftime('%b %d')}"
     monitoringMap = {m.orderID: m for m in allMonitoring}
     recentOrdersList = []
-    for o in allOrders[:6]:
+    for o in scopedOrders[:6]:
         mon = monitoringMap.get(o.orderID)
         rawProg = mon.progress if (mon and mon.progress is not None) else 0.0
         prog = float(rawProg)
@@ -669,23 +720,16 @@ def index():
         })
     integrationEventsList = []
 
-    def _safeEventDate(val):
-        if not val:
-            return today
-        if isinstance(val, date):
-            return val
-        if hasattr(val, "date"):
-            return val.date()
-        return today
+    nowManila = manilaNow()
 
-    isMgr = is_manager_session()
-    currentEmpID = session.get("employee_id")
-    orderMap = {o.orderID: o for o in allOrders}
+    def _safeEventDt(val):
+        return toManilaDatetime(val, fallback=nowManila)
 
-    def _matchesEmp(val, target):
-        if not val or not target:
-            return False
-        return str(val).strip() == str(target).strip()
+    def _withActor(actorName, detailText):
+        cleanActor = (actorName or "").strip()
+        if isMgr and cleanActor:
+            return f"By {cleanActor} · {detailText}" if detailText else f"By {cleanActor}"
+        return detailText
 
     activityTimeline = []
     allOutputs = []
@@ -694,31 +738,54 @@ def index():
         for out in allOutputs:
             ordObj = orderMap.get(out.orderID)
             assignedTo = getattr(ordObj, "assignedTo", None) if ordObj else None
-            actorEmpID = out.inspectorID if (out.inspectorID and str(out.inspectorID).strip()) else None
+            inspectorActor = getattr(out, "recordedBy", None) or "Production Manager"
+            unitWord = "unit" if int(out.quantity or 0) == 1 else "units"
             if out.qualityStatus == "Passed":
                 activityTimeline.append({
                     "orderID": out.orderID,
                     "category": "passed",
+                    "actor": inspectorActor,
                     "title": f"#PO-{out.orderID} passed QC",
-                    "meta": f"{out.quantity} units added to finished goods",
-                    "sortKey": (_safeEventDate(out.inspectionDate), 4, int(out.outputID or 0)),
+                    "meta": _withActor(inspectorActor, f"{out.quantity} {unitWord} added to finished goods"),
+                    "sortKey": (_safeEventDt(out.inspectionDate), 4, int(out.outputID or 0)),
                     "assignedTo": assignedTo,
-                    "actorEmpID": actorEmpID
+                    "actorEmpID": None
                 })
             elif out.qualityStatus == "Rework":
                 activityTimeline.append({
                     "orderID": out.orderID,
                     "category": "rework",
+                    "actor": inspectorActor,
                     "title": f"#PO-{out.orderID} sent back for rework",
-                    "meta": out.reason or out.furnitureName,
-                    "sortKey": (_safeEventDate(out.inspectionDate), 4, int(out.outputID or 0)),
+                    "meta": _withActor(inspectorActor, out.reason or out.furnitureName),
+                    "sortKey": (_safeEventDt(out.inspectionDate), 4, int(out.outputID or 0)),
                     "assignedTo": assignedTo,
-                    "actorEmpID": actorEmpID
+                    "actorEmpID": None
+                })
+            elif out.qualityStatus == "Failed":
+                activityTimeline.append({
+                    "orderID": out.orderID,
+                    "category": "rework",
+                    "actor": inspectorActor,
+                    "title": f"#PO-{out.orderID} scrapped {out.quantity} {unitWord} as Failed",
+                    "meta": _withActor(inspectorActor, out.reason or out.furnitureName),
+                    "sortKey": (_safeEventDt(out.inspectionDate), 4, int(out.outputID or 0)),
+                    "assignedTo": assignedTo,
+                    "actorEmpID": None
                 })
     except Exception:
         allOutputs = []
 
-    for mon in activeMonitoring:
+    latestStageProofMap = {}
+    try:
+        latestStageProofMap = ProductionAttachment.getLatestByOrderIDs(
+            [m.orderID for m in scopedMonitoring],
+            requireImage=False
+        )
+    except Exception:
+        latestStageProofMap = {}
+
+    for mon in scopedMonitoring:
         if mon.progress and mon.progress > 0:
             stageLabel = "Cutting & Sizing" if mon.progress <= 25 else (
                 "Joinery & Assembly" if mon.progress <= 50 else (
@@ -727,44 +794,76 @@ def index():
             )
             ordObj = orderMap.get(mon.orderID)
             assignedTo = mon.assignedTo or (getattr(ordObj, "assignedTo", None) if ordObj else None)
+            proofObj = latestStageProofMap.get(mon.orderID)
+            stageActorID = (proofObj.uploadedBy if proofObj and proofObj.uploadedBy else assignedTo)
+            stageActorName = (
+                (proofObj.submittedBy if proofObj and proofObj.uploadedBy else None)
+                or getattr(ordObj, "assignedStaffName", None)
+                or getattr(mon, "assignedStaffName", None)
+                or "Workshop Staff"
+            )
+            stageEventTs = (
+                proofObj.createdAt
+                if (proofObj and proofObj.createdAt)
+                else (getattr(mon, "updatedAt", None) or mon.startDate)
+            )
             activityTimeline.append({
                 "orderID": mon.orderID,
                 "category": "stage",
+                "actor": stageActorName,
                 "title": f"#PO-{mon.orderID} moved to {int(mon.progress)}% · {stageLabel}",
-                "meta": "Workshop update",
-                "sortKey": (_safeEventDate(mon.startDate), 3, int(mon.monitoringID or 0)),
+                "meta": _withActor(stageActorName, "Workshop update"),
+                "sortKey": (_safeEventDt(stageEventTs), 3, int(mon.monitoringID or 0)),
                 "assignedTo": assignedTo,
-                "actorEmpID": assignedTo
+                "actorEmpID": stageActorID
             })
 
     try:
         recentIssuances = MaterialIssuance.getAll()
-        seenIssuanceOrders = set()
+        seenInitialOrders = set()
         for iss in recentIssuances:
-            if iss.orderID not in seenIssuanceOrders:
-                seenIssuanceOrders.add(iss.orderID)
-                ordObj = orderMap.get(iss.orderID)
-                assignedTo = getattr(ordObj, "assignedTo", None) if ordObj else None
+            ordObj = orderMap.get(iss.orderID)
+            assignedTo = getattr(ordObj, "assignedTo", None) if ordObj else None
+            issuerActor = getattr(iss, "recordedBy", None) or "Manager"
+            if getattr(iss, "isReworkReplacement", False):
+                roundLabel = f"Round #{iss.reworkRound}" if getattr(iss, "reworkRound", 0) > 0 else "Rework"
+                reasonText = iss.reason or "Replacement material issued"
                 activityTimeline.append({
                     "orderID": iss.orderID,
                     "category": "issued",
+                    "actor": issuerActor,
+                    "title": f"Rework replacement issued for #PO-{iss.orderID} · {iss.materialName}",
+                    "meta": _withActor(issuerActor, f"{roundLabel}: {reasonText}"),
+                    "sortKey": (_safeEventDt(iss.issueDate), 2, int(iss.issuanceID or 0)),
+                    "assignedTo": assignedTo,
+                    "actorEmpID": None
+                })
+            elif iss.orderID not in seenInitialOrders:
+                seenInitialOrders.add(iss.orderID)
+                activityTimeline.append({
+                    "orderID": iss.orderID,
+                    "category": "issued",
+                    "actor": issuerActor,
                     "title": f"Materials issued for #PO-{iss.orderID}",
-                    "meta": "Stock deducted from inventory",
-                    "sortKey": (_safeEventDate(iss.issueDate), 2, int(iss.issuanceID or 0)),
+                    "meta": _withActor(issuerActor, "Stock deducted from inventory"),
+                    "sortKey": (_safeEventDt(iss.issueDate), 2, int(iss.issuanceID or 0)),
                     "assignedTo": assignedTo,
                     "actorEmpID": None
                 })
     except Exception:
         pass
 
-    for o in allOrders:
+    for o in scopedOrders:
         dueText = f"due {o.dueDate.strftime('%b. %d')}" if o.dueDate else "not scheduled"
+        unitWord = "unit" if int(o.plannedQuantity or 0) == 1 else "units"
+        createdMeta = _withActor("Production Manager", f"{o.plannedQuantity} {unitWord} · {dueText}")
         activityTimeline.append({
             "orderID": o.orderID,
             "category": "created",
+            "actor": "Production Manager",
             "title": f"#PO-{o.orderID} created · {o.furnitureName}",
-            "meta": f"{o.plannedQuantity} units · {dueText}",
-            "sortKey": (_safeEventDate(o.orderDate), 1, int(o.orderID or 0)),
+            "meta": createdMeta,
+            "sortKey": (_safeEventDt(o.orderDate), 1, int(o.orderID or 0)),
             "assignedTo": getattr(o, "assignedTo", None),
             "actorEmpID": None
         })
@@ -777,7 +876,8 @@ def index():
 
     activityTimeline.sort(key=lambda x: x["sortKey"], reverse=True)
     for act in activityTimeline:
-        act["dateStr"] = act["sortKey"][0].strftime("%b. %d")
+        dtVal = act["sortKey"][0]
+        act["dateStr"] = formatManilaDateTime(dtVal, includeYear=(dtVal.year != today.year))
 
     def _ringDash(pct):
         pct = max(0, min(100, int(round(pct))))
@@ -795,10 +895,12 @@ def index():
     passedUnits = sum(int(out.quantity or 0) for out in inspectedOutputs if out.qualityStatus == "Passed")
     qcPassPct = int(round(passedUnits / inspectedUnits * 100)) if inspectedUnits > 0 else None
 
-    try:
-        allFurniture = Furniture.getAll()
-    except Exception:
-        allFurniture = []
+    allFurniture = []
+    if isMgr:
+        try:
+            allFurniture = Furniture.getAll()
+        except Exception:
+            allFurniture = []
 
     totalProducts = len(allFurniture)
     stockoutFurnitureIDs = {s["furniture_id"] for s in stockouts}
@@ -824,7 +926,7 @@ def index():
 
     awaitingQCUnits = sum(
         int(orderMap[m.orderID].plannedQuantity or 0)
-        for m in activeMonitoring
+        for m in scopedMonitoring
         if m.progress and m.progress >= 90 and m.orderID in orderMap
     )
 
@@ -859,11 +961,23 @@ def index():
             qcPct = 0
             qcNote = "No batches at QC"
 
+        scopedReworkBatches = sum(
+            1 for m in scopedMonitoring
+            if (m.reworkCount or 0) > 0 and float(m.progress or 0.0) < 90.0
+        )
+        wipUnitWord = "unit" if activeWipUnits == 1 else "units"
+        if inProgressOrders == 0:
+            mgrWipNote = "No active batches"
+        elif scopedReworkBatches > 0:
+            mgrWipNote = f"{scopedReworkBatches} in rework | {activeWipUnits} {wipUnitWord}"
+        else:
+            mgrWipNote = f"{activeWipUnits} {wipUnitWord} in workshop"
+
         dashRings = [
             {
                 "label": "In Progress",
                 "value": f"{inProgressOrders} {'Batch' if inProgressOrders == 1 else 'Batches'}",
-                "note": f"{activeWipUnits} units in workshop" if inProgressOrders else "No active batches",
+                "note": mgrWipNote,
                 "dash": _ringDash(avgProgressPct) if avgProgressPct is not None else "",
                 "pct": max(0, min(100, int(round(avgProgressPct)))) if avgProgressPct is not None else 0,
                 "isAlert": False,
@@ -874,7 +988,7 @@ def index():
             {
                 "label": "Total Orders",
                 "value": str(len(allOrders)),
-                "note": f"{completedOrders} completed | {inProgressOrders} active",
+                "note": f"{completedOrders} completed | {len(uncompletedOrders)} pending",
                 "dash": _ringDash(int(round(completedOrders / len(allOrders) * 100))) if allOrders else "",
                 "pct": int(round(completedOrders / len(allOrders) * 100)) if allOrders else 0,
                 "isAlert": False,
@@ -895,8 +1009,14 @@ def index():
             }
         ]
     else:
-        myUncompleted = [o for o in uncompletedOrders if currentEmpID and o.assignedTo == currentEmpID]
+        myUncompleted = uncompletedOrders
         myInProgress = [o for o in myUncompleted if o.status == "In Progress"]
+        myWipUnits = sum(int(o.plannedQuantity or 0) for o in myInProgress)
+        myWipUnitWord = "unit" if myWipUnits == 1 else "units"
+        myReworkBatches = sum(
+            1 for m in scopedMonitoring
+            if (m.reworkCount or 0) > 0 and float(m.progress or 0.0) < 90.0
+        )
         myProgVals = []
         for o in myInProgress:
             mon = monitoringMap.get(o.orderID)
@@ -904,7 +1024,14 @@ def index():
             myProgVals.append(prog)
         myAvgProg = int(round(sum(myProgVals) / len(myProgVals))) if myProgVals else 0
 
-        myAllOrders = [o for o in allOrders if currentEmpID and o.assignedTo == currentEmpID]
+        if not myInProgress:
+            myWipNote = "No active batches"
+        elif myReworkBatches > 0:
+            myWipNote = f"{myReworkBatches} in rework | {myWipUnits} {myWipUnitWord}"
+        else:
+            myWipNote = f"{myWipUnits} {myWipUnitWord} in workshop"
+
+        myAllOrders = scopedOrders
         myCompleted = [o for o in myAllOrders if o.status == "Completed"]
         myTotalPct = int(round(len(myCompleted) / len(myAllOrders) * 100)) if myAllOrders else 0
 
@@ -912,7 +1039,7 @@ def index():
             {
                 "label": "In Progress",
                 "value": f"{len(myInProgress)} {'Batch' if len(myInProgress) == 1 else 'Batches'}",
-                "note": f"{myAvgProg}% avg progress" if myInProgress else "No active batches",
+                "note": myWipNote,
                 "dash": _ringDash(myAvgProg),
                 "pct": max(0, min(100, myAvgProg)),
                 "isAlert": False,
@@ -923,24 +1050,13 @@ def index():
             {
                 "label": "Total Orders",
                 "value": str(len(myAllOrders)),
-                "note": f"{len(myCompleted)} completed | {len(myInProgress)} active",
+                "note": f"{len(myCompleted)} completed | {len(myUncompleted)} pending",
                 "dash": _ringDash(myTotalPct),
                 "pct": myTotalPct,
                 "isAlert": False,
                 "showDot": False,
                 "color": "#66754C",
                 "url": url_for("production.orderList")
-            },
-            {
-                "label": "Inventory Stocks",
-                "value": f"{productsInStockCount} / {totalProducts}" if totalProducts > 0 else "0 / 0",
-                "note": fgNote,
-                "dash": _ringDash(productsInStockPct) if productsInStockPct is not None else "",
-                "pct": max(0, min(100, int(round(productsInStockPct)))) if productsInStockPct is not None else 0,
-                "isAlert": productsInStockCount == 0,
-                "showDot": True,
-                "color": stockDotColor,
-                "url": url_for("production.furnitureList")
             }
         ]
 
@@ -948,6 +1064,11 @@ def index():
     chartError = False
     try:
         chartOutputs = ProductionOutput.getAll(startDate=monday, endDate=sunday, qualityStatus="Passed")
+        if not isMgr:
+            chartOutputs = [
+                out for out in chartOutputs
+                if currentEmpID and _matchesEmp(getattr(orderMap.get(out.orderID), "assignedTo", None), currentEmpID)
+            ]
     except Exception as err:
         logger.exception("Failed to query chart inspection outputs: %s", err)
         chartOutputs = []
@@ -959,7 +1080,7 @@ def index():
         dayDate = monday + timedelta(days=i)
         stats = dailyActivityMap.get(dayDate, {"orders": 0, "units": 0})
         ordersPerDay[i] = stats["orders"]
-        unitsPassedPerDay[i] = sum(int(out.quantity or 0) for out in chartOutputs if _safeEventDate(out.inspectionDate) == dayDate)
+        unitsPassedPerDay[i] = sum(int(out.quantity or 0) for out in chartOutputs if toManilaDate(out.inspectionDate) == dayDate)
 
     peak = max(ordersPerDay + unitsPassedPerDay)
     if peak <= 3:
@@ -1015,10 +1136,11 @@ def index():
 
     daysData = []
     labels = []
+    orderSeriesLabel = "orders created" if isMgr else "assigned orders"
     for i in range(7):
         d = monday + timedelta(days=i)
         isToday = (d == today)
-        tooltipText = f"{dayNames[i]}, {d.strftime('%b %d')}: {unitsPassedPerDay[i]} units passed QC · {ordersPerDay[i]} orders created"
+        tooltipText = f"{dayNames[i]}, {d.strftime('%b %d')}: {unitsPassedPerDay[i]} units passed QC · {ordersPerDay[i]} {orderSeriesLabel}"
         x = unitPts[i][0]
         if i == 0:
             rectX = 0.0
@@ -1081,7 +1203,7 @@ def index():
         })
         cumulative += pct
 
-    timelineScope = uncompletedOrders if isMgr else [o for o in uncompletedOrders if currentEmpID and o.assignedTo == currentEmpID]
+    timelineScope = uncompletedOrders
     overdueTimeline = sum(1 for o in timelineScope if o.dueDate and o.dueDate < today)
     dueThisWeekTimeline = sum(1 for o in timelineScope if o.dueDate and today <= o.dueDate <= today + timedelta(days=7))
     upcomingTimeline = sum(1 for o in timelineScope if o.dueDate and o.dueDate > today + timedelta(days=7))
@@ -1195,7 +1317,7 @@ def index():
         "totalIncomingUnits": totalIncomingUnits
     }
 
-    now = datetime.now()
+    now = manilaNow()
     hour = now.hour
     if 5 <= hour < 12:
         greetingText = "Good morning"
@@ -1606,9 +1728,20 @@ def orderDetail(orderID):
 
         matsMap = {m.materialID: m for m in Material.getAll()}
         issuances = MaterialIssuance.getByOrderID(orderID)
+        initialIssuances = [iss for iss in issuances if not getattr(iss, "isReworkReplacement", False)]
+        replacementIssuances = [iss for iss in issuances if getattr(iss, "isReworkReplacement", False)]
         issuedByMaterial = {}
+        initialIssuedByMaterial = {}
+        replacementIssuedByMaterial = {}
         for iss in issuances:
             issuedByMaterial[iss.materialID] = issuedByMaterial.get(iss.materialID, Decimal("0.000")) + iss.quantityIssued
+            if getattr(iss, "isReworkReplacement", False):
+                replacementIssuedByMaterial[iss.materialID] = replacementIssuedByMaterial.get(iss.materialID, Decimal("0.000")) + iss.quantityIssued
+            else:
+                initialIssuedByMaterial[iss.materialID] = initialIssuedByMaterial.get(iss.materialID, Decimal("0.000")) + iss.quantityIssued
+
+        initialMaterialCost = sum((iss.lineCost for iss in initialIssuances), Decimal("0.00")).quantize(Decimal("0.01"))
+        replacementMaterialCost = sum((iss.lineCost for iss in replacementIssuances), Decimal("0.00")).quantize(Decimal("0.01"))
 
         requirements = []
         shortageCount = 0
@@ -1637,12 +1770,16 @@ def orderDetail(orderID):
             enriched["shortageQuantity"] = shortage
             enriched["isShort"] = isShort
             enriched["issuedQuantity"] = issuedByMaterial.get(mid, Decimal("0.000"))
+            enriched["initialIssuedQuantity"] = initialIssuedByMaterial.get(mid, Decimal("0.000"))
+            enriched["replacementIssuedQuantity"] = replacementIssuedByMaterial.get(mid, Decimal("0.000"))
             requirements.append(enriched)
 
         monitoring = ProductionMonitoring.getByOrderID(orderID)
         qaRecords = ProductionOutput.getByOrderID(orderID)
         qaSummary = ProductionOutput.getOrderInspectionSummary(orderID)
         costRecord = ProductionCost.getByOrderID(orderID)
+        actualMaterialCost = ProductionCost.calculateActualMaterialCost(orderID)
+        costOutOfSync = bool(costRecord and costRecord.materialCost != actualMaterialCost)
         stageProofs = ProductionAttachment.getByOrderID(orderID)
     except Exception as err:
         flash(f"Failed to load order details: {str(err)}", "error")
@@ -1656,6 +1793,12 @@ def orderDetail(orderID):
         shortageCount=shortageCount,
         monitoring=monitoring,
         issuances=issuances,
+        initialIssuances=initialIssuances,
+        replacementIssuances=replacementIssuances,
+        initialMaterialCost=initialMaterialCost,
+        replacementMaterialCost=replacementMaterialCost,
+        actualMaterialCost=actualMaterialCost,
+        costOutOfSync=costOutOfSync,
         qaRecords=qaRecords,
         qaSummary=qaSummary,
         costRecord=costRecord,
@@ -1675,22 +1818,22 @@ def createOrder():
     purpose = purposeRaw if purposeRaw in ("Warehouse Restock", "Scheduled Batch") else "Warehouse Restock"
 
     if not furnitureIDRaw or not furnitureIDRaw.isdigit():
-        flash("Please select a valid furniture product.", "error")
+        flash("Please select a valid product.", "error")
         return redirect(url_for("production.orderList"))
 
     furnitureID = int(furnitureIDRaw)
 
     if not quantityRaw:
-        flash("Planned batch quantity is required.", "error")
+        flash("Quantity is required.", "error")
         return redirect(url_for("production.orderList"))
 
     try:
         plannedQuantity = int(quantityRaw)
         if plannedQuantity < 1 or plannedQuantity > 100000:
-            flash("Planned quantity must be a whole number between 1 and 100,000.", "error")
+            flash("Quantity must be a whole number between 1 and 100,000.", "error")
             return redirect(url_for("production.orderList"))
     except (ValueError, TypeError):
-        flash("Planned quantity must be a valid whole number.", "error")
+        flash("Quantity must be a valid whole number.", "error")
         return redirect(url_for("production.orderList"))
 
     parsedStartDate = None
@@ -2001,9 +2144,49 @@ def releaseOrder(orderID):
 
     return redirect(url_for("production.requirementList", order_id=orderID))
 
+def _fmtQtyStr(val):
+    d = Decimal(str(val or 0)).quantize(Decimal("0.001"))
+    s = f"{d:,.3f}".rstrip("0").rstrip(".")
+    return s if s else "0"
+
+def _getReworkRoundUnits(orderID, plannedQuantity, conn=None):
+    countsRow = fetchOne(
+        """
+        SELECT
+            COALESCE(SUM(CASE WHEN quality_status = 'Passed' THEN quantity ELSE 0 END), 0) AS total_passed,
+            COALESCE(SUM(CASE WHEN quality_status = 'Failed' THEN quantity ELSE 0 END), 0) AS total_failed
+        FROM prod_productionoutput
+        WHERE order_id = %s
+        """,
+        (orderID,),
+        conn=conn
+    )
+    alreadyPassed = int(countsRow["total_passed"]) if countsRow else 0
+    alreadyFailed = int(countsRow["total_failed"]) if countsRow else 0
+    pendingUnits = max(0, int(plannedQuantity or 0) - alreadyPassed - alreadyFailed)
+    latestReworkRow = fetchOne(
+        """
+        SELECT quantity, reason
+        FROM prod_productionoutput
+        WHERE order_id = %s AND quality_status = 'Rework'
+        ORDER BY output_id DESC
+        LIMIT 1
+        """,
+        (orderID,),
+        conn=conn
+    )
+    latestReworkQty = int(latestReworkRow["quantity"]) if latestReworkRow else 0
+    latestReworkReason = (latestReworkRow.get("reason") or "").strip() if latestReworkRow else ""
+    reworkUnitsInRound = min(latestReworkQty, pendingUnits)
+    return reworkUnitsInRound, pendingUnits, latestReworkReason
+
 @productionBlueprint.route("/issuance")
 @manager_required
 def issuanceList():
+    activeIssuanceTab = request.args.get("tab", "all").strip().lower()
+    if activeIssuanceTab not in ("all", "ready", "shortage", "rework", "history"):
+        activeIssuanceTab = "all"
+
     try:
         allOrders = ProductionOrder.getAll(useCache=False)
         releasedOrders = [o for o in allOrders if o.status == "Released"]
@@ -2040,10 +2223,65 @@ def issuanceList():
             totalBatchValue += orderCost
             if o.hasShortage:
                 shortageOrderCount += 1
+
         materialIssuanceList = MaterialIssuance.getAll()
+        monByOrder = {m.orderID: m for m in ProductionMonitoring.getAll()}
+        reworkOrders = []
+        for o in allOrders:
+            if o.status != "In Progress":
+                continue
+            mon = monByOrder.get(o.orderID)
+            if not mon or int(mon.reworkCount or 0) <= 0 or float(mon.progress or 0.0) >= 90.0:
+                continue
+            reworkUnits, pendingUnits, reworkReason = _getReworkRoundUnits(o.orderID, o.plannedQuantity)
+            if pendingUnits <= 0 or reworkUnits <= 0:
+                continue
+            if o.furnitureID not in bomCache:
+                bomCache[o.furnitureID] = BillOfMaterials.getByFurnitureID(o.furnitureID, autoCreate=False)
+            bom = bomCache[o.furnitureID]
+            bomItems = bom.getItems() if bom else []
+            rwkRound = int(mon.reworkCount)
+            reworkComponents = []
+            for item in bomItems:
+                mid = item.materialID
+                mat = matsMap.get(mid)
+                onHand = mat.currentStock if mat else Decimal("0.000")
+                perUnitQty = Decimal(str(item.quantityRequired))
+                roundCap = (perUnitQty * Decimal(str(reworkUnits))).quantize(Decimal("0.001"))
+                alreadyIssuedRound = MaterialIssuance.getIssuedForRound(o.orderID, mid, rwkRound)
+                remainingCap = max(Decimal("0.000"), roundCap - alreadyIssuedRound)
+                reworkComponents.append({
+                    "materialID": mid,
+                    "materialName": item.materialName,
+                    "itemCode": (mat.itemCode if mat and mat.itemCode else item.itemCode) or f"RM-{mid:03d}",
+                    "unit": item.unit,
+                    "unitCost": item.unitCost,
+                    "perUnitQty": perUnitQty,
+                    "roundCap": roundCap,
+                    "alreadyIssuedRound": alreadyIssuedRound,
+                    "remainingCap": remainingCap,
+                    "onHand": onHand,
+                    "hasStockForAny": onHand > Decimal("0.000"),
+                    "shortAgainstRemaining": max(Decimal("0.000"), remainingCap - onHand),
+                    "shortageForOneUnit": (remainingCap > Decimal("0.000") and onHand < min(perUnitQty, remainingCap))
+                })
+            o.monitoring = mon
+            o.reworkRound = rwkRound
+            o.reworkUnitsInRound = reworkUnits
+            o.pendingUnits = pendingUnits
+            o.reworkReason = reworkReason
+            o.reworkComponents = reworkComponents
+            o.roundReplacementRows = [
+                iss for iss in materialIssuanceList
+                if iss.orderID == o.orderID and getattr(iss, "isReworkReplacement", False) and int(getattr(iss, "reworkRound", 0)) == rwkRound
+            ]
+            o.hasAnyRemainingCap = any(c["remainingCap"] > Decimal("0.000") for c in reworkComponents)
+            o.hasShortageInRework = any(c["shortageForOneUnit"] or (c["remainingCap"] > Decimal("0.000") and not c["hasStockForAny"]) for c in reworkComponents)
+            reworkOrders.append(o)
     except Exception as err:
         flash(f"Failed to load issuance records: {str(err)}", "error")
         releasedOrders = []
+        reworkOrders = []
         materialIssuanceList = []
         totalReadyUnits = 0
         totalBatchValue = Decimal("0.00")
@@ -2053,6 +2291,7 @@ def issuanceList():
         "queueCount": len(releasedOrders),
         "readyCount": sum(1 for o in releasedOrders if not getattr(o, "hasShortage", False)),
         "shortageCount": shortageOrderCount,
+        "reworkCount": len(reworkOrders),
         "totalUnits": totalReadyUnits,
         "totalBatchValue": totalBatchValue,
         "historyCount": len(materialIssuanceList)
@@ -2061,7 +2300,9 @@ def issuanceList():
     return render_template(
         "production/materials/issuance_list.html",
         activeTab="issuance",
+        activeIssuanceTab=activeIssuanceTab,
         releasedOrders=releasedOrders,
+        reworkOrders=reworkOrders,
         issuances=materialIssuanceList,
         issuanceSummary=issuanceSummary
     )
@@ -2070,33 +2311,57 @@ def issuanceList():
 @manager_required
 def issueOrderMaterials(orderID):
     try:
-        order = ProductionOrder.getByID(orderID)
-        if not order:
-            flash("Production order not found.", "error")
-            return redirect(url_for("production.issuanceList"))
-
-        if order.status != "Released":
-            flash(f"Order #PO-{orderID} cannot be issued because it is currently '{order.status}' (Must be 'Released').", "warning")
-            return redirect(url_for("production.issuanceList"))
-
-        bom = BillOfMaterials.getByFurnitureID(order.furnitureID, autoCreate=False)
-        if not bom:
-            flash(f"Cannot issue materials: No Bill of Materials found for '{order.furnitureName}'.", "error")
-            return redirect(url_for("production.issuanceList"))
-
-        reqs = bom.calculateRequirements(Decimal(str(order.plannedQuantity)))
-        if not reqs:
-            flash(f"Cannot issue materials: BOM has no items for '{order.furnitureName}'.", "error")
-            return redirect(url_for("production.issuanceList"))
-
+        issuerName = (session.get("employee_name") or "").strip() or "Manager"
         with openTransaction() as conn:
+            orderRow = fetchOne(
+                """
+                SELECT po.order_id, po.furniture_id, po.planned_quantity, po.status, f.furniture_name
+                FROM prod_productionorder po
+                JOIN prod_furniture f ON po.furniture_id = f.furniture_id
+                WHERE po.order_id = %s
+                FOR UPDATE
+                """,
+                (orderID,),
+                conn=conn
+            )
+            if not orderRow:
+                flash("Production order not found.", "error")
+                return redirect(url_for("production.issuanceList"))
+
+            if orderRow["status"] != "Released":
+                flash(f"Order #PO-{orderID} cannot be issued because it is currently '{orderRow['status']}' (Must be 'Released').", "warning")
+                return redirect(url_for("production.issuanceList"))
+
+            if MaterialIssuance.getInitialCountForOrder(orderID, conn=conn) > 0:
+                flash(f"Initial materials have already been dispatched for Order #PO-{orderID}.", "warning")
+                return redirect(url_for("production.issuanceList"))
+
+            bom = BillOfMaterials.getByFurnitureID(orderRow["furniture_id"], autoCreate=False, conn=conn)
+            if not bom:
+                flash(f"Cannot issue materials: No Bill of Materials found for '{orderRow['furniture_name']}'.", "error")
+                return redirect(url_for("production.issuanceList"))
+
+            reqs = bom.calculateRequirements(Decimal(str(orderRow["planned_quantity"])), conn=conn)
+            if not reqs:
+                flash(f"Cannot issue materials: BOM has no items for '{orderRow['furniture_name']}'.", "error")
+                return redirect(url_for("production.issuanceList"))
+
             for r in reqs:
                 integration.deduct_material_stock(r["materialID"], r["batchQuantity"], conn=conn)
-                MaterialIssuance.recordIssuance(orderID, r["materialID"], r["batchQuantity"], recordedBy=session.get("employee_name", "Dave Cagalitan"), conn=conn)
+                MaterialIssuance.recordIssuance(
+                    orderID,
+                    r["materialID"],
+                    r["batchQuantity"],
+                    recordedBy=issuerName,
+                    issuanceType="Initial",
+                    reason=None,
+                    reworkRound=0,
+                    conn=conn
+                )
 
             execute("""
                 INSERT INTO prod_productionmonitoring (order_id, progress, start_date)
-                VALUES (%s, 0.0, CURRENT_DATE)
+                VALUES (%s, 0.0, NOW())
                 ON CONFLICT (order_id) DO NOTHING
             """, (orderID,), conn=conn)
 
@@ -2110,6 +2375,156 @@ def issueOrderMaterials(orderID):
         flash(f"Failed to issue materials: {str(err)}", "error")
 
     return redirect(url_for("production.issuanceList"))
+
+@productionBlueprint.route("/issuance/rework/<int:orderID>", methods=["POST"])
+@manager_required
+def issueReworkReplacement(orderID):
+    matRaw = request.form.get("materialID", "").strip()
+    qtyRaw = request.form.get("quantity", "").strip()
+    reason = request.form.get("reason", "").strip()
+
+    if not matRaw.isdecimal() or int(matRaw) <= 0:
+        flash("Select a valid material from this order's Bill of Materials.", "error")
+        return redirect(url_for("production.issuanceList", tab="rework"))
+    materialID = int(matRaw)
+
+    try:
+        qty = Decimal(qtyRaw)
+    except InvalidOperation:
+        flash("Enter a valid numeric replacement quantity.", "error")
+        return redirect(url_for("production.issuanceList", tab="rework"))
+
+    if not qty.is_finite() or qty.is_nan() or qty <= Decimal("0"):
+        flash("Replacement quantity must be greater than zero.", "warning")
+        return redirect(url_for("production.issuanceList", tab="rework"))
+
+    if qty != qty.quantize(Decimal("0.001")):
+        flash("Replacement quantity can have at most 3 decimal places.", "warning")
+        return redirect(url_for("production.issuanceList", tab="rework"))
+
+    if not reason:
+        flash("A replacement reason is required.", "warning")
+        return redirect(url_for("production.issuanceList", tab="rework"))
+
+    if len(reason) > 255:
+        flash("Replacement reason cannot exceed 255 characters.", "warning")
+        return redirect(url_for("production.issuanceList", tab="rework"))
+
+    issuerName = (session.get("employee_name") or "").strip() or "Manager"
+
+    try:
+        with openTransaction() as conn:
+            orderRow = fetchOne(
+                """
+                SELECT po.order_id, po.furniture_id, po.planned_quantity, po.status, f.furniture_name
+                FROM prod_productionorder po
+                JOIN prod_furniture f ON po.furniture_id = f.furniture_id
+                WHERE po.order_id = %s
+                FOR UPDATE
+                """,
+                (orderID,),
+                conn=conn
+            )
+            if not orderRow:
+                raise ValueError("Production order not found.")
+
+            if orderRow["status"] != "In Progress":
+                raise ValueError(f"Order #PO-{orderID} is '{orderRow['status']}'. Rework replacements are only allowed while 'In Progress'.")
+
+            monRow = fetchOne(
+                """
+                SELECT monitoring_id, progress, COALESCE(rework_count, 0) AS rework_count
+                FROM prod_productionmonitoring
+                WHERE order_id = %s
+                FOR UPDATE
+                """,
+                (orderID,),
+                conn=conn
+            )
+            reworkRound = int(monRow["rework_count"]) if monRow else 0
+            currentProg = float(monRow["progress"]) if monRow else 0.0
+            if not monRow or reworkRound <= 0:
+                raise ValueError(f"Order #PO-{orderID} has no active rework round.")
+
+            if currentProg >= 90.0:
+                raise ValueError(f"Order #PO-{orderID} is already at {int(round(currentProg))}% (awaiting QC). Rework replacements are blocked at 90% or above.")
+
+            reworkUnitsInRound, pendingUnits, _ = _getReworkRoundUnits(orderID, orderRow["planned_quantity"], conn=conn)
+            if pendingUnits <= 0 or reworkUnitsInRound <= 0:
+                raise ValueError(f"Order #PO-{orderID} has no pending rework units remaining.")
+
+            bomRow = fetchOne(
+                """
+                SELECT bi.material_id,
+                       bi.quantity_required,
+                       im.item_name AS material_name,
+                       im.unit,
+                       rm.current_stock
+                FROM prod_billofmaterials bom
+                JOIN prod_bomitem bi ON bom.bom_id = bi.bom_id
+                JOIN raw_material rm ON bi.material_id = rm.raw_material_id
+                JOIN item_master im ON rm.item_id = im.item_id
+                WHERE bom.furniture_id = %s
+                  AND bi.material_id = %s
+                FOR UPDATE OF rm
+                """,
+                (orderRow["furniture_id"], materialID),
+                conn=conn
+            )
+            if not bomRow:
+                raise ValueError(f"Selected material does not belong to the Bill of Materials for '{orderRow['furniture_name']}'.")
+
+            matName = bomRow["material_name"]
+            unit = bomRow["unit"]
+            perUnit = Decimal(str(bomRow["quantity_required"]))
+            roundCap = (perUnit * Decimal(str(reworkUnitsInRound))).quantize(Decimal("0.001"))
+            alreadyIssuedRound = MaterialIssuance.getIssuedForRound(orderID, materialID, reworkRound, conn=conn)
+            remainingCap = max(Decimal("0.000"), roundCap - alreadyIssuedRound)
+
+            if qty > remainingCap:
+                raise ValueError(
+                    f"Quantity exceeds Rework #{reworkRound} limit for {matName}: round cap is {_fmtQtyStr(roundCap)} {unit} "
+                    f"({reworkUnitsInRound} rework unit(s) x {_fmtQtyStr(perUnit)} {unit}/unit), "
+                    f"{_fmtQtyStr(alreadyIssuedRound)} {unit} already issued this round, {_fmtQtyStr(remainingCap)} {unit} remaining."
+                )
+
+            onHand = Decimal(str(bomRow["current_stock"] or 0))
+            if onHand < qty:
+                raise ValueError(
+                    f"Insufficient stock for {matName}: requested {_fmtQtyStr(qty)} {unit}, only {_fmtQtyStr(onHand)} {unit} on hand. "
+                    f"Wait for Team 2 Inventory to replenish stock, or scrap the {reworkUnitsInRound} rework unit(s) as Failed on Finished Goods QC."
+                )
+
+            try:
+                integration.deduct_material_stock(materialID, qty, conn=conn)
+            except ValueError:
+                raise ValueError(
+                    f"Insufficient stock for {matName}: requested {_fmtQtyStr(qty)} {unit}, warehouse stock could not cover the deduction. "
+                    f"Wait for Team 2 Inventory to replenish stock, or scrap the {reworkUnitsInRound} rework unit(s) as Failed on Finished Goods QC."
+                )
+
+            MaterialIssuance.recordIssuance(
+                orderID=orderID,
+                materialID=materialID,
+                quantityIssued=qty,
+                recordedBy=issuerName,
+                issuanceType="Rework Replacement",
+                reason=reason,
+                reworkRound=reworkRound,
+                conn=conn
+            )
+
+        invalidateKeys("materials_all", "orders_all", "orders_summary")
+        flash(
+            f"Rework #{reworkRound} replacement dispatched for Order #PO-{orderID}: {_fmtQtyStr(qty)} {unit} of {matName}.",
+            "success"
+        )
+    except ValueError as valErr:
+        flash(str(valErr), "error")
+    except Exception as err:
+        flash(f"Failed to issue rework replacement: {str(err)}", "error")
+
+    return redirect(url_for("production.issuanceList", tab="rework"))
 
 @productionBlueprint.route("/monitoring")
 def monitoringList():
@@ -2222,6 +2637,7 @@ def updateMonitoringProgress(monitoringID):
                 )
 
         if updated:
+            invalidateKeys("orders_all", "orders_summary")
             stageName = stageLabels.get(stageInt, f"{stageInt}% Progress")
             if stageInt >= 90 and stageInt < 100:
                 flash(f"Order #PO-{updated.orderID} submitted with Stage 4 proof! Ready for Manager Quality Inspection.", "success")
@@ -2254,11 +2670,27 @@ def finishedGoodsList():
             else:
                 needsAttentionOrders.append(m)
 
+        reworkScrapCandidates = []
+        for m in allMonitoring:
+            if m.orderStatus == "In Progress" and (m.reworkCount or 0) > 0 and m.progress < 90.0:
+                summaryCounts = ProductionOutput.getOrderInspectionSummary(m.orderID)
+                m.alreadyPassed = summaryCounts["passed"]
+                m.alreadyFailed = summaryCounts["failed"]
+                m.pendingInspectionQty = max(0, int(m.plannedQuantity) - m.alreadyPassed - m.alreadyFailed)
+                if m.pendingInspectionQty > 0:
+                    reworkScrapCandidates.append(m)
+
         latestImgMap = ProductionAttachment.getLatestByOrderIDs([m.orderID for m in pendingOrders], requireImage=True)
         for m in pendingOrders:
             m.latestProof = latestImgMap.get(m.orderID)
 
         outputRecords = ProductionOutput.getAll()
+        reworkScrapMap = {m.orderID: m for m in reworkScrapCandidates}
+        latestReworkOutputIDMap = {}
+        for out in outputRecords:
+            if out.qualityStatus == "Rework" and out.orderID not in latestReworkOutputIDMap:
+                latestReworkOutputIDMap[out.orderID] = out.outputID
+
         passedOrderIDs = {o.orderID for o in outputRecords if o.qualityStatus == "Passed"}
         reworkOrdersCount = sum(1 for m in allMonitoring if m.orderStatus == "In Progress" and (m.reworkCount or 0) > 0 and m.progress < 90.0)
         summary = {
@@ -2272,6 +2704,9 @@ def finishedGoodsList():
         flash(f"Failed to load quality inspection records: {str(err)}", "error")
         pendingOrders = []
         needsAttentionOrders = []
+        reworkScrapCandidates = []
+        reworkScrapMap = {}
+        latestReworkOutputIDMap = {}
         outputRecords = []
         summary = {"pending": 0, "passed": 0, "rework": 0, "failed": 0, "totalUnits": 0}
 
@@ -2280,6 +2715,9 @@ def finishedGoodsList():
         activeTab="finishedGoods",
         pendingOrders=pendingOrders,
         needsAttentionOrders=needsAttentionOrders,
+        reworkScrapCandidates=reworkScrapCandidates,
+        reworkScrapMap=reworkScrapMap,
+        latestReworkOutputIDMap=latestReworkOutputIDMap,
         outputRecords=outputRecords,
         summary=summary
     )
@@ -2343,8 +2781,18 @@ def recordInspection(orderID):
                 FOR UPDATE
             """, (orderID,), conn=conn)
 
-            if not monitoringRow or float(monitoringRow["progress"]) < 90.0:
-                currentProg = int(round(float(monitoringRow["progress"]))) if monitoringRow else 0
+            currentProgVal = float(monitoringRow["progress"]) if monitoringRow else 0.0
+            currentReworks = int(monitoringRow["rework_count"]) if monitoringRow else 0
+            isReworkScrapOnly = (
+                monitoringRow is not None
+                and currentReworks > 0
+                and currentProgVal < 90.0
+                and passedQty == 0
+                and reworkQty == 0
+                and failedQty > 0
+            )
+            if not monitoringRow or (currentProgVal < 90.0 and not isReworkScrapOnly):
+                currentProg = int(round(currentProgVal))
                 flash(f"Order #PO-{orderID} assembly is at {currentProg}%. Workshop assembly must reach at least 90% before inspection.", "warning")
                 return redirect(url_for("production.finishedGoodsList"))
 
@@ -2365,7 +2813,6 @@ def recordInspection(orderID):
                 flash("Pending units changed, please refresh and try again.", "error")
                 return redirect(url_for("production.finishedGoodsList"))
 
-            currentReworks = int(monitoringRow["rework_count"])
             if reworkQty > 0 and currentReworks >= 2:
                 flash(f"Order #PO-{orderID} has reached maximum allowed reworks (2). Units must either Pass or be marked as Failed/Scrapped.", "error")
                 return redirect(url_for("production.finishedGoodsList"))
@@ -2432,6 +2879,8 @@ def recordInspection(orderID):
                     msg += f", {failedQty} {unitWord} scrapped"
                 flash(msg + ".", "warning")
 
+        invalidateKeys("orders_all", "orders_summary")
+
     except ValueError as valErr:
         flash(str(valErr), "warning")
     except Exception as err:
@@ -2447,6 +2896,8 @@ def costingList():
         costOrders = [o for o in allOrders if o.status in ("In Progress", "Completed")]
         for o in costOrders:
             savedCost = ProductionCost.getByOrderID(o.orderID)
+            actualMatCost = ProductionCost.calculateActualMaterialCost(o.orderID)
+            o.actualMaterialCost = actualMatCost
             if savedCost:
                 o.hasCostSheet = True
                 o.costID = savedCost.costID
@@ -2457,16 +2908,25 @@ def costingList():
                 o.unitCost = (o.totalCost / Decimal(str(o.plannedQuantity))).quantize(Decimal("0.01")) if o.plannedQuantity else Decimal("0.00")
                 o.costDate = savedCost.costDate
                 o.formattedCostDate = savedCost.formattedCostDate
+                o.costOutOfSync = (actualMatCost != savedCost.materialCost)
+                o.costDelta = (actualMatCost - savedCost.materialCost).quantize(Decimal("0.01"))
+                o.syncedTotalCost = (actualMatCost + o.laborCost).quantize(Decimal("0.01"))
+                syncedGoodCost, _ = ProductionCost.calculateCostPerGoodUnit(o.orderID, o.syncedTotalCost)
+                o.syncedCostPerGoodUnit = syncedGoodCost
             else:
                 o.hasCostSheet = False
                 o.costID = None
-                o.materialCost = ProductionCost.calculateActualMaterialCost(o.orderID)
+                o.materialCost = actualMatCost
                 o.laborCost = Decimal("0.00")
                 o.overheadCost = Decimal("0.00")
                 o.totalCost = (o.materialCost + o.laborCost).quantize(Decimal("0.01"))
                 o.unitCost = (o.totalCost / Decimal(str(o.plannedQuantity))).quantize(Decimal("0.01")) if o.plannedQuantity else Decimal("0.00")
                 o.costDate = None
                 o.formattedCostDate = "-"
+                o.costOutOfSync = False
+                o.costDelta = Decimal("0.00")
+                o.syncedTotalCost = o.totalCost
+                o.syncedCostPerGoodUnit = None
 
             goodCost, passedUnits = ProductionCost.calculateCostPerGoodUnit(o.orderID, o.totalCost)
             o.costPerGoodUnit = goodCost
@@ -2478,13 +2938,14 @@ def costingList():
             "totalCost": totalRecordedCost,
             "costedOrders": len(allCostRecords),
             "pendingCosting": sum(1 for o in costOrders if not o.hasCostSheet),
+            "outOfSyncCount": sum(1 for o in costOrders if getattr(o, "costOutOfSync", False)),
             "activeOrders": len(costOrders)
         }
     except Exception as err:
         flash(f"Failed to load production costing records: {str(err)}", "error")
         costOrders = []
         allCostRecords = []
-        summary = {"totalCost": Decimal("0.00"), "costedOrders": 0, "pendingCosting": 0, "activeOrders": 0}
+        summary = {"totalCost": Decimal("0.00"), "costedOrders": 0, "pendingCosting": 0, "outOfSyncCount": 0, "activeOrders": 0}
 
     return render_template(
         "production/costing/costing_list.html",
@@ -2500,6 +2961,7 @@ def saveOrderCost(orderID):
     matRaw = request.form.get("materialCost", "").strip()
     labRaw = request.form.get("laborCost", "").strip()
     overRaw = request.form.get("overheadCost", "").strip()
+    syncActual = request.form.get("syncActual", "").strip() == "1"
 
     try:
         order = ProductionOrder.getByID(orderID)
@@ -2507,17 +2969,24 @@ def saveOrderCost(orderID):
             flash("Production order not found.", "error")
             return redirect(url_for("production.costingList"))
 
-        if matRaw:
+        existingCost = ProductionCost.getByOrderID(orderID)
+        liveActualMatCost = ProductionCost.calculateActualMaterialCost(orderID)
+        if syncActual or not matRaw:
+            matCost = liveActualMatCost
+        else:
             try:
-                matCost = Decimal(matRaw)
+                matCost = Decimal(matRaw).quantize(Decimal("0.01"))
             except InvalidOperation:
                 flash("Invalid material cost entered.", "error")
                 return redirect(url_for("production.costingList"))
-        else:
-            matCost = ProductionCost.calculateActualMaterialCost(orderID)
 
         try:
-            labCost = Decimal(labRaw) if labRaw else Decimal("0.00")
+            if labRaw:
+                labCost = Decimal(labRaw)
+            elif syncActual and existingCost:
+                labCost = existingCost.laborCost
+            else:
+                labCost = Decimal("0.00")
         except InvalidOperation:
             flash("Invalid labor cost entered.", "error")
             return redirect(url_for("production.costingList"))
@@ -2538,7 +3007,16 @@ def saveOrderCost(orderID):
             laborCost=labCost,
             overheadCost=Decimal("0.00")
         )
-        flash(f"Cost sheet saved for Order #PO-{orderID} (Total: ₱{saved.totalCost:,.2f})! Available for Team 5 Finance.", "success")
+        invalidateKeys("orders_all", "orders_summary")
+        if syncActual:
+            flash(f"Cost sheet synced with issued materials for Order #PO-{orderID} (Total: ₱{saved.totalCost:,.2f})! Available for Team 5 Finance.", "success")
+        elif saved.materialCost != liveActualMatCost:
+            flash(
+                f"Labor updated for Order #PO-{orderID}, but saved material cost (₱{saved.materialCost:,.2f}) differs from live issued materials (₱{liveActualMatCost:,.2f}). Click Sync & Update to apply replacement costs.",
+                "warning"
+            )
+        else:
+            flash(f"Cost sheet saved for Order #PO-{orderID} (Total: ₱{saved.totalCost:,.2f})! Available for Team 5 Finance.", "success")
     except ValueError as valErr:
         flash(str(valErr), "warning")
     except Exception as err:
@@ -2604,10 +3082,18 @@ def reportView():
         allOrders = []
         for r in rawOrders:
             item = dict(r)
-            item["formattedOrderDate"] = item["order_date"].strftime("%b. %d, %Y") if item.get("order_date") else "-"
-            item["formattedDueDate"] = item["due_date"].strftime("%b. %d, %Y") if item.get("due_date") else "-"
-            item["formattedStartDate"] = item["actual_start_date"].strftime("%b. %d, %Y") if item.get("actual_start_date") else (item["planned_start_date"].strftime("%b. %d, %Y") if item.get("planned_start_date") else "-")
-            item["formattedCompletionDate"] = item["completion_date"].strftime("%b. %d, %Y") if item.get("completion_date") else ("In Progress" if item["status"] == "In Progress" else "-")
+            item["formattedOrderDate"] = formatManilaDateTime(item.get("order_date"))
+            item["formattedDueDate"] = formatManilaDateOnly(item.get("due_date"))
+            item["formattedStartDate"] = (
+                formatManilaDateTime(item["actual_start_date"])
+                if item.get("actual_start_date")
+                else formatManilaDateOnly(item.get("planned_start_date"))
+            )
+            item["formattedCompletionDate"] = (
+                formatManilaDateTime(item.get("completion_date"))
+                if item.get("completion_date")
+                else ("In Progress" if item["status"] == "In Progress" else "-")
+            )
             qty = Decimal(str(item.get("planned_quantity") or 0))
             item["estimatedValue"] = Decimal("0.00")
             issuedMatCost = Decimal(str(item.get("issued_material_cost") or 0)).quantize(Decimal("0.01"))
@@ -2669,14 +3155,16 @@ def reportView():
 
         activityDates = []
         for iss in issuances:
-            if iss.issueDate:
-                activityDates.append(iss.issueDate)
+            dt = toManilaDatetime(iss.issueDate)
+            if dt:
+                activityDates.append(dt)
         for o in outputRecords:
-            if o.inspectionDate:
-                activityDates.append(o.inspectionDate)
+            dt = toManilaDatetime(o.inspectionDate)
+            if dt:
+                activityDates.append(dt)
         if activityDates:
             latest = max(activityDates)
-            lastActivity = latest.strftime("%b. %d, %Y") if hasattr(latest, "strftime") else str(latest)
+            lastActivity = formatManilaDateTime(latest)
         else:
             lastActivity = "-"
 
@@ -2713,7 +3201,7 @@ def reportView():
         issuances=issuances,
         outputRecords=outputRecords,
         lastActivity=lastActivity,
-        reportDate=date.today().strftime("%B %d, %Y")
+        reportDate=manilaToday().strftime("%B %d, %Y")
     )
 
 @productionBlueprint.route("/logs")

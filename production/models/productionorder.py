@@ -1,7 +1,7 @@
-from datetime import date
 from decimal import Decimal
 from production.db import fetchAll, fetchOne, execute, executeReturning
 from production.cache import getCached, setCached, invalidateKeys
+from production.timefmt import manilaToday, formatManilaDateTime, formatManilaDateOnly
 from .billofmaterials import BillOfMaterials
 
 class ProductionOrder:
@@ -64,37 +64,22 @@ class ProductionOrder:
             return "Completed"
         if not self.plannedStartDate or not self.dueDate or not self.assignedTo:
             return "Needs Plan"
-        today = date.today()
+        today = manilaToday()
         if self.dueDate and today > self.dueDate:
             return "Overdue"
         return "On Schedule"
 
     @property
     def formattedOrderDate(self):
-        if not self.orderDate:
-            return "-"
-        try:
-            return self.orderDate.strftime("%b. %d, %Y")
-        except AttributeError:
-            return str(self.orderDate)
+        return formatManilaDateTime(self.orderDate)
 
     @property
     def formattedPlannedStartDate(self):
-        if not self.plannedStartDate:
-            return "-"
-        try:
-            return self.plannedStartDate.strftime("%b. %d, %Y")
-        except AttributeError:
-            return str(self.plannedStartDate)
+        return formatManilaDateOnly(self.plannedStartDate)
 
     @property
     def formattedDueDate(self):
-        if not self.dueDate:
-            return "-"
-        try:
-            return self.dueDate.strftime("%b. %d, %Y")
-        except AttributeError:
-            return str(self.dueDate)
+        return formatManilaDateOnly(self.dueDate)
 
     @classmethod
     def getAll(cls, statusFilter=None, searchQuery=None, conn=None, useCache=True):
@@ -204,7 +189,7 @@ class ProductionOrder:
     @classmethod
     def createOrder(cls, furnitureID, plannedQuantity, plannedStartDate=None, dueDate=None, purpose="Warehouse Restock", conn=None):
         if not isinstance(plannedQuantity, int) or plannedQuantity < 1 or plannedQuantity > 100000:
-            raise ValueError("Planned quantity must be a whole number between 1 and 100,000.")
+            raise ValueError("Quantity must be a whole number between 1 and 100,000.")
 
         if plannedStartDate and dueDate:
             if dueDate < plannedStartDate:
@@ -222,7 +207,7 @@ class ProductionOrder:
                 furniture_id, planned_quantity,
                 order_date, planned_start_date, due_date, status, purpose
             )
-            VALUES (%s, %s, CURRENT_DATE, %s, %s, 'Draft', %s)
+            VALUES (%s, %s, NOW(), %s, %s, 'Draft', %s)
             RETURNING order_id
             """,
             (furnitureID, plannedQuantity, plannedStartDate, dueDate, orderPurpose),

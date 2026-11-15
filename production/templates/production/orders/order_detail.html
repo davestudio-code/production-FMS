@@ -19,7 +19,8 @@
                 {{ order.status }}
             </span>
         </div>
-        <span style="color: var(--mt); font-size: 13.5px;"><b>{{ order.furnitureName }}</b> ({{ order.furnitureType }})</span>
+        <span style="color: var(--mt); font-size: 13.5px;"><b>{{ order.furnitureName }}</b> ({{ order.furnitureType
+            }})</span>
     </div>
 
     <div style="display: flex; gap: 8px; align-items: center; flex-wrap: wrap;">
@@ -48,26 +49,33 @@
             style="padding: 7px 14px; font-size: 12.5px; text-decoration: none; white-space: nowrap;">Dispatch Materials
             &rarr;</a>
         {% elif order.status == 'In Progress' %}
-        {% if monitoring and monitoring.progress >= 90 %}
-        {% if isManager %}
-        <a href="/production/finished-goods" class="actionButton"
-            style="padding: 7px 14px; font-size: 12.5px; text-decoration: none; white-space: nowrap;">Inspect in
-            Finished Goods &rarr;</a>
-        {% else %}
-        <a href="/production/monitoring" class="actionButton"
-            style="padding: 7px 14px; font-size: 12.5px; text-decoration: none; white-space: nowrap;">Update Progress
+        {% if isManager and monitoring and monitoring.reworkCount > 0 and monitoring.progress < 90 %} <a
+            href="/production/issuance?tab=rework" class="actionButton secondary"
+            style="padding: 7px 14px; font-size: 12.5px; text-decoration: none; white-space: nowrap;">Issue Replacement
             &rarr;</a>
-        {% endif %}
-        {% else %}
-        <a href="/production/monitoring" class="actionButton"
-            style="padding: 7px 14px; font-size: 12.5px; text-decoration: none; white-space: nowrap;">Update Progress
-            &rarr;</a>
-        {% endif %}
-        {% elif order.status == 'Completed' and isManager %}
-        <a href="/production/costing" class="actionButton"
-            style="padding: 7px 14px; font-size: 12.5px; text-decoration: none; white-space: nowrap;">{{ 'Batch Cost
-            Sheet' if costRecord else 'Finalize Batch Cost' }} &rarr;</a>
-        {% endif %}
+            {% endif %}
+            {% if monitoring and monitoring.progress >= 90 %}
+            {% if isManager %}
+            <a href="/production/finished-goods" class="actionButton"
+                style="padding: 7px 14px; font-size: 12.5px; text-decoration: none; white-space: nowrap;">Inspect in
+                Finished Goods &rarr;</a>
+            {% else %}
+            <a href="/production/monitoring" class="actionButton"
+                style="padding: 7px 14px; font-size: 12.5px; text-decoration: none; white-space: nowrap;">Update
+                Progress
+                &rarr;</a>
+            {% endif %}
+            {% else %}
+            <a href="/production/monitoring" class="actionButton"
+                style="padding: 7px 14px; font-size: 12.5px; text-decoration: none; white-space: nowrap;">Update
+                Progress
+                &rarr;</a>
+            {% endif %}
+            {% elif order.status == 'Completed' and isManager %}
+            <a href="/production/costing" class="actionButton"
+                style="padding: 7px 14px; font-size: 12.5px; text-decoration: none; white-space: nowrap;">{{ 'Batch Cost
+                Sheet' if costRecord else 'Finalize Batch Cost' }} &rarr;</a>
+            {% endif %}
     </div>
 </div>
 
@@ -218,7 +226,9 @@
             {% if monitoring and monitoring.completionDate %}
             <span style="font-size: 11.5px; color: var(--mt);">Completed {{ monitoring.formattedCompletionDate }}</span>
             {% elif order.status != 'Completed' and isManager %}
-            <span style="font-size: 11.5px; color: var(--mt);"><a href="/production/planning" style="color: var(--p); font-weight: 600; text-decoration: none;">Manage in Planning &rarr;</a></span>
+            <span style="font-size: 11.5px; color: var(--mt);"><a href="/production/planning"
+                    style="color: var(--p); font-weight: 600; text-decoration: none;">Manage in Planning
+                    &rarr;</a></span>
             {% endif %}
         </div>
 
@@ -227,11 +237,14 @@
                 style="font-size: 11.5px; color: var(--mt); display: block; text-transform: uppercase; font-weight: 600;">Assigned
                 Staff</span>
             {% if order.assignedStaffName %}
-            <b style="font-size: 14.5px; color: var(--tx); display: block; margin-top: 2px;">{{ order.assignedStaffName }}</b>
+            <b style="font-size: 14.5px; color: var(--tx); display: block; margin-top: 2px;">{{ order.assignedStaffName
+                }}</b>
             {% else %}
             <b style="font-size: 14.5px; color: #5c513b; display: block; margin-top: 2px;">Unassigned</b>
             {% if isManager %}
-            <span style="font-size: 11.5px; color: var(--mt);"><a href="/production/planning" style="color: var(--p); font-weight: 600; text-decoration: none;">Assign in Planning &rarr;</a></span>
+            <span style="font-size: 11.5px; color: var(--mt);"><a href="/production/planning"
+                    style="color: var(--p); font-weight: 600; text-decoration: none;">Assign in Planning
+                    &rarr;</a></span>
             {% endif %}
             {% endif %}
         </div>
@@ -252,7 +265,7 @@
             {% else %}
             <b style="font-size: 15px; color: var(--p); display: block; margin-top: 2px;">{{ requirements|length }}/{{
                 requirements|length }} Materials in Stock</b>
-            <span style="font-size: 11.5px; color: var(--mt);">Sufficient warehouse stock</span>
+            <span style="font-size: 11.5px; color: var(--mt);">Sufficient inventory stock</span>
             {% endif %}
             {% else %}
             <span
@@ -286,8 +299,21 @@
                 Batch Cost</span>
             <b style="font-size: 16px; color: var(--p); display: block; margin-top: 2px;">₱{{
                 "{:,.2f}".format(costRecord.totalCost) }}</b>
-            <span style="font-size: 11.5px; color: var(--mt);">₱{{ "{:,.2f}".format(costRecord.unitCost) }} / unit
-                (Saved Sheet)</span>
+            <span style="font-size: 11.5px; color: {{ '#8a5315' if costOutOfSync else 'var(--mt)' }};">
+                {% if costOutOfSync %}
+                Live Materials: ₱{{ "{:,.2f}".format(actualMaterialCost) }} (Needs Cost Sync)
+                {% else %}
+                ₱{{ "{:,.2f}".format(costRecord.unitCost) }} / unit (Saved Sheet)
+                {% endif %}
+            </span>
+            {% elif replacementIssuances %}
+            <span
+                style="font-size: 11.5px; color: var(--mt); display: block; text-transform: uppercase; font-weight: 600;">Actual
+                Material Cost</span>
+            <b style="font-size: 16px; color: var(--p); display: block; margin-top: 2px;">₱{{
+                "{:,.2f}".format(actualMaterialCost) }}</b>
+            <span style="font-size: 11.5px; color: var(--mt);">Initial ₱{{ "{:,.2f}".format(initialMaterialCost) }} +
+                Rework ₱{{ "{:,.2f}".format(replacementMaterialCost) }}</span>
             {% else %}
             <span
                 style="font-size: 11.5px; color: var(--mt); display: block; text-transform: uppercase; font-weight: 600;">Est.
@@ -360,8 +386,16 @@
                                 }}</b></td>
                         <td>
                             {% if order.status in ('In Progress', 'Completed') %}
-                            <b>{{ "{:,.3f}".format(req.issuedQuantity).rstrip('0').rstrip('.') or '0' }} {{ req.unit
-                                }}</b>
+                            {% set totIssStr = "{:,.3f}".format(req.issuedQuantity).rstrip('0').rstrip('.') or '0' %}
+                            {% set initIssStr = "{:,.3f}".format(req.initialIssuedQuantity).rstrip('0').rstrip('.') or
+                            '0' %}
+                            {% set repIssStr = "{:,.3f}".format(req.replacementIssuedQuantity).rstrip('0').rstrip('.')
+                            or '0' %}
+                            <b>{{ totIssStr }} {{ req.unit }}</b>
+                            {% if req.replacementIssuedQuantity > 0 %}
+                            <span style="display: block; font-size: 11px; color: #8a5315;">{{ initIssStr }} initial + {{
+                                repIssStr }} rework</span>
+                            {% endif %}
                             {% else %}
                             <span
                                 style="color: {{ '#9a4a3a' if req.isShort else 'var(--tx)' }}; font-weight: {{ '700' if req.isShort else '500' }};">
@@ -401,7 +435,7 @@
             <div
                 style="padding: 14px 16px; background: #faf8f2; border: 1px solid var(--bd); border-radius: 8px; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 12px;">
                 <div>
-                    <b style="font-size: 13.5px; display: block;">Workshop Assembly Milestone</b>
+                    <b style="font-size: 13.5px; display: block;">Order Progress</b>
                     <span style="font-size: 12.5px; color: var(--mt);">
                         {% if monitoring %}
                         Started {{ monitoring.formattedStartDate }}
@@ -429,7 +463,7 @@
                                 <th>Timestamp</th>
                                 <th>Milestone</th>
                                 <th>Submitted By</th>
-                                <th>Workshop Note</th>
+                                <th>Progress Note</th>
                                 <th>Photo Proof</th>
                             </tr>
                         </thead>
@@ -467,8 +501,15 @@
             </div>
 
             <div>
-                <h4 style="margin: 0 0 8px; font-size: 13.5px; color: var(--tx);">Dispatched Raw Materials ({{
-                    issuances|length }})</h4>
+                <div
+                    style="display: flex; justify-content: space-between; align-items: center; gap: 10px; margin-bottom: 8px; flex-wrap: wrap;">
+                    <h4 style="margin: 0; font-size: 13.5px; color: var(--tx);">Initial Material Dispatch ({{
+                        initialIssuances|length }})</h4>
+                    {% if isManager and initialIssuances %}
+                    <span style="font-size: 12px; color: var(--mt);">Initial Material Cost: <b
+                            style="color: var(--tx);">₱{{ "{:,.2f}".format(initialMaterialCost) }}</b></span>
+                    {% endif %}
+                </div>
                 <div class="tableContainer">
                     <table>
                         <thead>
@@ -476,21 +517,28 @@
                                 <th>Date</th>
                                 <th>Material</th>
                                 <th>Quantity Issued</th>
+                                {% if isManager %}
+                                <th style="text-align: right;">Line Cost</th>
+                                {% endif %}
                                 <th>Dispatched By</th>
                             </tr>
                         </thead>
                         <tbody>
-                            {% for iss in issuances %}
+                            {% for iss in initialIssuances %}
                             <tr>
                                 <td>{{ iss.formattedIssueDate }}</td>
                                 <td><b>{{ iss.materialName }}</b></td>
                                 <td><b>{{ "{:,.3f}".format(iss.quantityIssued).rstrip('0').rstrip('.') or '0' }} {{
                                         iss.unit }}</b></td>
+                                {% if isManager %}
+                                <td style="text-align: right;">₱{{ "{:,.2f}".format(iss.lineCost) }}</td>
+                                {% endif %}
                                 <td>{{ iss.recordedBy }}</td>
                             </tr>
                             {% else %}
                             <tr>
-                                <td colspan="4" style="text-align: center; color: var(--mt); padding: 18px;">No raw
+                                <td colspan="{{ '5' if isManager else '4' }}"
+                                    style="text-align: center; color: var(--mt); padding: 18px;">No initial raw
                                     materials dispatched yet.</td>
                             </tr>
                             {% endfor %}
@@ -498,6 +546,61 @@
                     </table>
                 </div>
             </div>
+
+            {% if replacementIssuances or (monitoring and monitoring.reworkCount > 0) %}
+            <div>
+                <div
+                    style="display: flex; justify-content: space-between; align-items: center; gap: 10px; margin-bottom: 8px; flex-wrap: wrap;">
+                    <h4 style="margin: 0; font-size: 13.5px; color: var(--tx);">Rework Replacement Materials ({{
+                        replacementIssuances|length }})</h4>
+                    {% if isManager and replacementIssuances %}
+                    <span style="font-size: 12.5px; color: #8a5315;">Added Rework Cost: <b>+₱{{
+                            "{:,.2f}".format(replacementMaterialCost) }}</b></span>
+                    {% endif %}
+                </div>
+                <div class="tableContainer">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Date</th>
+                                <th>Round</th>
+                                <th>Material</th>
+                                <th>Quantity Replaced</th>
+                                <th>Reason</th>
+                                {% if isManager %}
+                                <th style="text-align: right;">Cost Added</th>
+                                {% endif %}
+                                <th>Dispatched By</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for iss in replacementIssuances %}
+                            <tr>
+                                <td>{{ iss.formattedIssueDate }}</td>
+                                <td><span class="statusBadge inProgress" style="font-size: 11px;">Rework #{{
+                                        iss.reworkRound }}</span></td>
+                                <td><b>{{ iss.materialName }}</b></td>
+                                <td><b>{{ "{:,.3f}".format(iss.quantityIssued).rstrip('0').rstrip('.') or '0' }} {{
+                                        iss.unit }}</b></td>
+                                <td style="max-width: 240px;">{{ iss.reason or '—' }}</td>
+                                {% if isManager %}
+                                <td style="text-align: right; font-weight: 700; color: #8a5315;">+₱{{
+                                    "{:,.2f}".format(iss.lineCost) }}</td>
+                                {% endif %}
+                                <td>{{ iss.recordedBy }}</td>
+                            </tr>
+                            {% else %}
+                            <tr>
+                                <td colspan="{{ '7' if isManager else '6' }}"
+                                    style="text-align: center; color: var(--mt); padding: 18px;">No rework replacement
+                                    materials issued yet.</td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+            {% endif %}
 
             <div>
                 <h4 style="margin: 0 0 8px; font-size: 13.5px; color: var(--tx);">Quality Check (QC) Outcomes ({{
@@ -519,7 +622,7 @@
                                 <td>{{ qa.formattedInspectionDate }}</td>
                                 <td>
                                     <span
-                                        class="statusBadge {{ 'completed' if qa.qualityStatus == 'Passed' else ('inProgress' if qa.qualityStatus == 'Rework' else 'cancelled') }}">{{
+                                        style="font-weight: 700; color: {{ '#3d5225' if qa.qualityStatus == 'Passed' else ('#9a4a3a' if qa.qualityStatus in ('Rework', 'Failed') else 'var(--mt)') }};">{{
                                         qa.qualityStatus }}</span>
                                 </td>
                                 <td><b>{{ qa.quantity }}</b> {{ 'unit' if qa.quantity == 1 else 'units' }}</td>
@@ -548,6 +651,13 @@
                         Labor: <b>₱{{ "{:,.2f}".format(costRecord.laborCost) }}</b> &middot;
                         Overhead: <b>₱{{ "{:,.2f}".format(costRecord.overheadCost) }}</b>
                     </div>
+                    {% if costOutOfSync %}
+                    <div style="font-size: 12px; color: #8a5315; margin-top: 4px; font-weight: 600;">
+                        Actual issued material cost is now ₱{{ "{:,.2f}".format(actualMaterialCost) }} due to rework
+                        replacements. <a href="/production/costing"
+                            style="color: #8a5315; text-decoration: underline;">Sync in Production Costing &rarr;</a>
+                    </div>
+                    {% endif %}
                 </div>
                 <b style="font-size: 16px; color: #3d5225;">Total: ₱{{ "{:,.2f}".format(costRecord.totalCost) }}</b>
             </div>

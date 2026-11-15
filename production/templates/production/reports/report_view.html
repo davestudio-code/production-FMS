@@ -313,7 +313,7 @@
                     {% for iss in issuances %}
                     <tr class="dispatchRow" data-order="PO-{{ iss.orderID }}"
                         data-search="is-{{ iss.issuanceID }} po-{{ iss.orderID }} {{ iss.furnitureName|lower }} {{ iss.materialName|lower }} {{ (iss.recordedBy or '')|lower }}"
-                        data-date="{{ iss.issueDate }}">
+                        data-date="{{ iss.issueDateIso }}">
                         <td data-label="Issuance Ref"><b>#IS-{{ iss.issuanceID }}</b></td>
                         <td data-label="Associated Order">
                             <a href="/production/orders/{{ iss.orderID }}"
@@ -322,7 +322,17 @@
                             <div style="color: var(--mt); font-size: 12px; margin-top: 2px;">{{ iss.furnitureName }}
                             </div>
                         </td>
-                        <td data-label="Raw Material"><b>{{ iss.materialName }}</b></td>
+                        <td data-label="Raw Material">
+                            <b>{{ iss.materialName }}</b>
+                            {% if iss.isReworkReplacement %}
+                            <div style="margin-top: 2px;">
+                                <span class="statusBadge inProgress" style="font-size: 10.5px;">Rework #{{ iss.reworkRound }} Replacement</span>
+                                {% if iss.reason %}
+                                <span style="font-size: 11px; color: var(--mt); margin-left: 4px;">{{ iss.reason }}</span>
+                                {% endif %}
+                            </div>
+                            {% endif %}
+                        </td>
                         <td data-label="Dispatched Quantity" style="text-align: center; font-weight: 600;">
                             {{ "{:,.3f}".format(iss.quantityIssued).rstrip('0').rstrip('.') }} {{ iss.unit }}
                         </td>

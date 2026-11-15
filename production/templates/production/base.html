@@ -6,7 +6,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>Velmora Co.</title>
     <link rel="icon" type="image/png" href="/production/static/images/velmora-logo.png">
-    <link rel="stylesheet" href="/production/static/css/style.css?v=20261114c">
+    <link rel="stylesheet" href="/production/static/css/style.css?v=20261116a">
 </head>
 
 <body>
@@ -241,9 +241,9 @@
                                     onclick="window.openStockoutPin(event)">
                                     <span class="topNotifDot"></span>
                                     <div class="topNotifBody">
-                                        <div class="topNotifTitle">Warehouse Stockout Alert ({{ stockoutAlertCount }})
+                                        <div class="topNotifTitle">Inventory Stockout Alert ({{ stockoutAlertCount }})
                                         </div>
-                                        <div class="topNotifMsg">{{ stockoutAlertCount }} catalog furniture {{ 'item is'
+                                        <div class="topNotifMsg">{{ stockoutAlertCount }} product {{ 'item is'
                                             if stockoutAlertCount == 1 else 'items are' }} at 0 stock in Finished Goods.
                                         </div>
                                         <span class="topNotifTime">Action Needed &middot; View Stockouts &rarr;</span>
@@ -675,7 +675,55 @@
             openModal('scheduleModal');
         }
 
-        const tabHtmlCache = new Map();
+        const TAB_CACHE_TTL_MS = 15000;
+        const rawTabHtmlCache = new Map();
+        const tabHtmlTimestamps = new Map();
+
+        function pruneTabCacheEntry(key) {
+            if (!rawTabHtmlCache.has(key)) return false;
+            const cachedTs = tabHtmlTimestamps.get(key) || 0;
+            if (Date.now() - cachedTs > TAB_CACHE_TTL_MS) {
+                rawTabHtmlCache.delete(key);
+                tabHtmlTimestamps.delete(key);
+                return true;
+            }
+            return false;
+        }
+
+        const tabHtmlCache = {
+            has(key) {
+                pruneTabCacheEntry(key);
+                return rawTabHtmlCache.has(key);
+            },
+            get(key) {
+                if (pruneTabCacheEntry(key)) return undefined;
+                return rawTabHtmlCache.get(key);
+            },
+            set(key, val) {
+                if (rawTabHtmlCache.size >= 20 && !rawTabHtmlCache.has(key)) {
+                    const oldestKey = rawTabHtmlCache.keys().next().value;
+                    rawTabHtmlCache.delete(oldestKey);
+                    tabHtmlTimestamps.delete(oldestKey);
+                }
+                rawTabHtmlCache.set(key, val);
+                tabHtmlTimestamps.set(key, Date.now());
+                return this;
+            },
+            delete(key) {
+                tabHtmlTimestamps.delete(key);
+                return rawTabHtmlCache.delete(key);
+            },
+            clear() {
+                tabHtmlTimestamps.clear();
+                rawTabHtmlCache.clear();
+            },
+            get size() {
+                return rawTabHtmlCache.size;
+            },
+            keys() {
+                return rawTabHtmlCache.keys();
+            }
+        };
 
         function normalizeUrlKey(url) {
             try {
@@ -694,9 +742,23 @@
             try {
                 const u = new URL(url, window.location.origin);
                 const p = u.pathname.replace(/\/+$/, '') || '/production';
-                return p === '/production/issuance' || p.startsWith('/production/issuance/');
+                return (
+                    p === '/production/issuance' || p.startsWith('/production/issuance/') ||
+                    p === '/production/finished-goods' || p.startsWith('/production/finished-goods/') ||
+                    p === '/production/costing' || p.startsWith('/production/costing/') ||
+                    p === '/production/requirement' || p.startsWith('/production/requirement/') ||
+                    p === '/production/requirements' || p.startsWith('/production/requirements/') ||
+                    p === '/production/materials' || p.startsWith('/production/materials/')
+                );
             } catch (e) {
-                return String(url || '').indexOf('/production/issuance') !== -1;
+                const s = String(url || '');
+                return (
+                    s.indexOf('/production/issuance') !== -1 ||
+                    s.indexOf('/production/finished-goods') !== -1 ||
+                    s.indexOf('/production/costing') !== -1 ||
+                    s.indexOf('/production/requirement') !== -1 ||
+                    s.indexOf('/production/materials') !== -1
+                );
             }
         }
 
@@ -757,9 +819,13 @@
 
             function getSkeletonHtml(targetUrl) {
                 let targetPath = '/production';
+                let targetParams = new URLSearchParams('');
                 try {
-                    targetPath = new URL(targetUrl || window.location.href, window.location.origin).pathname.replace(/\/+$/, '') || '/production';
+                    const parsedSkeletonUrl = new URL(targetUrl || window.location.href, window.location.origin);
+                    targetPath = parsedSkeletonUrl.pathname.replace(/\/+$/, '') || '/production';
+                    targetParams = parsedSkeletonUrl.searchParams;
                 } catch (e) { }
+                const isManagerUser = "{{ 'true' if isManager else 'false' }}" === "true";
 
                 function tableRows(cols, count) {
                     let out = '';
@@ -770,7 +836,7 @@
                             const h = cols[c].h || '16px';
                             const br = cols[c].br || '4px';
                             const align = cols[c].align ? ` text-align: ${cols[c].align};` : '';
-                            const margin = cols[c].align === 'right' ? ' margin-left: auto;' : '';
+                            const margin = cols[c].align === 'right' ? ' margin-left: auto;' : (cols[c].align === 'center' ? ' margin: 0 auto;' : '');
                             out += `<td style="${align}"><div class="skeletonBlock" style="width: ${w}; height: ${h}; border-radius: ${br};${margin}"></div></td>`;
                         }
                         out += '</tr>';
@@ -783,7 +849,7 @@
                     for (let c = 0; c < cols.length; c++) {
                         const w = cols[c].w || '60px';
                         const colW = cols[c].colW ? ` style="width: ${cols[c].colW};"` : '';
-                        const margin = cols[c].align === 'right' ? ' margin-left: auto;' : '';
+                        const margin = cols[c].align === 'right' ? ' margin-left: auto;' : (cols[c].align === 'center' ? ' margin: 0 auto;' : '');
                         out += `<th${colW}><div class="skeletonBlock" style="width: ${w}; height: 13px;${margin}"></div></th>`;
                     }
                     out += '</tr></thead>';
@@ -793,7 +859,11 @@
                 function toolbarTabs(widths) {
                     let out = '<div class="workspaceFilterTabs">';
                     for (let i = 0; i < widths.length; i++) {
-                        out += `<div class="skeletonBlock" style="width: ${widths[i]}px; height: 32px; border-radius: 8px;"></div>`;
+                        if (widths[i] === '|' || widths[i] === 'divider') {
+                            out += '<span class="workspaceTabDivider"></span>';
+                        } else {
+                            out += `<div class="skeletonBlock" style="width: ${widths[i]}px; height: 32px; border-radius: 8px;"></div>`;
+                        }
                     }
                     out += '</div>';
                     return out;
@@ -824,13 +894,13 @@
                             </div>
                             <div class="dashGridTop dashRow">
                                 <div class="card dashCommandCard">
-                                    <div class="dashTelemetryRibbon">
+                                    <div class="dashTelemetryRibbon${isManagerUser ? '' : ' isTwoCols'}">
                                         <div class="dashTelemetryItem" style="pointer-events: none;">
                                             <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
                                                 <div class="skeletonBlock" style="width: 75px; height: 11px;"></div>
                                             </div>
                                             <div class="skeletonBlock" style="width: 85px; height: 24px; margin-bottom: 6px;"></div>
-                                            <div class="skeletonBlock" style="width: 110px; height: 11px;"></div>
+                                            <div class="skeletonBlock" style="width: 115px; height: 11px;"></div>
                                         </div>
                                         <div class="dashTelemetryItem" style="pointer-events: none;">
                                             <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
@@ -839,6 +909,7 @@
                                             <div class="skeletonBlock" style="width: 65px; height: 24px; margin-bottom: 6px;"></div>
                                             <div class="skeletonBlock" style="width: 120px; height: 11px;"></div>
                                         </div>
+                                        ${isManagerUser ? `
                                         <div class="dashTelemetryItem" style="pointer-events: none;">
                                             <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
                                                 <div class="skeletonBlock" style="width: 90px; height: 11px;"></div>
@@ -847,6 +918,7 @@
                                             <div class="skeletonBlock" style="width: 70px; height: 24px; margin-bottom: 6px;"></div>
                                             <div class="skeletonBlock" style="width: 105px; height: 11px;"></div>
                                         </div>
+                                        ` : ''}
                                     </div>
                                     <div class="dashTelemetryChartBody" style="padding: 18px 20px;">
                                         <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
@@ -894,14 +966,26 @@
                             </div>
                             <div class="dashGridBottom">
                                 <div class="card">
-                                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
-                                        <div class="skeletonBlock" style="width: 150px; height: 18px;"></div>
-                                        <div class="skeletonBlock" style="width: 50px; height: 13px;"></div>
+                                    <div class="dashCardHead" style="margin-bottom: 12px;">
+                                        <div class="skeletonBlock" style="width: ${isManagerUser ? '145px' : '165px'}; height: 18px;"></div>
+                                        <div class="skeletonBlock" style="width: 55px; height: 13px;"></div>
+                                    </div>
+                                    ${isManagerUser ? `
+                                    <div class="workspaceToolbar" style="margin-bottom: 10px;">
+                                        ${toolbarTabs([42, 82, 85, 70])}
                                     </div>
                                     <div class="skeletonBlock" style="width: 100%; height: 38px; margin-bottom: 8px;"></div>
                                     <div class="skeletonBlock" style="width: 100%; height: 38px; margin-bottom: 8px; opacity: 0.85;"></div>
                                     <div class="skeletonBlock" style="width: 100%; height: 38px; margin-bottom: 8px; opacity: 0.7;"></div>
                                     <div class="skeletonBlock" style="width: 100%; height: 38px; opacity: 0.55;"></div>
+                                    ` : `
+                                    <div class="dashStageList">
+                                        <div class="dashStageRow"><div class="dashStageHead"><div class="skeletonBlock" style="width: 145px; height: 12px;"></div><div class="skeletonBlock" style="width: 95px; height: 12px;"></div></div><div class="skeletonBlock" style="width: 100%; height: 7px; border-radius: 999px;"></div></div>
+                                        <div class="dashStageRow"><div class="dashStageHead"><div class="skeletonBlock" style="width: 160px; height: 12px;"></div><div class="skeletonBlock" style="width: 90px; height: 12px;"></div></div><div class="skeletonBlock" style="width: 100%; height: 7px; border-radius: 999px;"></div></div>
+                                        <div class="dashStageRow"><div class="dashStageHead"><div class="skeletonBlock" style="width: 150px; height: 12px;"></div><div class="skeletonBlock" style="width: 90px; height: 12px;"></div></div><div class="skeletonBlock" style="width: 100%; height: 7px; border-radius: 999px;"></div></div>
+                                        <div class="dashStageRow"><div class="dashStageHead"><div class="skeletonBlock" style="width: 135px; height: 12px;"></div><div class="skeletonBlock" style="width: 85px; height: 12px;"></div></div><div class="skeletonBlock" style="width: 100%; height: 7px; border-radius: 999px;"></div></div>
+                                    </div>
+                                    `}
                                 </div>
                                 <div class="card">
                                     <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
@@ -1003,37 +1087,48 @@
                 }
 
                 if (targetPath === '/production/orders') {
-                    const orderCols = [
-                        { colW: '11%', w: '65px', h: '20px', br: '5px' },
-                        { colW: '27%', w: '160px', h: '16px' },
-                        { colW: '13%', w: '60px', h: '16px' },
-                        { colW: '13%', w: '85px', h: '16px' },
-                        { colW: '13%', w: '85px', h: '16px' },
-                        { colW: '11%', w: '70px', h: '22px', br: '9999px' },
-                        { colW: '12%', w: '60px', h: '28px', br: '6px', align: 'right' }
+                    const showStockouts = isManagerUser && targetParams.get('stockouts') === '1';
+                    const orderCols = showStockouts ? [
+                        { colW: '26%', w: '160px', h: '16px' },
+                        { colW: '16%', w: '85px', h: '16px' },
+                        { colW: '18%', w: '105px', h: '22px', br: '9999px' },
+                        { colW: '24%', w: '150px', h: '22px', br: '9999px' },
+                        { colW: '16%', w: '95px', h: '28px', br: '6px' }
+                    ] : [
+                        { colW: '12%', w: '65px', h: '20px', br: '5px' },
+                        { colW: '26%', w: '150px', h: '16px' },
+                        { colW: '14%', w: '65px', h: '16px' },
+                        { colW: '20%', w: '130px', h: '16px' },
+                        { colW: '14%', w: '75px', h: '22px', br: '9999px' },
+                        { colW: '14%', w: '85px', h: '28px', br: '6px' }
                     ];
-                    const orderHeadCols = [
-                        { colW: '11%', w: '60px' },
-                        { colW: '27%', w: '110px' },
-                        { colW: '13%', w: '70px' },
-                        { colW: '13%', w: '70px' },
-                        { colW: '13%', w: '65px' },
-                        { colW: '11%', w: '50px' },
-                        { colW: '12%', w: '45px', align: 'right' }
+                    const orderHeadCols = showStockouts ? [
+                        { colW: '26%', w: '115px' },
+                        { colW: '16%', w: '70px' },
+                        { colW: '18%', w: '105px' },
+                        { colW: '24%', w: '125px' },
+                        { colW: '16%', w: '55px' }
+                    ] : [
+                        { colW: '12%', w: '65px' },
+                        { colW: '26%', w: '115px' },
+                        { colW: '14%', w: '90px' },
+                        { colW: '20%', w: '70px' },
+                        { colW: '14%', w: '55px' },
+                        { colW: '14%', w: '55px' }
                     ];
+                    const orderTabs = isManagerUser ? toolbarTabs([48, 62, 78, 95, 88, '|', 96]) : toolbarTabs([48, 62, 78, 95, 88]);
                     return `
                         <div class="skeletonContainer">
                             <div class="headerRow" style="margin-bottom: 18px;">
                                 <div>
-                                    <div class="skeletonBlock" style="width: 170px; height: 26px; margin-bottom: 6px;"></div>
+                                    <div class="skeletonBlock" style="width: 175px; height: 26px; margin-bottom: 6px;"></div>
                                     <div class="skeletonBlock" style="width: 360px; height: 14px;"></div>
                                 </div>
-                                <div class="skeletonBlock" style="width: 160px; height: 36px; border-radius: 8px;"></div>
                             </div>
                             <div class="card">
                                 <div class="workspaceToolbar" style="margin-bottom: 14px;">
-                                    ${toolbarTabs([55, 65, 80, 95, 85])}
-                                    <div class="skeletonBlock" style="width: 130px; height: 32px; border-radius: 8px;"></div>
+                                    ${orderTabs}
+                                    ${isManagerUser ? '<div class="skeletonBlock" style="width: 165px; height: 34px; border-radius: 8px;"></div>' : ''}
                                 </div>
                                 <div class="tableContainer">
                                     <table>
@@ -1041,52 +1136,85 @@
                                         <tbody>${tableRows(orderCols, 5)}</tbody>
                                     </table>
                                 </div>
-                                ${paginationFooter()}
+                                ${showStockouts ? '' : paginationFooter()}
                             </div>
                         </div>
                     `;
                 }
 
                 if (targetPath === '/production/planning') {
+                    const isListPlanView = targetParams.get('view') === 'list';
                     const planCols = [
                         { colW: '11%', w: '65px', h: '20px', br: '5px' },
-                        { colW: '25%', w: '150px', h: '16px' },
-                        { colW: '16%', w: '110px', h: '16px' },
-                        { colW: '13%', w: '85px', h: '16px' },
-                        { colW: '13%', w: '85px', h: '16px' },
-                        { colW: '11%', w: '75px', h: '22px', br: '9999px' },
-                        { colW: '11%', w: '55px', h: '28px', br: '6px', align: 'right' }
+                        { colW: '23%', w: '150px', h: '16px' },
+                        { colW: '13%', w: '80px', h: '22px', br: '9999px' },
+                        { colW: '18%', w: '125px', h: '16px' },
+                        { colW: '14%', w: '95px', h: '16px' },
+                        { colW: '11%', w: '80px', h: '22px', br: '9999px' },
+                        { colW: '10%', w: '75px', h: '26px', br: '6px' }
                     ];
                     const planHeadCols = [
                         { colW: '11%', w: '60px' },
-                        { colW: '25%', w: '110px' },
-                        { colW: '16%', w: '90px' },
-                        { colW: '13%', w: '70px' },
-                        { colW: '13%', w: '65px' },
-                        { colW: '11%', w: '75px' },
-                        { colW: '11%', w: '45px', align: 'right' }
+                        { colW: '23%', w: '110px' },
+                        { colW: '13%', w: '55px' },
+                        { colW: '18%', w: '70px' },
+                        { colW: '14%', w: '90px' },
+                        { colW: '11%', w: '55px' },
+                        { colW: '10%', w: '50px' }
                     ];
+                    const planBodyHtml = isListPlanView ? `
+                        <div class="tableContainer">
+                            <table>
+                                ${tableHead(planHeadCols)}
+                                <tbody>${tableRows(planCols, 5)}</tbody>
+                            </table>
+                        </div>
+                    ` : `
+                        <div class="ganttHeaderBar">
+                            <div class="ganttNavControls">
+                                <div class="skeletonBlock" style="width: 58px; height: 28px; border-radius: 6px;"></div>
+                                <div class="skeletonBlock" style="width: 58px; height: 28px; border-radius: 6px;"></div>
+                                <div class="skeletonBlock" style="width: 58px; height: 28px; border-radius: 6px;"></div>
+                                <div class="skeletonBlock" style="width: 140px; height: 15px; margin-left: 4px;"></div>
+                            </div>
+                            <div class="skeletonBlock" style="width: 130px; height: 26px; border-radius: 9999px;"></div>
+                        </div>
+                        <div class="ganttScrollWrap" style="padding: 12px 14px;">
+                            <div style="display: grid; grid-template-columns: 220px repeat(7, 1fr); gap: 10px; align-items: center; padding-bottom: 10px; border-bottom: 1px solid var(--bd); margin-bottom: 12px;">
+                                <div class="skeletonBlock" style="width: 110px; height: 13px;"></div>
+                                <div class="skeletonBlock" style="width: 42px; height: 13px; margin: 0 auto;"></div>
+                                <div class="skeletonBlock" style="width: 42px; height: 13px; margin: 0 auto;"></div>
+                                <div class="skeletonBlock" style="width: 42px; height: 13px; margin: 0 auto;"></div>
+                                <div class="skeletonBlock" style="width: 42px; height: 13px; margin: 0 auto;"></div>
+                                <div class="skeletonBlock" style="width: 42px; height: 13px; margin: 0 auto;"></div>
+                                <div class="skeletonBlock" style="width: 42px; height: 13px; margin: 0 auto;"></div>
+                                <div class="skeletonBlock" style="width: 42px; height: 13px; margin: 0 auto;"></div>
+                            </div>
+                            <div style="display: flex; flex-direction: column; gap: 12px;">
+                                <div style="display: grid; grid-template-columns: 220px 1fr; gap: 16px; align-items: center;"><div><div class="skeletonBlock" style="width: 130px; height: 14px; margin-bottom: 4px;"></div><div class="skeletonBlock" style="width: 90px; height: 11px;"></div></div><div class="skeletonBlock" style="width: 62%; height: 24px; border-radius: 6px; margin-left: 8%;"></div></div>
+                                <div style="display: grid; grid-template-columns: 220px 1fr; gap: 16px; align-items: center; opacity: 0.9;"><div><div class="skeletonBlock" style="width: 140px; height: 14px; margin-bottom: 4px;"></div><div class="skeletonBlock" style="width: 80px; height: 11px;"></div></div><div class="skeletonBlock" style="width: 48%; height: 24px; border-radius: 6px; margin-left: 22%;"></div></div>
+                                <div style="display: grid; grid-template-columns: 220px 1fr; gap: 16px; align-items: center; opacity: 0.8;"><div><div class="skeletonBlock" style="width: 120px; height: 14px; margin-bottom: 4px;"></div><div class="skeletonBlock" style="width: 95px; height: 11px;"></div></div><div class="skeletonBlock" style="width: 55%; height: 24px; border-radius: 6px; margin-left: 14%;"></div></div>
+                                <div style="display: grid; grid-template-columns: 220px 1fr; gap: 16px; align-items: center; opacity: 0.65;"><div><div class="skeletonBlock" style="width: 135px; height: 14px; margin-bottom: 4px;"></div><div class="skeletonBlock" style="width: 85px; height: 11px;"></div></div><div class="skeletonBlock" style="width: 40%; height: 24px; border-radius: 6px; margin-left: 35%;"></div></div>
+                            </div>
+                        </div>
+                    `;
                     return `
                         <div class="skeletonContainer">
                             <div class="headerRow" style="margin-bottom: 18px;">
                                 <div>
-                                    <div class="skeletonBlock" style="width: 180px; height: 26px; margin-bottom: 6px;"></div>
+                                    <div class="skeletonBlock" style="width: 185px; height: 26px; margin-bottom: 6px;"></div>
                                     <div class="skeletonBlock" style="width: 350px; height: 14px;"></div>
                                 </div>
-                                <div class="skeletonBlock" style="width: 130px; height: 34px; border-radius: 8px;"></div>
                             </div>
                             <div class="card">
                                 <div class="workspaceToolbar" style="margin-bottom: 14px;">
-                                    ${toolbarTabs([55, 95, 85, 105, 80, 75])}
-                                    <div class="skeletonBlock" style="width: 120px; height: 32px; border-radius: 8px;"></div>
+                                    ${toolbarTabs([50, 95, 100, 82])}
+                                    <div class="workspaceSearchGroup">
+                                        <div class="skeletonBlock" style="width: 145px; height: 32px; border-radius: 8px;"></div>
+                                        <div class="skeletonBlock" style="width: 155px; height: 32px; border-radius: 8px;"></div>
+                                    </div>
                                 </div>
-                                <div class="tableContainer">
-                                    <table>
-                                        ${tableHead(planHeadCols)}
-                                        <tbody>${tableRows(planCols, 5)}</tbody>
-                                    </table>
-                                </div>
-                                ${paginationFooter()}
+                                ${planBodyHtml}
                             </div>
                         </div>
                     `;
@@ -1094,32 +1222,31 @@
 
                 if (targetPath === '/production/furniture') {
                     const furnCols = [
-                        { colW: '15%', w: '75px', h: '20px', br: '5px' },
-                        { colW: '35%', w: '160px', h: '16px' },
-                        { colW: '18%', w: '85px', h: '22px', br: '9999px' },
-                        { colW: '16%', w: '70px', h: '16px', align: 'center' },
-                        { colW: '16%', w: '75px', h: '28px', br: '6px', align: 'center' }
+                        { colW: '14%', w: '55px', h: '18px', br: '5px' },
+                        { colW: '34%', w: '165px', h: '16px' },
+                        { colW: '16%', w: '80px', h: '16px' },
+                        { colW: '18%', w: '85px', h: '18px', align: 'center' },
+                        { colW: '18%', w: '115px', h: '28px', br: '6px', align: 'center' }
                     ];
                     const furnHeadCols = [
-                        { colW: '15%', w: '70px' },
-                        { colW: '35%', w: '110px' },
-                        { colW: '18%', w: '75px' },
-                        { colW: '16%', w: '95px', align: 'center' },
-                        { colW: '16%', w: '55px', align: 'center' }
+                        { colW: '14%', w: '75px' },
+                        { colW: '34%', w: '105px' },
+                        { colW: '16%', w: '65px' },
+                        { colW: '18%', w: '105px', align: 'center' },
+                        { colW: '18%', w: '55px', align: 'center' }
                     ];
                     return `
                         <div class="skeletonContainer">
                             <div class="headerRow" style="margin-bottom: 18px;">
                                 <div>
-                                    <div class="skeletonBlock" style="width: 150px; height: 26px; margin-bottom: 6px;"></div>
-                                    <div class="skeletonBlock" style="width: 330px; height: 14px;"></div>
+                                    <div class="skeletonBlock" style="width: 155px; height: 26px; margin-bottom: 6px;"></div>
+                                    <div class="skeletonBlock" style="width: 340px; height: 14px;"></div>
                                 </div>
-                                <div class="skeletonBlock" style="width: 135px; height: 36px; border-radius: 8px;"></div>
                             </div>
                             <div class="card">
                                 <div class="workspaceToolbar" style="margin-bottom: 14px;">
-                                    ${toolbarTabs([50, 95, 80, 95, 70])}
-                                    <div class="skeletonBlock" style="width: 140px; height: 32px; border-radius: 8px;"></div>
+                                    ${toolbarTabs([48, 75, 65, 82, 85, 95])}
+                                    ${isManagerUser ? '<div class="skeletonBlock" style="width: 155px; height: 34px; border-radius: 8px;"></div>' : ''}
                                 </div>
                                 <div class="tableContainer">
                                     <table>
@@ -1134,54 +1261,81 @@
                 }
 
                 if (targetPath === '/production/bom') {
-                    const bomCols = [
-                        { colW: '34%', w: '180px', h: '16px' },
-                        { colW: '18%', w: '85px', h: '22px', br: '9999px' },
-                        { colW: '16%', w: '60px', h: '16px' },
-                        { colW: '16%', w: '75px', h: '16px' },
-                        { colW: '16%', w: '80px', h: '16px', align: 'right' }
+                    const bomCols = isManagerUser ? [
+                        { colW: '14%', w: '70px', h: '16px' },
+                        { colW: '30%', w: '175px', h: '16px' },
+                        { colW: '14%', w: '75px', h: '16px', align: 'right' },
+                        { colW: '14%', w: '70px', h: '16px', align: 'right' },
+                        { colW: '16%', w: '80px', h: '16px', align: 'right' },
+                        { colW: '12%', w: '65px', h: '26px', br: '6px', align: 'center' }
+                    ] : [
+                        { colW: '22%', w: '70px', h: '16px' },
+                        { colW: '52%', w: '190px', h: '16px' },
+                        { colW: '26%', w: '85px', h: '16px', align: 'right' }
                     ];
-                    const bomHeadCols = [
-                        { colW: '34%', w: '140px' },
-                        { colW: '18%', w: '75px' },
-                        { colW: '16%', w: '70px' },
-                        { colW: '16%', w: '65px' },
-                        { colW: '16%', w: '60px', align: 'right' }
+                    const bomHeadCols = isManagerUser ? [
+                        { colW: '14%', w: '65px' },
+                        { colW: '30%', w: '100px' },
+                        { colW: '14%', w: '80px', align: 'right' },
+                        { colW: '14%', w: '65px', align: 'right' },
+                        { colW: '16%', w: '70px', align: 'right' },
+                        { colW: '12%', w: '50px', align: 'center' }
+                    ] : [
+                        { colW: '22%', w: '65px' },
+                        { colW: '52%', w: '100px' },
+                        { colW: '26%', w: '80px', align: 'right' }
                     ];
                     return `
                         <div class="skeletonContainer">
                             <div class="headerRow" style="margin-bottom: 18px;">
                                 <div>
-                                    <div class="skeletonBlock" style="width: 190px; height: 26px; margin-bottom: 6px;"></div>
+                                    <div class="skeletonBlock" style="width: 215px; height: 26px; margin-bottom: 6px;"></div>
                                     <div class="skeletonBlock" style="width: 310px; height: 14px;"></div>
                                 </div>
                             </div>
                             <div class="card" style="margin-bottom: 20px;">
-                                <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 14px;">
+                                <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 14px; padding-bottom: 16px; border-bottom: 1px solid var(--bd); margin-bottom: 20px;">
                                     <div style="display: flex; gap: 12px; align-items: center; flex-wrap: wrap;">
-                                        <div class="skeletonBlock" style="width: 85px; height: 14px;"></div>
-                                        <div class="skeletonBlock" style="width: 290px; height: 36px; border-radius: 6px;"></div>
+                                        <div class="skeletonBlock" style="width: 90px; height: 14px;"></div>
+                                        <div class="skeletonBlock" style="width: 280px; height: 36px; border-radius: 6px;"></div>
                                     </div>
-                                    <div class="skeletonBlock" style="width: 140px; height: 30px; border-radius: 6px;"></div>
+                                    <div class="skeletonBlock" style="width: 165px; height: 30px; border-radius: 6px;"></div>
                                 </div>
-                            </div>
-                            <div class="card">
-                                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; padding-bottom: 14px; border-bottom: 1px solid var(--bd);">
-                                    <div>
-                                        <div class="skeletonBlock" style="width: 170px; height: 18px; margin-bottom: 4px;"></div>
-                                        <div class="skeletonBlock" style="width: 210px; height: 13px;"></div>
+                                <div style="margin-bottom: 14px;">
+                                    <div class="skeletonBlock" style="width: 180px; height: 22px; margin-bottom: 4px;"></div>
+                                    <div class="skeletonBlock" style="width: 85px; height: 13px;"></div>
+                                </div>
+                                ${isManagerUser ? `
+                                <div style="padding: 6px 0 18px 0; border-bottom: 1px solid var(--bd); margin-bottom: 20px;">
+                                    <div style="display: grid; grid-template-columns: minmax(220px, 1fr) 168px 130px; gap: 12px; align-items: end;">
+                                        <div><div class="skeletonBlock" style="width: 85px; height: 12px; margin-bottom: 6px;"></div><div class="skeletonBlock" style="width: 100%; height: 40px; border-radius: 7px;"></div></div>
+                                        <div><div class="skeletonBlock" style="width: 75px; height: 12px; margin-bottom: 6px;"></div><div class="skeletonBlock" style="width: 100%; height: 40px; border-radius: 7px;"></div></div>
+                                        <div class="skeletonBlock" style="width: 130px; height: 40px; border-radius: 7px;"></div>
                                     </div>
-                                    <div style="display: flex; gap: 8px;">
-                                        <div class="skeletonBlock" style="width: 120px; height: 26px; border-radius: 9999px;"></div>
-                                        <div class="skeletonBlock" style="width: 130px; height: 26px; border-radius: 9999px;"></div>
+                                </div>
+                                ` : ''}
+                                <div class="headerRow" style="margin-bottom: 10px;">
+                                    <div>
+                                        <div class="skeletonBlock" style="width: 175px; height: 17px; margin-bottom: 4px;"></div>
+                                        <div class="skeletonBlock" style="width: 155px; height: 12px;"></div>
                                     </div>
                                 </div>
                                 <div class="tableContainer">
                                     <table>
                                         ${tableHead(bomHeadCols)}
-                                        <tbody>${tableRows(bomCols, 5)}</tbody>
+                                        <tbody>${tableRows(bomCols, 4)}</tbody>
                                     </table>
                                 </div>
+                                ${isManagerUser ? `
+                                <div style="display: flex; justify-content: flex-end; margin-top: 18px; padding-top: 16px; border-top: 1px solid var(--bd);">
+                                    <div style="width: 280px; display: flex; flex-direction: column; gap: 10px;">
+                                        <div style="display: flex; justify-content: space-between;"><div class="skeletonBlock" style="width: 115px; height: 13px;"></div><div class="skeletonBlock" style="width: 75px; height: 15px;"></div></div>
+                                        <div style="display: flex; justify-content: space-between; align-items: center;"><div class="skeletonBlock" style="width: 105px; height: 13px;"></div><div class="skeletonBlock" style="width: 90px; height: 28px; border-radius: 6px;"></div></div>
+                                        <div style="height: 1px; background: var(--bd);"></div>
+                                        <div style="display: flex; justify-content: space-between;"><div class="skeletonBlock" style="width: 100px; height: 15px;"></div><div class="skeletonBlock" style="width: 90px; height: 18px;"></div></div>
+                                    </div>
+                                </div>
+                                ` : ''}
                             </div>
                         </div>
                     `;
@@ -1189,46 +1343,58 @@
 
                 if (targetPath === '/production/requirement' || targetPath === '/production/requirements') {
                     const reqCols = [
-                        { colW: '30%', w: '160px', h: '16px' },
-                        { colW: '16%', w: '85px', h: '22px', br: '9999px' },
-                        { colW: '14%', w: '60px', h: '16px' },
-                        { colW: '14%', w: '60px', h: '16px' },
-                        { colW: '14%', w: '75px', h: '22px', br: '9999px' },
-                        { colW: '12%', w: '65px', h: '28px', br: '6px', align: 'right' }
+                        { colW: '10%', w: '60px', h: '16px' },
+                        { colW: '22%', w: '140px', h: '16px' },
+                        { colW: '11%', w: '55px', h: '16px', align: 'right' },
+                        { colW: '13%', w: '70px', h: '16px', align: 'right' },
+                        { colW: '13%', w: '70px', h: '16px', align: 'right' },
+                        { colW: '11%', w: '60px', h: '16px', align: 'right' },
+                        { colW: '11%', w: '65px', h: '16px', align: 'right' },
+                        { colW: '9%', w: '70px', h: '22px', br: '9999px', align: 'center' }
                     ];
                     const reqHeadCols = [
-                        { colW: '30%', w: '120px' },
-                        { colW: '16%', w: '75px' },
-                        { colW: '14%', w: '70px' },
-                        { colW: '14%', w: '70px' },
-                        { colW: '14%', w: '65px' },
-                        { colW: '12%', w: '45px', align: 'right' }
+                        { colW: '10%', w: '55px' },
+                        { colW: '22%', w: '95px' },
+                        { colW: '11%', w: '65px', align: 'right' },
+                        { colW: '13%', w: '85px', align: 'right' },
+                        { colW: '13%', w: '85px', align: 'right' },
+                        { colW: '11%', w: '60px', align: 'right' },
+                        { colW: '11%', w: '65px', align: 'right' },
+                        { colW: '9%', w: '50px', align: 'center' }
                     ];
                     return `
                         <div class="skeletonContainer">
                             <div class="headerRow" style="margin-bottom: 18px;">
                                 <div>
-                                    <div class="skeletonBlock" style="width: 180px; height: 26px; margin-bottom: 6px;"></div>
-                                    <div class="skeletonBlock" style="width: 360px; height: 14px;"></div>
+                                    <div class="skeletonBlock" style="width: 195px; height: 26px; margin-bottom: 6px;"></div>
+                                    <div class="skeletonBlock" style="width: 390px; height: 14px;"></div>
                                 </div>
                             </div>
                             <div class="card" style="margin-bottom: 20px;">
-                                <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 14px;">
+                                <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 14px; padding-bottom: 16px; border-bottom: 1px solid var(--bd); margin-bottom: 16px;">
                                     <div style="display: flex; gap: 12px; align-items: center; flex-wrap: wrap;">
-                                        <div class="skeletonBlock" style="width: 180px; height: 32px; border-radius: 6px;"></div>
+                                        <div class="skeletonBlock" style="width: 210px; height: 32px; border-radius: 6px;"></div>
                                         <div class="skeletonBlock" style="width: 45px; height: 14px;"></div>
-                                        <div class="skeletonBlock" style="width: 300px; height: 36px; border-radius: 6px;"></div>
+                                        <div class="skeletonBlock" style="width: 320px; height: 36px; border-radius: 6px;"></div>
                                     </div>
-                                    <div class="skeletonBlock" style="width: 130px; height: 30px; border-radius: 6px;"></div>
+                                    <div class="skeletonBlock" style="width: 145px; height: 30px; border-radius: 6px;"></div>
                                 </div>
-                            </div>
-                            <div class="card">
-                                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; padding-bottom: 14px; border-bottom: 1px solid var(--bd);">
-                                    <div style="display: flex; align-items: center; gap: 10px;">
-                                        <div class="skeletonBlock" style="width: 140px; height: 18px;"></div>
-                                        <div class="skeletonBlock" style="width: 85px; height: 22px; border-radius: 6px;"></div>
+                                <div class="headerRow" style="margin-bottom: 14px; align-items: center;">
+                                    <div>
+                                        <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 6px;">
+                                            <div class="skeletonBlock" style="width: 200px; height: 18px;"></div>
+                                            <div class="skeletonBlock" style="width: 75px; height: 22px; border-radius: 9999px;"></div>
+                                        </div>
+                                        <div class="skeletonBlock" style="width: 220px; height: 13px;"></div>
                                     </div>
-                                    <div class="skeletonBlock" style="width: 110px; height: 26px; border-radius: 6px;"></div>
+                                    <div class="skeletonBlock" style="width: 165px; height: 34px; border-radius: 8px;"></div>
+                                </div>
+                                <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(175px, 1fr)); gap: 14px; padding: 14px 0; border-top: 1px solid var(--bd); border-bottom: 1px solid var(--bd); margin-bottom: 16px;">
+                                    <div><div class="skeletonBlock" style="width: 90px; height: 11px; margin-bottom: 6px;"></div><div class="skeletonBlock" style="width: 85px; height: 18px;"></div></div>
+                                    <div><div class="skeletonBlock" style="width: 95px; height: 11px; margin-bottom: 6px;"></div><div class="skeletonBlock" style="width: 135px; height: 18px;"></div></div>
+                                    <div><div class="skeletonBlock" style="width: 85px; height: 11px; margin-bottom: 6px;"></div><div class="skeletonBlock" style="width: 110px; height: 18px;"></div></div>
+                                    <div><div class="skeletonBlock" style="width: 120px; height: 11px; margin-bottom: 6px;"></div><div class="skeletonBlock" style="width: 95px; height: 18px;"></div></div>
+                                    <div><div class="skeletonBlock" style="width: 125px; height: 11px; margin-bottom: 6px;"></div><div class="skeletonBlock" style="width: 100px; height: 18px;"></div></div>
                                 </div>
                                 <div class="tableContainer">
                                     <table>
@@ -1242,42 +1408,82 @@
                 }
 
                 if (targetPath === '/production/issuance') {
-                    const issCols = [
-                        { colW: '14%', w: '75px', h: '20px', br: '5px' },
-                        { colW: '26%', w: '160px', h: '16px' },
-                        { colW: '16%', w: '90px', h: '16px' },
-                        { colW: '14%', w: '60px', h: '16px' },
-                        { colW: '14%', w: '75px', h: '22px', br: '9999px' },
-                        { colW: '16%', w: '85px', h: '28px', br: '6px', align: 'right' }
+                    const isHistoryTab = targetParams.get('tab') === 'history';
+                    const issHistCols = [
+                        { colW: '11%', w: '60px', h: '18px', br: '5px' },
+                        { colW: '19%', w: '120px', h: '16px' },
+                        { colW: '15%', w: '95px', h: '22px', br: '9999px' },
+                        { colW: '22%', w: '135px', h: '16px' },
+                        { colW: '11%', w: '65px', h: '16px', align: 'right' },
+                        { colW: '11%', w: '75px', h: '16px' },
+                        { colW: '11%', w: '85px', h: '16px' }
                     ];
-                    const issHeadCols = [
-                        { colW: '14%', w: '70px' },
-                        { colW: '26%', w: '110px' },
-                        { colW: '16%', w: '85px' },
-                        { colW: '14%', w: '65px' },
-                        { colW: '14%', w: '60px' },
-                        { colW: '16%', w: '55px', align: 'right' }
+                    const issHistHeadCols = [
+                        { colW: '11%', w: '65px' },
+                        { colW: '19%', w: '95px' },
+                        { colW: '15%', w: '50px' },
+                        { colW: '22%', w: '90px' },
+                        { colW: '11%', w: '60px', align: 'right' },
+                        { colW: '11%', w: '70px' },
+                        { colW: '11%', w: '65px' }
                     ];
+                    const issBodyHtml = isHistoryTab ? `
+                        <div class="tableContainer">
+                            <table>
+                                ${tableHead(issHistHeadCols)}
+                                <tbody>${tableRows(issHistCols, 5)}</tbody>
+                            </table>
+                        </div>
+                        ${paginationFooter()}
+                    ` : `
+                        <div class="issueQueueList">
+                            <div class="issueOrderCard" style="padding: 16px 18px;">
+                                <div style="display: flex; justify-content: space-between; align-items: flex-start; gap: 14px; flex-wrap: wrap; margin-bottom: 14px;">
+                                    <div>
+                                        <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 6px;">
+                                            <div class="skeletonBlock" style="width: 115px; height: 20px;"></div>
+                                            <div class="skeletonBlock" style="width: 120px; height: 22px; border-radius: 9999px;"></div>
+                                        </div>
+                                        <div class="skeletonBlock" style="width: 270px; height: 13px;"></div>
+                                    </div>
+                                    <div class="skeletonBlock" style="width: 165px; height: 34px; border-radius: 8px;"></div>
+                                </div>
+                                <div class="skeletonBlock" style="width: 100%; height: 34px; margin-bottom: 8px;"></div>
+                                <div class="skeletonBlock" style="width: 100%; height: 34px; opacity: 0.75;"></div>
+                            </div>
+                            <div class="issueOrderCard" style="padding: 16px 18px; opacity: 0.85;">
+                                <div style="display: flex; justify-content: space-between; align-items: flex-start; gap: 14px; flex-wrap: wrap; margin-bottom: 14px;">
+                                    <div>
+                                        <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 6px;">
+                                            <div class="skeletonBlock" style="width: 115px; height: 20px;"></div>
+                                            <div class="skeletonBlock" style="width: 110px; height: 22px; border-radius: 9999px;"></div>
+                                        </div>
+                                        <div class="skeletonBlock" style="width: 250px; height: 13px;"></div>
+                                    </div>
+                                    <div class="skeletonBlock" style="width: 165px; height: 34px; border-radius: 8px;"></div>
+                                </div>
+                                <div class="skeletonBlock" style="width: 100%; height: 34px; margin-bottom: 8px;"></div>
+                                <div class="skeletonBlock" style="width: 100%; height: 34px; opacity: 0.75;"></div>
+                            </div>
+                        </div>
+                    `;
                     return `
                         <div class="skeletonContainer">
                             <div class="headerRow" style="margin-bottom: 18px;">
                                 <div>
-                                    <div class="skeletonBlock" style="width: 160px; height: 26px; margin-bottom: 6px;"></div>
+                                    <div class="skeletonBlock" style="width: 165px; height: 26px; margin-bottom: 6px;"></div>
                                     <div class="skeletonBlock" style="width: 340px; height: 14px;"></div>
                                 </div>
                             </div>
                             <div class="card">
                                 <div class="workspaceToolbar" style="margin-bottom: 14px;">
-                                    ${toolbarTabs([50, 110, 75, 85])}
-                                    <div class="skeletonBlock" style="width: 120px; height: 32px; border-radius: 8px;"></div>
+                                    ${toolbarTabs([125, 105, 92, 145, '|', 118])}
+                                    <div class="workspaceMetaGroup">
+                                        <div class="skeletonBlock" style="width: 90px; height: 26px; border-radius: 9999px;"></div>
+                                        <div class="skeletonBlock" style="width: 110px; height: 26px; border-radius: 9999px;"></div>
+                                    </div>
                                 </div>
-                                <div class="tableContainer">
-                                    <table>
-                                        ${tableHead(issHeadCols)}
-                                        <tbody>${tableRows(issCols, 5)}</tbody>
-                                    </table>
-                                </div>
-                                ${paginationFooter()}
+                                ${issBodyHtml}
                             </div>
                         </div>
                     `;
@@ -1285,33 +1491,31 @@
 
                 if (targetPath === '/production/monitoring') {
                     const monCols = [
-                        { colW: '12%', w: '65px', h: '20px', br: '5px' },
-                        { colW: '25%', w: '150px', h: '16px' },
-                        { colW: '18%', w: '110px', h: '16px' },
-                        { colW: '21%', w: '130px', h: '12px', br: '9999px' },
-                        { colW: '12%', w: '75px', h: '22px', br: '9999px' },
-                        { colW: '12%', w: '70px', h: '28px', br: '6px', align: 'right' }
+                        { colW: '22%', w: '145px', h: '18px' },
+                        { colW: '18%', w: '115px', h: '24px', br: '9999px' },
+                        { colW: '20%', w: '130px', h: '16px' },
+                        { colW: '24%', w: '140px', h: '12px', br: '9999px' },
+                        { colW: '16%', w: '85px', h: '28px', br: '6px', align: 'right' }
                     ];
                     const monHeadCols = [
-                        { colW: '12%', w: '60px' },
-                        { colW: '25%', w: '110px' },
-                        { colW: '18%', w: '90px' },
-                        { colW: '21%', w: '100px' },
-                        { colW: '12%', w: '60px' },
-                        { colW: '12%', w: '45px', align: 'right' }
+                        { colW: '22%', w: '110px' },
+                        { colW: '18%', w: '95px' },
+                        { colW: '20%', w: '105px' },
+                        { colW: '24%', w: '65px' },
+                        { colW: '16%', w: '55px', align: 'right' }
                     ];
                     return `
                         <div class="skeletonContainer">
                             <div class="headerRow" style="margin-bottom: 18px;">
                                 <div>
-                                    <div class="skeletonBlock" style="width: 190px; height: 26px; margin-bottom: 6px;"></div>
-                                    <div class="skeletonBlock" style="width: 260px; height: 14px;"></div>
+                                    <div class="skeletonBlock" style="width: 195px; height: 26px; margin-bottom: 6px;"></div>
+                                    <div class="skeletonBlock" style="width: 265px; height: 14px;"></div>
                                 </div>
                             </div>
                             <div class="card">
                                 <div class="workspaceToolbar" style="margin-bottom: 14px;">
-                                    ${toolbarTabs([50, 95, 90, 95, 110])}
-                                    <div class="skeletonBlock" style="width: 130px; height: 32px; border-radius: 8px;"></div>
+                                    ${isManagerUser ? toolbarTabs([45, 130, 88]) : toolbarTabs([45, 100, 130, 88])}
+                                    <div class="skeletonBlock" style="width: 92px; height: 26px; border-radius: 9999px;"></div>
                                 </div>
                                 <div class="tableContainer">
                                     <table>
@@ -1319,7 +1523,6 @@
                                         <tbody>${tableRows(monCols, 5)}</tbody>
                                     </table>
                                 </div>
-                                ${paginationFooter()}
                             </div>
                         </div>
                     `;
@@ -1327,33 +1530,35 @@
 
                 if (targetPath === '/production/finished-goods') {
                     const fgCols = [
-                        { colW: '14%', w: '65px', h: '20px', br: '5px' },
-                        { colW: '26%', w: '160px', h: '16px' },
-                        { colW: '14%', w: '60px', h: '16px' },
-                        { colW: '16%', w: '85px', h: '16px' },
-                        { colW: '14%', w: '75px', h: '22px', br: '9999px' },
-                        { colW: '16%', w: '75px', h: '28px', br: '6px', align: 'right' }
+                        { colW: '19%', w: '135px', h: '18px' },
+                        { colW: '13%', w: '75px', h: '22px', br: '9999px' },
+                        { colW: '16%', w: '110px', h: '26px', br: '6px' },
+                        { colW: '11%', w: '45px', h: '28px', br: '6px' },
+                        { colW: '11%', w: '45px', h: '28px', br: '6px' },
+                        { colW: '11%', w: '45px', h: '28px', br: '6px' },
+                        { colW: '19%', w: '95px', h: '30px', br: '6px', align: 'right' }
                     ];
                     const fgHeadCols = [
-                        { colW: '14%', w: '60px' },
-                        { colW: '26%', w: '110px' },
-                        { colW: '14%', w: '70px' },
-                        { colW: '16%', w: '80px' },
-                        { colW: '14%', w: '65px' },
-                        { colW: '16%', w: '50px', align: 'right' }
+                        { colW: '19%', w: '105px' },
+                        { colW: '13%', w: '90px' },
+                        { colW: '16%', w: '95px' },
+                        { colW: '11%', w: '50px' },
+                        { colW: '11%', w: '50px' },
+                        { colW: '11%', w: '45px' },
+                        { colW: '19%', w: '55px', align: 'right' }
                     ];
                     return `
                         <div class="skeletonContainer">
                             <div class="headerRow" style="margin-bottom: 18px;">
                                 <div>
-                                    <div class="skeletonBlock" style="width: 150px; height: 26px; margin-bottom: 6px;"></div>
-                                    <div class="skeletonBlock" style="width: 350px; height: 14px;"></div>
+                                    <div class="skeletonBlock" style="width: 245px; height: 26px; margin-bottom: 6px;"></div>
+                                    <div class="skeletonBlock" style="width: 360px; height: 14px;"></div>
                                 </div>
                             </div>
                             <div class="card">
                                 <div class="workspaceToolbar" style="margin-bottom: 14px;">
-                                    ${toolbarTabs([110, 65, 75, 70])}
-                                    <div class="skeletonBlock" style="width: 130px; height: 32px; border-radius: 8px;"></div>
+                                    ${toolbarTabs([105, '|', 90, 68, 74, 64])}
+                                    <div class="skeletonBlock" style="width: 125px; height: 26px; border-radius: 9999px;"></div>
                                 </div>
                                 <div class="tableContainer">
                                     <table>
@@ -1369,35 +1574,40 @@
 
                 if (targetPath === '/production/costing') {
                     const costCols = [
-                        { colW: '12%', w: '65px', h: '20px', br: '5px' },
-                        { colW: '22%', w: '140px', h: '16px' },
-                        { colW: '11%', w: '50px', h: '16px' },
-                        { colW: '14%', w: '75px', h: '16px' },
-                        { colW: '14%', w: '75px', h: '16px' },
-                        { colW: '14%', w: '85px', h: '16px' },
-                        { colW: '13%', w: '65px', h: '28px', br: '6px', align: 'right' }
+                        { colW: '16%', w: '125px', h: '18px' },
+                        { colW: '11%', w: '75px', h: '22px', br: '9999px' },
+                        { colW: '14%', w: '80px', h: '16px', align: 'right' },
+                        { colW: '12%', w: '75px', h: '28px', br: '6px', align: 'right' },
+                        { colW: '13%', w: '85px', h: '16px', align: 'right' },
+                        { colW: '11%', w: '70px', h: '16px', align: 'right' },
+                        { colW: '11%', w: '75px', h: '16px', align: 'right' },
+                        { colW: '12%', w: '75px', h: '28px', br: '6px', align: 'center' }
                     ];
                     const costHeadCols = [
-                        { colW: '12%', w: '60px' },
-                        { colW: '22%', w: '100px' },
-                        { colW: '11%', w: '55px' },
-                        { colW: '14%', w: '75px' },
-                        { colW: '14%', w: '70px' },
-                        { colW: '14%', w: '75px' },
-                        { colW: '13%', w: '45px', align: 'right' }
+                        { colW: '16%', w: '105px' },
+                        { colW: '11%', w: '50px' },
+                        { colW: '14%', w: '115px', align: 'right' },
+                        { colW: '12%', w: '80px', align: 'right' },
+                        { colW: '13%', w: '95px', align: 'right' },
+                        { colW: '11%', w: '85px', align: 'right' },
+                        { colW: '11%', w: '90px', align: 'right' },
+                        { colW: '12%', w: '50px', align: 'center' }
                     ];
                     return `
                         <div class="skeletonContainer">
                             <div class="headerRow" style="margin-bottom: 18px;">
                                 <div>
-                                    <div class="skeletonBlock" style="width: 170px; height: 26px; margin-bottom: 6px;"></div>
-                                    <div class="skeletonBlock" style="width: 310px; height: 14px;"></div>
+                                    <div class="skeletonBlock" style="width: 185px; height: 26px; margin-bottom: 6px;"></div>
+                                    <div class="skeletonBlock" style="width: 340px; height: 14px;"></div>
                                 </div>
                             </div>
                             <div class="card">
                                 <div class="workspaceToolbar" style="margin-bottom: 14px;">
-                                    ${toolbarTabs([50, 110, 105])}
-                                    <div class="skeletonBlock" style="width: 130px; height: 32px; border-radius: 8px;"></div>
+                                    ${toolbarTabs([45, 130, 135])}
+                                    <div class="workspaceMetaGroup">
+                                        <div class="skeletonBlock" style="width: 115px; height: 26px; border-radius: 9999px;"></div>
+                                        <div class="skeletonBlock" style="width: 130px; height: 26px; border-radius: 9999px;"></div>
+                                    </div>
                                 </div>
                                 <div class="tableContainer">
                                     <table>
@@ -1405,7 +1615,6 @@
                                         <tbody>${tableRows(costCols, 5)}</tbody>
                                     </table>
                                 </div>
-                                ${paginationFooter()}
                             </div>
                         </div>
                     `;
@@ -1413,50 +1622,34 @@
 
                 if (targetPath === '/production/reports' || targetPath === '/production/report') {
                     const repCols = [
-                        { colW: '12%', w: '65px', h: '20px', br: '5px' },
-                        { colW: '26%', w: '160px', h: '16px' },
-                        { colW: '16%', w: '85px', h: '16px' },
-                        { colW: '14%', w: '75px', h: '22px', br: '9999px' },
-                        { colW: '16%', w: '90px', h: '16px' },
-                        { colW: '16%', w: '100px', h: '16px', align: 'right' }
+                        { colW: '24%', w: '150px', h: '18px' },
+                        { colW: '15%', w: '80px', h: '22px', br: '9999px' },
+                        { colW: '22%', w: '125px', h: '14px' },
+                        { colW: '23%', w: '140px', h: '16px' },
+                        { colW: '16%', w: '90px', h: '16px', align: 'right' }
                     ];
                     const repHeadCols = [
-                        { colW: '12%', w: '60px' },
-                        { colW: '26%', w: '110px' },
-                        { colW: '16%', w: '90px' },
-                        { colW: '14%', w: '65px' },
-                        { colW: '16%', w: '80px' },
-                        { colW: '16%', w: '70px', align: 'right' }
+                        { colW: '24%', w: '110px' },
+                        { colW: '15%', w: '55px' },
+                        { colW: '22%', w: '115px' },
+                        { colW: '23%', w: '105px' },
+                        { colW: '16%', w: '75px', align: 'right' }
                     ];
                     return `
                         <div class="skeletonContainer">
-                            <div class="printDocumentHeader" style="margin-bottom: 20px;">
-                                <div class="printHeaderMain" style="display: flex; justify-content: space-between; align-items: flex-start;">
-                                    <div>
-                                        <div class="skeletonBlock" style="width: 110px; height: 22px; margin-bottom: 6px;"></div>
-                                        <div class="skeletonBlock" style="width: 140px; height: 12px; margin-bottom: 4px;"></div>
-                                        <div class="skeletonBlock" style="width: 160px; height: 11px;"></div>
-                                    </div>
-                                    <div style="text-align: right;">
-                                        <div class="skeletonBlock" style="width: 140px; height: 16px; margin-left: auto; margin-bottom: 6px;"></div>
-                                        <div class="skeletonBlock" style="width: 160px; height: 12px; margin-left: auto;"></div>
-                                    </div>
-                                </div>
-                                <div class="printHeaderDivider" style="height: 1px; background: var(--bd); margin: 16px 0;"></div>
-                            </div>
                             <div class="headerRow" style="margin-bottom: 18px;">
                                 <div>
-                                    <div class="skeletonBlock" style="width: 170px; height: 24px; margin-bottom: 6px;"></div>
-                                    <div class="skeletonBlock" style="width: 330px; height: 13px;"></div>
+                                    <div class="skeletonBlock" style="width: 180px; height: 26px; margin-bottom: 6px;"></div>
+                                    <div class="skeletonBlock" style="width: 360px; height: 14px;"></div>
                                 </div>
-                                <div class="skeletonBlock" style="width: 130px; height: 32px; border-radius: 6px;"></div>
+                                <div class="skeletonBlock" style="width: 145px; height: 34px; border-radius: 8px;"></div>
                             </div>
                             <div class="card">
                                 <div class="workspaceToolbar" style="margin-bottom: 14px;">
-                                    ${toolbarTabs([100, 120, 115])}
-                                    <div style="display: flex; gap: 8px;">
-                                        <div class="skeletonBlock" style="width: 110px; height: 26px; border-radius: 9999px;"></div>
-                                        <div class="skeletonBlock" style="width: 130px; height: 26px; border-radius: 9999px;"></div>
+                                    ${toolbarTabs([120, 150, '|', 135])}
+                                    <div class="workspaceMetaGroup">
+                                        <div class="skeletonBlock" style="width: 145px; height: 26px; border-radius: 9999px;"></div>
+                                        <div class="skeletonBlock" style="width: 155px; height: 26px; border-radius: 9999px;"></div>
                                     </div>
                                 </div>
                                 <div class="tableContainer">
@@ -1465,46 +1658,61 @@
                                         <tbody>${tableRows(repCols, 6)}</tbody>
                                     </table>
                                 </div>
+                                ${paginationFooter()}
                             </div>
                         </div>
                     `;
                 }
 
                 if (targetPath === '/production/materials') {
-                    const matCols = [
-                        { colW: '16%', w: '75px', h: '20px', br: '5px' },
-                        { colW: '30%', w: '160px', h: '16px' },
-                        { colW: '18%', w: '85px', h: '22px', br: '9999px' },
-                        { colW: '18%', w: '80px', h: '16px' },
-                        { colW: '18%', w: '70px', h: '16px', align: 'right' }
+                    const matCols = isManagerUser ? [
+                        { colW: '12%', w: '65px', h: '18px' },
+                        { colW: '26%', w: '155px', h: '16px' },
+                        { colW: '14%', w: '60px', h: '16px' },
+                        { colW: '16%', w: '75px', h: '16px' },
+                        { colW: '16%', w: '85px', h: '18px' },
+                        { colW: '16%', w: '125px', h: '22px', br: '9999px' }
+                    ] : [
+                        { colW: '14%', w: '65px', h: '18px' },
+                        { colW: '32%', w: '165px', h: '16px' },
+                        { colW: '16%', w: '60px', h: '16px' },
+                        { colW: '19%', w: '85px', h: '18px' },
+                        { colW: '19%', w: '125px', h: '22px', br: '9999px' }
                     ];
-                    const matHeadCols = [
-                        { colW: '16%', w: '70px' },
-                        { colW: '30%', w: '110px' },
-                        { colW: '18%', w: '75px' },
-                        { colW: '18%', w: '75px' },
-                        { colW: '18%', w: '65px', align: 'right' }
+                    const matHeadCols = isManagerUser ? [
+                        { colW: '12%', w: '85px' },
+                        { colW: '26%', w: '125px' },
+                        { colW: '14%', w: '95px' },
+                        { colW: '16%', w: '115px' },
+                        { colW: '16%', w: '120px' },
+                        { colW: '16%', w: '115px' }
+                    ] : [
+                        { colW: '14%', w: '85px' },
+                        { colW: '32%', w: '125px' },
+                        { colW: '16%', w: '95px' },
+                        { colW: '19%', w: '120px' },
+                        { colW: '19%', w: '115px' }
                     ];
                     return `
                         <div class="skeletonContainer">
                             <div class="headerRow" style="margin-bottom: 18px;">
                                 <div>
-                                    <div class="skeletonBlock" style="width: 150px; height: 26px; margin-bottom: 6px;"></div>
-                                    <div class="skeletonBlock" style="width: 300px; height: 14px;"></div>
+                                    <div class="skeletonBlock" style="width: 245px; height: 26px; margin-bottom: 6px;"></div>
+                                    <div class="skeletonBlock" style="width: 340px; height: 14px;"></div>
                                 </div>
                             </div>
+                            <div class="metricGrid">
+                                <div class="metricCard"><div class="skeletonBlock" style="width: 135px; height: 12px; margin-bottom: 8px;"></div><div class="skeletonBlock" style="width: 85px; height: 24px;"></div></div>
+                                <div class="metricCard"><div class="skeletonBlock" style="width: 115px; height: 12px; margin-bottom: 8px;"></div><div class="skeletonBlock" style="width: 90px; height: 24px;"></div></div>
+                                <div class="metricCard"><div class="skeletonBlock" style="width: 120px; height: 12px; margin-bottom: 8px;"></div><div class="skeletonBlock" style="width: 95px; height: 24px;"></div></div>
+                            </div>
                             <div class="card">
-                                <div class="workspaceToolbar" style="margin-bottom: 14px;">
-                                    ${toolbarTabs([50, 85, 80])}
-                                    <div class="skeletonBlock" style="width: 130px; height: 32px; border-radius: 8px;"></div>
-                                </div>
                                 <div class="tableContainer">
                                     <table>
                                         ${tableHead(matHeadCols)}
                                         <tbody>${tableRows(matCols, 5)}</tbody>
                                     </table>
                                 </div>
-                                ${paginationFooter()}
                             </div>
                         </div>
                     `;
@@ -1694,7 +1902,7 @@
                 if (noteEl) {
                     if (noteText && noteText.trim()) {
                         noteEl.style.display = 'block';
-                        noteEl.textContent = 'Workshop Note: ' + noteText.trim();
+                        noteEl.textContent = 'Progress Note: ' + noteText.trim();
                     } else {
                         noteEl.style.display = 'none';
                         noteEl.textContent = '';
@@ -1818,6 +2026,7 @@
                     if (phoneValEl) phoneValEl.textContent = data.phone || 'Not set';
                     const signOutNameEl = document.getElementById('signOutUserNameLabel');
                     if (signOutNameEl) signOutNameEl.textContent = newFullName;
+                    tabHtmlCache.clear();
 
                     showToast(data.message || 'Account profile updated.', 'success');
                     window.closeAccountSettingsModal();
@@ -2223,6 +2432,8 @@
                     const freshCard = doc.getElementById('weeklyActivityCard');
                     if (freshCard) {
                         card.innerHTML = freshCard.innerHTML;
+                        tabHtmlCache.delete(normalizeUrlKey('/production/'));
+                        tabHtmlCache.delete(normalizeUrlKey(window.location.href));
                         if (window.history && window.history.replaceState) {
                             const cleanUrl = offset === 0 ? '/production/' : targetUrl;
                             window.history.replaceState({ weekOffset: offset }, '', cleanUrl);
@@ -2294,6 +2505,12 @@
 
             document.addEventListener('submit', function () {
                 tabHtmlCache.clear();
+            });
+
+            window.addEventListener('pageshow', function (event) {
+                if (event.persisted) {
+                    tabHtmlCache.clear();
+                }
             });
 
             window.addEventListener('popstate', function (event) {

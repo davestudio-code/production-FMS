@@ -1,5 +1,5 @@
-from datetime import date, timedelta
 from production.db import fetchAll, fetchOne, executeReturning
+from production.timefmt import formatManilaDateTime
 
 class ProductionOutput:
     VALID_STATUSES = ("Pending", "Passed", "Failed", "Rework")
@@ -32,12 +32,7 @@ class ProductionOutput:
 
     @property
     def formattedInspectionDate(self):
-        if not self.inspectionDate:
-            return "-"
-        try:
-            return self.inspectionDate.strftime("%b. %d, %Y")
-        except AttributeError:
-            return str(self.inspectionDate)
+        return formatManilaDateTime(self.inspectionDate)
 
     @classmethod
     def recordOutput(cls, orderID, furnitureID, quantity, qualityStatus="Passed", recordedBy=None, reason=None, inspectorID=None, conn=None):
@@ -49,7 +44,7 @@ class ProductionOutput:
         inspectorName = recordedBy or "Dave Cagalitan"
         sql = """
             INSERT INTO prod_productionoutput (order_id, furniture_id, quantity, quality_status, inspection_date, recorded_by, reason, inspector_id)
-            VALUES (%s, %s, %s, %s, CURRENT_DATE, %s, %s, %s)
+            VALUES (%s, %s, %s, %s, NOW(), %s, %s, %s)
             RETURNING output_id, order_id, furniture_id, quantity, quality_status, inspection_date, recorded_by, reason, inspector_id
         """
         row = executeReturning(sql, (orderID, furnitureID, quantity, qualityStatus, inspectorName, reason, inspectorID), conn=conn)
@@ -75,12 +70,11 @@ class ProductionOutput:
         params = []
         whereClauses = []
         if startDate:
-            whereClauses.append("o.inspection_date >= %s")
+            whereClauses.append("(o.inspection_date AT TIME ZONE 'Asia/Manila')::date >= %s")
             params.append(startDate)
         if endDate:
-            nextDay = endDate + timedelta(days=1) if hasattr(endDate, "__add__") else endDate
-            whereClauses.append("o.inspection_date < %s")
-            params.append(nextDay)
+            whereClauses.append("(o.inspection_date AT TIME ZONE 'Asia/Manila')::date <= %s")
+            params.append(endDate)
         if qualityStatus:
             whereClauses.append("o.quality_status = %s")
             params.append(qualityStatus)

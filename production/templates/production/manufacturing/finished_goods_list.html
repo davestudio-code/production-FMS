@@ -1,7 +1,7 @@
 {% extends "production/base.html" %}
 
 {% block content %}
-<link rel="stylesheet" href="/production/feature-static/manufacturing/finished_goods.css?v=20261113e">
+<link rel="stylesheet" href="/production/feature-static/manufacturing/finished_goods.css?v=20261116b">
 
 {% set passedRecordCount = outputRecords | selectattr('qualityStatus', 'equalto', 'Passed') | list | length %}
 {% set reworkRecordCount = outputRecords | selectattr('qualityStatus', 'equalto', 'Rework') | list | length %}
@@ -50,12 +50,6 @@
         </div>
 
         <div class="workspaceMetaGroup">
-            {% if summary.rework > 0 %}
-            <span class="workspaceMetaPill warn">
-                <span class="tabStatusDot inProgress"></span>
-                <span><b>{{ summary.rework }}</b> In Rework</span>
-            </span>
-            {% endif %}
             <span class="workspaceMetaPill success">
                 <span class="tabStatusDot completed"></span>
                 <span>Credited Stock: <b>{{ summary.totalUnits }} units</b></span>
@@ -89,8 +83,8 @@
                         &middot; <b>{{ ord.furnitureName }}</b> (Planned: {{ ord.plannedQuantity }}, Passed: {{
                         ord.alreadyPassed }}, Scrapped: {{ ord.alreadyFailed }})
                     </div>
-                    <a href="/production/orders/{{ ord.orderID }}" class="btn btnSecondary"
-                        style="font-size: 12px; padding: 4px 10px;">View Order</a>
+                    <a href="/production/orders/{{ ord.orderID }}" class="actionButton secondary"
+                        style="font-size: 12px; padding: 5px 11px;">View Order</a>
                 </div>
                 {% endfor %}
             </div>
@@ -102,8 +96,8 @@
                 <thead>
                     <tr>
                         <th>Order Reference</th>
-                        <th>Furniture Product</th>
-                        <th>Assembly Progress</th>
+                        <th>Product</th>
+                        <th>Progress</th>
                         <th>Target Due Date</th>
                         <th>Pending QC</th>
                         <th>Reworks</th>
@@ -135,7 +129,8 @@
                                 <div class="progressTrack">
                                     <span class="progressFill" style="width: {{ ord.progress | round | int }}%;"></span>
                                 </div>
-                                <span style="font-size: 12px; font-weight: 700; color: var(--p);">{{ ord.progress | round
+                                <span style="font-size: 12px; font-weight: 700; color: var(--p);">{{ ord.progress |
+                                    round
                                     |
                                     int }}%</span>
                             </div>
@@ -169,7 +164,7 @@
                         </td>
                         <td data-label="Action" style="text-align: right;">
                             {% if isManager %}
-                            <button type="button" class="btn btnPrimary qaInspectBtn" data-order-id="{{ ord.orderID }}"
+                            <button type="button" class="actionButton qaInspectBtn" data-order-id="{{ ord.orderID }}"
                                 data-furniture-name="{{ ord.furnitureName }}"
                                 data-staff-name="{{ ord.assignedStaffName or '' }}"
                                 data-proof-url="{{ ord.latestProof.fileUrl if ord.latestProof and ord.latestProof.hasImage else '' }}"
@@ -212,39 +207,27 @@
             <table class="monitoringTable">
                 <thead>
                     <tr>
-                        <th>Date</th>
                         <th>Order</th>
                         <th>Product</th>
-                        <th>Status</th>
                         <th>Quantity</th>
+                        <th>Date</th>
                         <th>Reason</th>
-                        <th>Inspector</th>
+                        <th>Status</th>
                     </tr>
                 </thead>
                 <tbody>
                     {% for out in outputRecords %}
                     <tr class="qaHistoryRow" data-status="{{ out.qualityStatus }}"
-                        data-search="po-{{ out.orderID }} {{ out.furnitureName|lower }} {{ out.recordedBy|lower }} {{ (out.reason or '')|lower }}">
-                        <td data-label="Date">{{ out.formattedInspectionDate }}</td>
+                        data-search="po-{{ out.orderID }} {{ out.furnitureName|lower }} {{ (out.reason or '')|lower }}">
                         <td data-label="Order">
                             <a href="/production/orders/{{ out.orderID }}"
                                 style="color: var(--tx); font-weight: 700; text-decoration: none;">Order #PO-{{
                                 out.orderID }}</a>
                         </td>
                         <td data-label="Product">{{ out.furnitureName }}</td>
-                        <td data-label="Status">
-                            {% if out.qualityStatus == 'Passed' %}
-                            <span class="statusBadge completed">Passed</span>
-                            {% elif out.qualityStatus == 'Rework' %}
-                            <span class="statusBadge inProgress">Rework</span>
-                            {% elif out.qualityStatus == 'Failed' %}
-                            <span class="statusBadge cancelled">Failed</span>
-                            {% else %}
-                            <span class="statusBadge draft">{{ out.qualityStatus }}</span>
-                            {% endif %}
-                        </td>
                         <td data-label="Quantity"><b>{{ out.quantity }}</b> unit{% if out.quantity != 1 %}s{% endif %}
                         </td>
+                        <td data-label="Date">{{ out.formattedInspectionDate }}</td>
                         <td data-label="Reason">
                             {% if out.reason %}
                             <span style="font-size: 12.5px;">{{ out.reason }}</span>
@@ -252,18 +235,20 @@
                             <span style="color: var(--mt); font-size: 12px;">-</span>
                             {% endif %}
                         </td>
-                        <td data-label="Inspector">
-                            <span style="font-size: 12.5px; font-weight: 500;">{{ out.recordedBy }}</span>
+                        <td data-label="Status">
+                            <span
+                                style="font-weight: 700; color: {{ '#3d5225' if out.qualityStatus == 'Passed' else ('#9a4a3a' if out.qualityStatus in ('Rework', 'Failed') else 'var(--mt)') }};">{{
+                                out.qualityStatus }}</span>
                         </td>
                     </tr>
                     {% else %}
                     <tr>
-                        <td colspan="7" style="text-align: center; color: var(--mt); padding: 24px;">No quality
+                        <td colspan="6" style="text-align: center; color: var(--mt); padding: 24px;">No quality
                             inspection records logged yet.</td>
                     </tr>
                     {% endfor %}
                     <tr id="qaHistoryEmptyRow" style="display: none;">
-                        <td colspan="7" style="text-align: center; color: var(--mt); padding: 24px;">No quality
+                        <td colspan="6" style="text-align: center; color: var(--mt); padding: 24px;">No quality
                             inspection records match your filter criteria.</td>
                     </tr>
                 </tbody>
@@ -292,6 +277,96 @@
             </div>
         </div>
     </div>
+
+    <div id="qaReworkSection" style="display: none;">
+        {% set reworkRecords = outputRecords | selectattr('qualityStatus', 'equalto', 'Rework') | list %}
+        <div class="tableContainer">
+            <table class="monitoringTable">
+                <thead>
+                    <tr>
+                        <th>Order</th>
+                        <th>Product</th>
+                        <th>Quantity</th>
+                        <th>Date</th>
+                        <th>Reason</th>
+                        <th style="text-align: right;">Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for out in reworkRecords %}
+                    {% set rwkCand = reworkScrapMap.get(out.orderID) if latestReworkOutputIDMap.get(out.orderID) ==
+                    out.outputID else none %}
+                    <tr class="qaReworkRow"
+                        data-search="po-{{ out.orderID }} {{ out.furnitureName|lower }} {{ (out.reason or '')|lower }}">
+                        <td data-label="Order">
+                            <a href="/production/orders/{{ out.orderID }}"
+                                style="color: var(--tx); font-weight: 700; text-decoration: none;">Order #PO-{{
+                                out.orderID }}</a>
+                        </td>
+                        <td data-label="Product">{{ out.furnitureName }}</td>
+                        <td data-label="Quantity"><b>{{ out.quantity }}</b> unit{% if out.quantity != 1 %}s{% endif %}
+                        </td>
+                        <td data-label="Date">{{ out.formattedInspectionDate }}</td>
+                        <td data-label="Reason">
+                            {% if out.reason %}
+                            <span style="font-size: 12.5px;">{{ out.reason }}</span>
+                            {% else %}
+                            <span style="color: var(--mt); font-size: 12px;">-</span>
+                            {% endif %}
+                        </td>
+                        <td data-label="Actions" style="text-align: right;">
+                            {% if rwkCand and isManager %}
+                            <button type="button" class="qaScrapBtn qaInspectBtn" data-order-id="{{ rwkCand.orderID }}"
+                                data-furniture-name="{{ rwkCand.furnitureName }}"
+                                data-staff-name="{{ rwkCand.assignedStaffName or '' }}"
+                                data-pending-qty="{{ rwkCand.pendingInspectionQty }}"
+                                data-passed-qty="{{ rwkCand.alreadyPassed }}"
+                                data-failed-qty="{{ rwkCand.alreadyFailed }}"
+                                data-rework-count="{{ rwkCand.reworkCount or 0 }}" data-scrap-only="1"
+                                data-inspect-url="{{ url_for('production.recordInspection', orderID=rwkCand.orderID) }}">
+                                Scrap as Failed
+                            </button>
+                            {% else %}
+                            <span style="color: var(--mt); font-size: 12px;">-</span>
+                            {% endif %}
+                        </td>
+                    </tr>
+                    {% else %}
+                    <tr>
+                        <td colspan="6" style="text-align: center; color: var(--mt); padding: 24px;">No rework
+                            inspection records logged yet.</td>
+                    </tr>
+                    {% endfor %}
+                    <tr id="qaReworkEmptyRow" style="display: none;">
+                        <td colspan="6" style="text-align: center; color: var(--mt); padding: 24px;">No rework
+                            records match your filter criteria.</td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+        <div class="auditPagination" id="qaReworkPagination"
+            style="margin-top: 14px; padding-top: 12px; border-top: 1px solid var(--bd);">
+            <div style="display: flex; align-items: center; gap: 12px; flex-wrap: wrap;">
+                <span class="auditPaginationInfo" id="qaReworkPageInfo"></span>
+                <div style="display: inline-flex; align-items: center; gap: 6px;">
+                    <label style="font-size: 12px; color: var(--mt);">Per page:</label>
+                    <select id="qaReworkPageSize" onchange="changeQAReworkPageSize(this.value)"
+                        style="padding: 4px 8px; font-size: 12px; border-radius: 6px;">
+                        <option value="10" selected>10</option>
+                        <option value="25">25</option>
+                        <option value="50">50</option>
+                    </select>
+                </div>
+            </div>
+            <div class="auditPaginationControls">
+                <button type="button" class="actionButton secondary" id="qaReworkPrevBtn"
+                    onclick="changeQAReworkPage(-1)" style="padding: 5px 12px; font-size: 12px;">&larr; Prev</button>
+                <span id="qaReworkPageIndicator" style="font-size: 12.5px; font-weight: 600; color: var(--tx);"></span>
+                <button type="button" class="actionButton secondary" id="qaReworkNextBtn"
+                    onclick="changeQAReworkPage(1)" style="padding: 5px 12px; font-size: 12px;">Next &rarr;</button>
+            </div>
+        </div>
+    </div>
 </div>
 
 {% if isManager %}
@@ -303,7 +378,12 @@
                 <h3 id="qaModalTitle" class="qaModalTitle">Quality Check (QC)</h3>
                 <div id="qaModalSubtitle" class="qaModalSubtitle"></div>
             </div>
-            <button type="button" id="qaModalCloseBtn" class="qaModalClose" aria-label="Close modal"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg></button>
+            <button type="button" id="qaModalCloseBtn" class="qaModalClose" aria-label="Close modal"><svg width="15"
+                    height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"
+                    stroke-linecap="round" stroke-linejoin="round">
+                    <line x1="18" y1="6" x2="6" y2="18"></line>
+                    <line x1="6" y1="6" x2="18" y2="18"></line>
+                </svg></button>
         </div>
 
         <div id="qaSummaryLine" class="qaSummaryLine"></div>
@@ -364,8 +444,8 @@
             </div>
 
             <div class="qaModalActions">
-                <button type="button" id="qaModalCancelBtn" class="btn btnSecondary">Cancel</button>
-                <button type="submit" id="qaModalSubmitBtn" class="btn btnPrimary" disabled>Submit QC</button>
+                <button type="button" id="qaModalCancelBtn" class="actionButton secondary">Cancel</button>
+                <button type="submit" id="qaModalSubmitBtn" class="actionButton" disabled>Submit QC</button>
             </div>
         </form>
     </div>
@@ -448,10 +528,11 @@
         var alreadyPassed = parseInt(btn.dataset.passedQty || 0, 10);
         var alreadyFailed = parseInt(btn.dataset.failedQty || 0, 10);
         currentReworkCount = parseInt(btn.dataset.reworkCount || 0, 10);
+        var scrapOnly = btn.dataset.scrapOnly === '1';
 
         qaModalForm.action = btn.dataset.inspectUrl;
         qaModalForm.dataset.submitting = 'false';
-        qaModalTitle.textContent = 'Quality Check (QC) - Order #PO-' + orderID;
+        qaModalTitle.textContent = (scrapOnly ? 'Scrap Rework Units - Order #PO-' : 'Quality Check (QC) - Order #PO-') + orderID;
         qaModalSubtitle.textContent = staffName ? (furnitureName + ' · Assigned: ' + staffName) : furnitureName;
         qaSummaryLine.textContent = currentPendingQty + ' pending, ' + alreadyPassed + ' passed, ' + alreadyFailed + ' scrapped so far';
 
@@ -491,14 +572,27 @@
 
         qaPassedInput.value = '';
         qaPassedInput.max = currentPendingQty;
+        qaPassedInput.disabled = false;
         qaReworkInput.value = '';
         qaReworkInput.max = currentPendingQty;
         qaFailedInput.value = '';
         qaFailedInput.max = currentPendingQty;
+        qaFailedInput.readOnly = false;
         qaReasonInput.value = '';
         qaScrapConfirmCheckbox.checked = false;
+        if (qaPassAllBtn) {
+            qaPassAllBtn.style.display = scrapOnly ? 'none' : '';
+        }
 
-        if (currentReworkCount >= 2) {
+        if (scrapOnly) {
+            qaPassedInput.disabled = true;
+            qaPassedInput.value = '0';
+            qaReworkInput.disabled = true;
+            qaReworkInput.value = '0';
+            qaFailedInput.value = String(currentPendingQty);
+            qaFailedInput.readOnly = true;
+            qaReworkLimitNote.style.display = 'none';
+        } else if (currentReworkCount >= 2) {
             qaReworkInput.disabled = true;
             qaReworkInput.value = '0';
             qaReworkLimitNote.style.display = 'block';
@@ -510,7 +604,7 @@
         document.body.style.overflow = 'hidden';
         qaModalOverlay.style.display = 'flex';
         updateModalState();
-        qaPassedInput.focus();
+        (scrapOnly ? qaReasonInput : qaPassedInput).focus();
     }
 
     function closeQAModal() {
@@ -595,13 +689,16 @@
         }
     });
 
-    var currentQAHistoryPage = 1;
-    var qaHistoryPageSize = 10;
+    var qaPagerState = {
+        history: { page: 1, size: 10 },
+        rework: { page: 1, size: 10 }
+    };
 
     window.setQAWorkspaceTab = function (tabKey) {
         const key = tabKey || 'pending';
         const pendingSection = document.getElementById('qaPendingSection');
         const historySection = document.getElementById('qaHistorySection');
+        const reworkSection = document.getElementById('qaReworkSection');
         const activeInput = document.getElementById('qaActiveSectionInput');
         const statusInput = document.getElementById('qaHistoryStatusSelect');
         const qInput = document.getElementById('globalTabSearchInput');
@@ -619,17 +716,117 @@
             if (activeInput) activeInput.value = 'pending';
             if (pendingSection) pendingSection.style.display = 'block';
             if (historySection) historySection.style.display = 'none';
+            if (reworkSection) reworkSection.style.display = 'none';
             if (qInput) qInput.placeholder = 'Search orders awaiting QC (#PO or product)...';
+        } else if (key === 'history:Rework') {
+            if (activeInput) activeInput.value = 'rework';
+            if (statusInput) statusInput.value = 'Rework';
+            if (pendingSection) pendingSection.style.display = 'none';
+            if (historySection) historySection.style.display = 'none';
+            if (reworkSection) reworkSection.style.display = 'block';
+            if (qInput) qInput.placeholder = 'Search rework records (#PO, product, reason)...';
         } else {
             const outcome = key.startsWith('history:') ? key.slice(8) : '';
             if (activeInput) activeInput.value = 'history';
             if (statusInput) statusInput.value = outcome;
             if (pendingSection) pendingSection.style.display = 'none';
+            if (reworkSection) reworkSection.style.display = 'none';
             if (historySection) historySection.style.display = 'block';
-            if (qInput) qInput.placeholder = 'Search inspection history (#PO, product, reason, inspector)...';
+            if (qInput) qInput.placeholder = 'Search inspection history (#PO, product, reason)...';
         }
 
         window.filterQAWorkspace(true);
+    };
+
+    function _renderPagedQATable(cfg, resetPage) {
+        var state = qaPagerState[cfg.key];
+        if (resetPage) state.page = 1;
+
+        var q = (document.getElementById('globalTabSearchInput')?.value || '').toLowerCase().trim();
+        var status = cfg.useStatus ? (document.getElementById('qaHistoryStatusSelect')?.value || '').trim() : '';
+        var allRows = Array.from(document.querySelectorAll(cfg.rowSelector));
+        var matchingRows = allRows.filter(function (row) {
+            var rowStatus = row.dataset.status || '';
+            var rowSearch = row.dataset.search || '';
+            var matchStatus = !status || rowStatus === status;
+            var matchSearch = !q || rowSearch.includes(q);
+            return matchStatus && matchSearch;
+        });
+
+        var totalCount = matchingRows.length;
+        var totalPages = Math.ceil(totalCount / state.size) || 1;
+        if (state.page > totalPages) state.page = totalPages;
+        if (state.page < 1) state.page = 1;
+
+        var startIndex = (state.page - 1) * state.size;
+        var endIndex = Math.min(startIndex + state.size, totalCount);
+
+        allRows.forEach(function (row) {
+            row.style.display = 'none';
+        });
+        for (var i = startIndex; i < endIndex; i++) {
+            matchingRows[i].style.display = '';
+        }
+
+        var emptyRow = document.getElementById(cfg.emptyRowId);
+        if (emptyRow) {
+            emptyRow.style.display = (totalCount === 0 && allRows.length > 0) ? '' : 'none';
+        }
+
+        var pageInfo = document.getElementById(cfg.pageInfoId);
+        if (pageInfo) {
+            pageInfo.textContent = totalCount === 0
+                ? 'Showing 0 records'
+                : 'Showing ' + (startIndex + 1) + '–' + endIndex + ' of ' + totalCount + ' record' + (totalCount === 1 ? '' : 's');
+        }
+
+        var pageIndicator = document.getElementById(cfg.pageIndicatorId);
+        if (pageIndicator) {
+            pageIndicator.textContent = 'Page ' + state.page + ' of ' + totalPages;
+        }
+
+        var prevBtn = document.getElementById(cfg.prevBtnId);
+        if (prevBtn) {
+            prevBtn.disabled = state.page <= 1;
+            prevBtn.style.opacity = state.page <= 1 ? '0.5' : '1';
+            prevBtn.style.cursor = state.page <= 1 ? 'default' : 'pointer';
+        }
+
+        var nextBtn = document.getElementById(cfg.nextBtnId);
+        if (nextBtn) {
+            nextBtn.disabled = state.page >= totalPages;
+            nextBtn.style.opacity = state.page >= totalPages ? '0.5' : '1';
+            nextBtn.style.cursor = state.page >= totalPages ? 'default' : 'pointer';
+        }
+
+        var paginationContainer = document.getElementById(cfg.paginationId);
+        if (paginationContainer) {
+            paginationContainer.style.display = allRows.length === 0 ? 'none' : 'flex';
+        }
+    }
+
+    var qaHistoryPagerCfg = {
+        key: 'history',
+        useStatus: true,
+        rowSelector: 'tr.qaHistoryRow',
+        emptyRowId: 'qaHistoryEmptyRow',
+        pageInfoId: 'qaHistoryPageInfo',
+        pageIndicatorId: 'qaHistoryPageIndicator',
+        prevBtnId: 'qaHistoryPrevBtn',
+        nextBtnId: 'qaHistoryNextBtn',
+        paginationId: 'qaHistoryPagination'
+    };
+
+    var qaReworkPagerCfg = {
+        key: 'rework',
+        useStatus: false,
+        rowSelector: 'tr.qaReworkRow',
+        emptyRowId: 'qaReworkEmptyRow',
+        pageInfoId: 'qaReworkPageInfo',
+        pageIndicatorId: 'qaReworkPageIndicator',
+        prevBtnId: 'qaReworkPrevBtn',
+        nextBtnId: 'qaReworkNextBtn',
+        paginationId: 'qaReworkPagination'
     };
 
     window.filterQAWorkspace = function (resetPage = true) {
@@ -650,89 +847,42 @@
             pendingEmpty.style.display = (pendingVisible === 0 && pendingRows.length > 0) ? '' : 'none';
         }
         window.filterQAHistoryTable(resetPage);
+        window.filterQAReworkTable(resetPage);
     };
 
     window.filterQAHistoryTable = function (resetPage = true) {
-        if (resetPage) {
-            currentQAHistoryPage = 1;
-        }
-        const q = (document.getElementById('globalTabSearchInput')?.value || '').toLowerCase().trim();
-        const status = (document.getElementById('qaHistoryStatusSelect')?.value || '').trim();
-        const allRows = Array.from(document.querySelectorAll('tr.qaHistoryRow'));
-        const matchingRows = allRows.filter(function (row) {
-            const rowStatus = row.dataset.status || '';
-            const rowSearch = row.dataset.search || '';
-            const matchStatus = !status || rowStatus === status;
-            const matchSearch = !q || rowSearch.includes(q);
-            return matchStatus && matchSearch;
-        });
+        _renderPagedQATable(qaHistoryPagerCfg, resetPage);
+    };
 
-        const totalCount = matchingRows.length;
-        const totalPages = Math.ceil(totalCount / qaHistoryPageSize) || 1;
-        if (currentQAHistoryPage > totalPages) currentQAHistoryPage = totalPages;
-        if (currentQAHistoryPage < 1) currentQAHistoryPage = 1;
-
-        const startIndex = (currentQAHistoryPage - 1) * qaHistoryPageSize;
-        const endIndex = Math.min(startIndex + qaHistoryPageSize, totalCount);
-
-        allRows.forEach(function (row) {
-            row.style.display = 'none';
-        });
-
-        for (let i = startIndex; i < endIndex; i++) {
-            matchingRows[i].style.display = '';
-        }
-
-        const emptyRow = document.getElementById('qaHistoryEmptyRow');
-        if (emptyRow) {
-            emptyRow.style.display = (totalCount === 0 && allRows.length > 0) ? '' : 'none';
-        }
-
-        const pageInfo = document.getElementById('qaHistoryPageInfo');
-        if (pageInfo) {
-            if (totalCount === 0) {
-                pageInfo.textContent = 'Showing 0 records';
-            } else {
-                pageInfo.textContent = `Showing ${startIndex + 1}–${endIndex} of ${totalCount} record${totalCount === 1 ? '' : 's'}`;
-            }
-        }
-
-        const pageIndicator = document.getElementById('qaHistoryPageIndicator');
-        if (pageIndicator) {
-            pageIndicator.textContent = `Page ${currentQAHistoryPage} of ${totalPages}`;
-        }
-
-        const prevBtn = document.getElementById('qaHistoryPrevBtn');
-        if (prevBtn) {
-            prevBtn.disabled = currentQAHistoryPage <= 1;
-            prevBtn.style.opacity = currentQAHistoryPage <= 1 ? '0.5' : '1';
-            prevBtn.style.cursor = currentQAHistoryPage <= 1 ? 'default' : 'pointer';
-        }
-
-        const nextBtn = document.getElementById('qaHistoryNextBtn');
-        if (nextBtn) {
-            nextBtn.disabled = currentQAHistoryPage >= totalPages;
-            nextBtn.style.opacity = currentQAHistoryPage >= totalPages ? '0.5' : '1';
-            nextBtn.style.cursor = currentQAHistoryPage >= totalPages ? 'default' : 'pointer';
-        }
-
-        const paginationContainer = document.getElementById('qaHistoryPagination');
-        if (paginationContainer) {
-            paginationContainer.style.display = allRows.length === 0 ? 'none' : 'flex';
-        }
+    window.filterQAReworkTable = function (resetPage = true) {
+        _renderPagedQATable(qaReworkPagerCfg, resetPage);
     };
 
     window.changeQAHistoryPage = function (delta) {
-        currentQAHistoryPage += delta;
+        qaPagerState.history.page += delta;
         window.filterQAHistoryTable(false);
     };
 
     window.changeQAHistoryPageSize = function (newSize) {
         const parsed = parseInt(newSize, 10);
         if (!isNaN(parsed) && parsed > 0) {
-            qaHistoryPageSize = parsed;
-            currentQAHistoryPage = 1;
+            qaPagerState.history.size = parsed;
+            qaPagerState.history.page = 1;
             window.filterQAHistoryTable(false);
+        }
+    };
+
+    window.changeQAReworkPage = function (delta) {
+        qaPagerState.rework.page += delta;
+        window.filterQAReworkTable(false);
+    };
+
+    window.changeQAReworkPageSize = function (newSize) {
+        const parsed = parseInt(newSize, 10);
+        if (!isNaN(parsed) && parsed > 0) {
+            qaPagerState.rework.size = parsed;
+            qaPagerState.rework.page = 1;
+            window.filterQAReworkTable(false);
         }
     };
 
@@ -745,12 +895,22 @@
         window.setQAWorkspaceTab('history:');
     };
 
-    if (document.readyState === 'loading') {
-        document.addEventListener('DOMContentLoaded', function () {
+    function _initQATabFromUrl() {
+        var params = new URLSearchParams(window.location.search);
+        var tabParam = (params.get('tab') || '').toLowerCase();
+        if (tabParam === 'rework') {
+            window.setQAWorkspaceTab('history:Rework');
+        } else if (tabParam === 'history') {
+            window.setQAWorkspaceTab('history:');
+        } else {
             window.filterQAWorkspace(true);
-        });
+        }
+    }
+
+    if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', _initQATabFromUrl);
     } else {
-        window.filterQAWorkspace(true);
+        _initQATabFromUrl();
     }
     window.addEventListener('pageshow', function () {
         window.filterQAWorkspace(false);
