@@ -52,15 +52,16 @@
     <div class="headerRow" style="margin-bottom: 14px; align-items: center;">
         <div>
             <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 4px;">
-                <h3 style="font-size: 16px; margin: 0;">Order #PO-{{ selectedOrder.orderID }} &bull; {{
+                <h3 style="font-size: 16px; margin: 0;">#PO-{{ selectedOrder.orderID }} &bull; {{
                     selectedOrder.furnitureName }}</h3>
                 <span
                     class="statusBadge {{ 'completed' if selectedOrder.status == 'Completed' else ('inProgress' if selectedOrder.status == 'In Progress' else ('released' if selectedOrder.status == 'Released' else 'draft')) }}">
                     {{ selectedOrder.status }}
                 </span>
             </div>
-            <span style="color: var(--mt); font-size: 12.5px;">Category: {{ selectedOrder.furnitureType }} &bull;
-                Ordered: {{ selectedOrder.orderDate|date_fmt }}</span>
+            {% if selectedOrder.furnitureType %}
+            <span style="color: var(--mt); font-size: 12.5px;">{{ selectedOrder.furnitureType }}</span>
+            {% endif %}
         </div>
 
         <div>
@@ -116,7 +117,7 @@
             <span style="font-size: 11.5px; color: var(--mt); display: block; text-transform: uppercase;">Assigned
                 Staff</span>
             {% if selectedOrder.assignedStaffName %}
-            <b style="font-size: 14.5px; color: var(--tx);">{{ selectedOrder.assignedStaffName }}</b>
+            <b style="font-size: 14.5px; color: var(--tx);">{{ selectedOrder.assignedStaffName|mail_link }}</b>
             {% else %}
             <span style="font-size: 14px; color: #5c513b; font-weight: 600;">Unassigned</span>
             {% endif %}

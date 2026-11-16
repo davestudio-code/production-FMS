@@ -322,14 +322,14 @@
     </div>
     {% endif %}
 
-    <div class="card">
+    <div class="card" style="display: flex; flex-direction: column;">
         <div class="dashCardHead">
             <h3>Recent Activity</h3>
             <span style="font-size: 12px; color: var(--mt);">{{ activityTimeline|length }} event{{ '' if
                 activityTimeline|length == 1 else 's' }}</span>
         </div>
         {% if activityTimeline|length > 0 %}
-        <div class="dashActivityScroll">
+        <div class="dashActivityScroll" style="flex: 1; max-height: 460px;">
             <ul class="dashActivity dashTimeline">
                 {% for act in activityTimeline %}
                 <li class="dashTimelineItem dashCat-{{ act.category or 'created' }}">
@@ -341,7 +341,7 @@
                         {% else %}
                         {{ act.title }}
                         {% endif %}
-                        <span>{{ act.meta }}</span>
+                        <span>{% if isManager and act.actor %}By {{ act.actor|mail_link }}{% if act.rawMeta %} · {{ act.rawMeta }}{% endif %}{% else %}{{ act.meta }}{% endif %}</span>
                     </div>
                 </li>
                 {% endfor %}

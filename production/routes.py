@@ -3,6 +3,7 @@ import math
 import re
 import logging
 from flask import Blueprint, render_template, request, redirect, url_for, flash, session, jsonify, send_from_directory
+from markupsafe import Markup, escape
 from decimal import Decimal, InvalidOperation
 from datetime import datetime, date, timedelta
 from psycopg2.errors import UniqueViolation
@@ -28,6 +29,7 @@ from .models.materialissuance import MaterialIssuance
 from .models.monitoring import ProductionMonitoring
 from .models.productionoutput import ProductionOutput
 from .models.productioncost import ProductionCost
+from .models.activitylog import ActivityLog
 from .models.workflow import (
     ProductionAttachment,
     uploadToSupabaseStorage,
@@ -36,7 +38,7 @@ from .models.workflow import (
     isValidActiveProdStaff
 )
 from . import integration
-from .cache import clearAllCache, invalidateKeys
+from .cache import clearAllCache, invalidateKeys, getCached, setCached
 from .security import check_ip_security, record_failed_login, record_successful_login, get_client_ip
 from .timefmt import (
     manilaNow,
@@ -62,6 +64,13 @@ def dateFmtFilter(val):
     if not val:
         return ""
     return formatManilaDateTime(val, fallback="")
+
+@productionBlueprint.app_template_filter("mail_link")
+def mailLinkFilter(val):
+    text = str(val or "").strip()
+    if "@" in text:
+        return Markup(f'<a href="https://mail.google.com/mail/?view=cm&fs=1&to={escape(text)}" target="_blank" rel="noopener" style="color: var(--p); text-decoration: underline;">{escape(text)}</a>')
+    return escape(text)
 
 def _clearAuthSessionKeys():
     for key in (
@@ -295,8 +304,11 @@ def refreshCache():
     return redirect(request.referrer or url_for("production.index"))
 
 def getDatabaseStatus():
+    if getCached("db_status_ok"):
+        return None
     try:
         fetchOne("SELECT 1")
+        setCached("db_status_ok", True)
         return None
     except Exception as connectionError:
         return f"Database Offline: {str(connectionError)}"
@@ -527,61 +539,19 @@ def index():
     dailyActivityMap = {}
     prevWeeklyBatches = 0
     prevWeeklyUnits = 0
-    try:
-        if isMgr:
-            dailyRows = fetchAll("""
-                SELECT (order_date AT TIME ZONE 'Asia/Manila')::date AS order_day,
-                       COUNT(*) AS order_count,
-                       COALESCE(SUM(planned_quantity), 0) AS total_units
-                FROM prod_productionorder
-                WHERE (order_date AT TIME ZONE 'Asia/Manila')::date >= %s
-                  AND (order_date AT TIME ZONE 'Asia/Manila')::date <= %s
-                GROUP BY 1
-            """, (monday, sunday))
-            for r in dailyRows:
-                dailyActivityMap[r["order_day"]] = {
-                    "orders": int(r["order_count"]),
-                    "units": int(r["total_units"])
-                }
-            prevRow = fetchOne("""
-                SELECT COUNT(*) AS order_count, COALESCE(SUM(planned_quantity), 0) AS total_units
-                FROM prod_productionorder
-                WHERE (order_date AT TIME ZONE 'Asia/Manila')::date >= %s
-                  AND (order_date AT TIME ZONE 'Asia/Manila')::date <= %s
-            """, (prevMonday, prevSunday))
-            if prevRow:
-                prevWeeklyBatches = int(prevRow.get("order_count") or 0)
-                prevWeeklyUnits = int(prevRow.get("total_units") or 0)
-        elif currentEmpID:
-            dailyRows = fetchAll("""
-                SELECT (order_date AT TIME ZONE 'Asia/Manila')::date AS order_day,
-                       COUNT(*) AS order_count,
-                       COALESCE(SUM(planned_quantity), 0) AS total_units
-                FROM prod_productionorder
-                WHERE (order_date AT TIME ZONE 'Asia/Manila')::date >= %s
-                  AND (order_date AT TIME ZONE 'Asia/Manila')::date <= %s
-                  AND assigned_to = %s
-                GROUP BY 1
-            """, (monday, sunday, int(currentEmpID)))
-            for r in dailyRows:
-                dailyActivityMap[r["order_day"]] = {
-                    "orders": int(r["order_count"]),
-                    "units": int(r["total_units"])
-                }
-            prevRow = fetchOne("""
-                SELECT COUNT(*) AS order_count, COALESCE(SUM(planned_quantity), 0) AS total_units
-                FROM prod_productionorder
-                WHERE (order_date AT TIME ZONE 'Asia/Manila')::date >= %s
-                  AND (order_date AT TIME ZONE 'Asia/Manila')::date <= %s
-                  AND assigned_to = %s
-            """, (prevMonday, prevSunday, int(currentEmpID)))
-            if prevRow:
-                prevWeeklyBatches = int(prevRow.get("order_count") or 0)
-                prevWeeklyUnits = int(prevRow.get("total_units") or 0)
-    except Exception:
-        dailyActivityMap = {}
-        prevWeeklyBatches = 0
-        prevWeeklyUnits = 0
+    for o in scopedOrders:
+        orderDay = toManilaDate(getattr(o, "orderDate", None))
+        if not orderDay:
+            continue
+        qtyVal = int(getattr(o, "plannedQuantity", 0) or 0)
+        if monday <= orderDay <= sunday:
+            if orderDay not in dailyActivityMap:
+                dailyActivityMap[orderDay] = {"orders": 0, "units": 0}
+            dailyActivityMap[orderDay]["orders"] += 1
+            dailyActivityMap[orderDay]["units"] += qtyVal
+        elif prevMonday <= orderDay <= prevSunday:
+            prevWeeklyBatches += 1
+            prevWeeklyUnits += qtyVal
 
     dailyCapacityBenchmark = 5
     maxDailyOrders = max([d["orders"] for d in dailyActivityMap.values()] + [dailyCapacityBenchmark])
@@ -720,164 +690,31 @@ def index():
         })
     integrationEventsList = []
 
-    nowManila = manilaNow()
-
-    def _safeEventDt(val):
-        return toManilaDatetime(val, fallback=nowManila)
-
-    def _withActor(actorName, detailText):
-        cleanActor = (actorName or "").strip()
-        if isMgr and cleanActor:
-            return f"By {cleanActor} · {detailText}" if detailText else f"By {cleanActor}"
-        return detailText
-
-    activityTimeline = []
-    allOutputs = []
+    chartError = False
     try:
         allOutputs = ProductionOutput.getAll()
-        for out in allOutputs:
-            ordObj = orderMap.get(out.orderID)
-            assignedTo = getattr(ordObj, "assignedTo", None) if ordObj else None
-            inspectorActor = getattr(out, "recordedBy", None) or "Production Manager"
-            unitWord = "unit" if int(out.quantity or 0) == 1 else "units"
-            if out.qualityStatus == "Passed":
-                activityTimeline.append({
-                    "orderID": out.orderID,
-                    "category": "passed",
-                    "actor": inspectorActor,
-                    "title": f"#PO-{out.orderID} passed QC",
-                    "meta": _withActor(inspectorActor, f"{out.quantity} {unitWord} added to finished goods"),
-                    "sortKey": (_safeEventDt(out.inspectionDate), 4, int(out.outputID or 0)),
-                    "assignedTo": assignedTo,
-                    "actorEmpID": None
-                })
-            elif out.qualityStatus == "Rework":
-                activityTimeline.append({
-                    "orderID": out.orderID,
-                    "category": "rework",
-                    "actor": inspectorActor,
-                    "title": f"#PO-{out.orderID} sent back for rework",
-                    "meta": _withActor(inspectorActor, out.reason or out.furnitureName),
-                    "sortKey": (_safeEventDt(out.inspectionDate), 4, int(out.outputID or 0)),
-                    "assignedTo": assignedTo,
-                    "actorEmpID": None
-                })
-            elif out.qualityStatus == "Failed":
-                activityTimeline.append({
-                    "orderID": out.orderID,
-                    "category": "rework",
-                    "actor": inspectorActor,
-                    "title": f"#PO-{out.orderID} scrapped {out.quantity} {unitWord} as Failed",
-                    "meta": _withActor(inspectorActor, out.reason or out.furnitureName),
-                    "sortKey": (_safeEventDt(out.inspectionDate), 4, int(out.outputID or 0)),
-                    "assignedTo": assignedTo,
-                    "actorEmpID": None
-                })
-    except Exception:
+    except Exception as err:
+        logger.exception("Failed to query chart inspection outputs: %s", err)
         allOutputs = []
+        chartError = True
 
-    latestStageProofMap = {}
-    try:
-        latestStageProofMap = ProductionAttachment.getLatestByOrderIDs(
-            [m.orderID for m in scopedMonitoring],
-            requireImage=False
-        )
-    except Exception:
-        latestStageProofMap = {}
-
-    for mon in scopedMonitoring:
-        if mon.progress and mon.progress > 0:
-            stageLabel = "Cutting & Sizing" if mon.progress <= 25 else (
-                "Joinery & Assembly" if mon.progress <= 50 else (
-                    "Sanding & Finishing" if mon.progress <= 75 else "Ready for QC"
-                )
-            )
-            ordObj = orderMap.get(mon.orderID)
-            assignedTo = mon.assignedTo or (getattr(ordObj, "assignedTo", None) if ordObj else None)
-            proofObj = latestStageProofMap.get(mon.orderID)
-            stageActorID = (proofObj.uploadedBy if proofObj and proofObj.uploadedBy else assignedTo)
-            stageActorName = (
-                (proofObj.submittedBy if proofObj and proofObj.uploadedBy else None)
-                or getattr(ordObj, "assignedStaffName", None)
-                or getattr(mon, "assignedStaffName", None)
-                or "Workshop Staff"
-            )
-            stageEventTs = (
-                proofObj.createdAt
-                if (proofObj and proofObj.createdAt)
-                else (getattr(mon, "updatedAt", None) or mon.startDate)
-            )
-            activityTimeline.append({
-                "orderID": mon.orderID,
-                "category": "stage",
-                "actor": stageActorName,
-                "title": f"#PO-{mon.orderID} moved to {int(mon.progress)}% · {stageLabel}",
-                "meta": _withActor(stageActorName, "Workshop update"),
-                "sortKey": (_safeEventDt(stageEventTs), 3, int(mon.monitoringID or 0)),
-                "assignedTo": assignedTo,
-                "actorEmpID": stageActorID
-            })
-
-    try:
-        recentIssuances = MaterialIssuance.getAll()
-        seenInitialOrders = set()
-        for iss in recentIssuances:
-            ordObj = orderMap.get(iss.orderID)
-            assignedTo = getattr(ordObj, "assignedTo", None) if ordObj else None
-            issuerActor = getattr(iss, "recordedBy", None) or "Manager"
-            if getattr(iss, "isReworkReplacement", False):
-                roundLabel = f"Round #{iss.reworkRound}" if getattr(iss, "reworkRound", 0) > 0 else "Rework"
-                reasonText = iss.reason or "Replacement material issued"
-                activityTimeline.append({
-                    "orderID": iss.orderID,
-                    "category": "issued",
-                    "actor": issuerActor,
-                    "title": f"Rework replacement issued for #PO-{iss.orderID} · {iss.materialName}",
-                    "meta": _withActor(issuerActor, f"{roundLabel}: {reasonText}"),
-                    "sortKey": (_safeEventDt(iss.issueDate), 2, int(iss.issuanceID or 0)),
-                    "assignedTo": assignedTo,
-                    "actorEmpID": None
-                })
-            elif iss.orderID not in seenInitialOrders:
-                seenInitialOrders.add(iss.orderID)
-                activityTimeline.append({
-                    "orderID": iss.orderID,
-                    "category": "issued",
-                    "actor": issuerActor,
-                    "title": f"Materials issued for #PO-{iss.orderID}",
-                    "meta": _withActor(issuerActor, "Stock deducted from inventory"),
-                    "sortKey": (_safeEventDt(iss.issueDate), 2, int(iss.issuanceID or 0)),
-                    "assignedTo": assignedTo,
-                    "actorEmpID": None
-                })
-    except Exception:
-        pass
-
-    for o in scopedOrders:
-        dueText = f"due {o.dueDate.strftime('%b. %d')}" if o.dueDate else "not scheduled"
-        unitWord = "unit" if int(o.plannedQuantity or 0) == 1 else "units"
-        createdMeta = _withActor("Production Manager", f"{o.plannedQuantity} {unitWord} · {dueText}")
+    recentLogs = ActivityLog.getRecent(isManager=isMgr, currentEmployeeID=currentEmpID, limit=20)
+    activityTimeline = []
+    for log in recentLogs:
+        cleanActor = (log.employeeName or "").strip()
+        if isMgr and cleanActor:
+            metaText = f"By {cleanActor} · {log.meta}" if log.meta else f"By {cleanActor}"
+        else:
+            metaText = log.meta or ""
         activityTimeline.append({
-            "orderID": o.orderID,
-            "category": "created",
-            "actor": "Production Manager",
-            "title": f"#PO-{o.orderID} created · {o.furnitureName}",
-            "meta": createdMeta,
-            "sortKey": (_safeEventDt(o.orderDate), 1, int(o.orderID or 0)),
-            "assignedTo": getattr(o, "assignedTo", None),
-            "actorEmpID": None
+            "orderID": log.orderID,
+            "category": log.category,
+            "actor": cleanActor,
+            "title": log.title,
+            "meta": metaText,
+            "rawMeta": log.meta or "",
+            "dateStr": log.dateStr
         })
-
-    if not isMgr:
-        activityTimeline = [
-            act for act in activityTimeline
-            if currentEmpID and (_matchesEmp(act.get("assignedTo"), currentEmpID) or _matchesEmp(act.get("actorEmpID"), currentEmpID))
-        ]
-
-    activityTimeline.sort(key=lambda x: x["sortKey"], reverse=True)
-    for act in activityTimeline:
-        dtVal = act["sortKey"][0]
-        act["dateStr"] = formatManilaDateTime(dtVal, includeYear=(dtVal.year != today.year))
 
     def _ringDash(pct):
         pct = max(0, min(100, int(round(pct))))
@@ -1060,19 +897,17 @@ def index():
             }
         ]
 
-    chartOutputs = []
-    chartError = False
-    try:
-        chartOutputs = ProductionOutput.getAll(startDate=monday, endDate=sunday, qualityStatus="Passed")
-        if not isMgr:
-            chartOutputs = [
-                out for out in chartOutputs
-                if currentEmpID and _matchesEmp(getattr(orderMap.get(out.orderID), "assignedTo", None), currentEmpID)
-            ]
-    except Exception as err:
-        logger.exception("Failed to query chart inspection outputs: %s", err)
-        chartOutputs = []
-        chartError = True
+    chartOutputs = [
+        out for out in allOutputs
+        if out.qualityStatus == "Passed"
+        and toManilaDate(out.inspectionDate) is not None
+        and monday <= toManilaDate(out.inspectionDate) <= sunday
+    ]
+    if not isMgr:
+        chartOutputs = [
+            out for out in chartOutputs
+            if currentEmpID and _matchesEmp(getattr(orderMap.get(out.orderID), "assignedTo", None), currentEmpID)
+        ]
 
     ordersPerDay = [0] * 7
     unitsPassedPerDay = [0] * 7
@@ -1482,10 +1317,13 @@ def bomList():
     selectedFurniture = None
 
     if furnitureIDParam and furnitureIDParam.isdigit():
-        try:
-            selectedFurniture = Furniture.getByID(int(furnitureIDParam))
-        except Exception:
-            selectedFurniture = None
+        targetFurnID = int(furnitureIDParam)
+        selectedFurniture = next((f for f in furnitureItemList if f.furnitureID == targetFurnID), None)
+        if not selectedFurniture:
+            try:
+                selectedFurniture = Furniture.getByID(targetFurnID)
+            except Exception:
+                selectedFurniture = None
 
     if not selectedFurniture and furnitureItemList:
         selectedFurniture = furnitureItemList[0]
@@ -1509,7 +1347,7 @@ def bomList():
             except Exception:
                 batchQuantity = Decimal("1")
 
-            requirements = bom.calculateRequirements(batchQuantity)
+            requirements = bom.calculateRequirements(batchQuantity, items=bomItems)
             unitTotalCost = sum((item.quantityRequired * item.unitCost for item in bomItems), Decimal("0.00"))
             batchTotalCost = sum((req["batchCost"] for req in requirements), Decimal("0.00"))
             suggestedMarkupPrice = (unitTotalCost * Decimal("1.40")).quantize(Decimal("0.01"))
@@ -1662,25 +1500,23 @@ def orderList():
         }
         stockoutAlerts = []
 
+    try:
+        allBomItemsMap = BillOfMaterials.getAllItemsByFurnitureMap()
+    except Exception:
+        allBomItemsMap = {}
+
     furnitureBomMap = {}
     for f in furnitureItemList:
-        try:
-            b = BillOfMaterials.getByFurnitureID(f.furnitureID, autoCreate=False)
-            if b:
-                items = b.getItems()
-                furnitureBomMap[f.furnitureID] = [
-                    {
-                        "materialName": it.materialName,
-                        "unit": it.unit,
-                        "quantityRequired": float(it.quantityRequired),
-                        "currentStock": float(getattr(it, "currentStock", 0.0) or 0.0)
-                    }
-                    for it in items
-                ]
-            else:
-                furnitureBomMap[f.furnitureID] = []
-        except Exception:
-            furnitureBomMap[f.furnitureID] = []
+        items = allBomItemsMap.get(f.furnitureID) or []
+        furnitureBomMap[f.furnitureID] = [
+            {
+                "materialName": it.materialName,
+                "unit": it.unit,
+                "quantityRequired": float(it.quantityRequired),
+                "currentStock": float(getattr(it, "currentStock", 0.0) or 0.0)
+            }
+            for it in items
+        ]
 
     return render_template(
         "production/orders/order_list.html",
@@ -1868,6 +1704,17 @@ def createOrder():
             plannedStartDate=parsedStartDate,
             dueDate=parsedDueDate,
             purpose=purpose
+        )
+        furn = Furniture.getByID(furnitureID)
+        furnName = furn.furnitureName if furn else "Product"
+        unitWord = "unit" if int(plannedQuantity) == 1 else "units"
+        dueText = f"due {parsedDueDate.strftime('%b. %d')}" if parsedDueDate else "not scheduled"
+        ActivityLog.record(
+            category="created",
+            title=f"#PO-{newOrderID} created · {furnName}",
+            meta=f"{plannedQuantity} {unitWord} · {dueText}",
+            orderID=newOrderID,
+            employeeID=session.get("employee_id")
         )
         flash(f"Production Order #PO-{newOrderID} created successfully in Draft status.", "success")
     except ValueError as valErr:
@@ -2188,19 +2035,18 @@ def issuanceList():
         activeIssuanceTab = "all"
 
     try:
-        allOrders = ProductionOrder.getAll(useCache=False)
+        allOrders = ProductionOrder.getAll()
         releasedOrders = [o for o in allOrders if o.status == "Released"]
-        matsMap = {m.materialID: m for m in Material.getAll(useCache=False)}
-        bomCache = {}
+        matsMap = {m.materialID: m for m in Material.getAll()}
+        allBomItemsMap = BillOfMaterials.getAllItemsByFurnitureMap()
+        bomCalc = BillOfMaterials()
         totalReadyUnits = 0
         totalBatchValue = Decimal("0.00")
         shortageOrderCount = 0
         for o in releasedOrders:
-            if o.furnitureID not in bomCache:
-                bomCache[o.furnitureID] = BillOfMaterials.getByFurnitureID(o.furnitureID, autoCreate=False)
-            bom = bomCache[o.furnitureID]
-            if bom:
-                reqs = bom.calculateRequirements(Decimal(str(o.plannedQuantity)))
+            bomItems = allBomItemsMap.get(o.furnitureID) or []
+            if bomItems:
+                reqs = bomCalc.calculateRequirements(Decimal(str(o.plannedQuantity)), items=bomItems)
             else:
                 reqs = []
             orderShortage = False
@@ -2226,6 +2072,27 @@ def issuanceList():
 
         materialIssuanceList = MaterialIssuance.getAll()
         monByOrder = {m.orderID: m for m in ProductionMonitoring.getAll()}
+        allOutputs = ProductionOutput.getAll()
+
+        passedByOrder = {}
+        failedByOrder = {}
+        latestReworkByOrder = {}
+        for out in allOutputs:
+            oid = out.orderID
+            qVal = int(out.quantity or 0)
+            if out.qualityStatus == "Passed":
+                passedByOrder[oid] = passedByOrder.get(oid, 0) + qVal
+            elif out.qualityStatus == "Failed":
+                failedByOrder[oid] = failedByOrder.get(oid, 0) + qVal
+            elif out.qualityStatus == "Rework" and oid not in latestReworkByOrder:
+                latestReworkByOrder[oid] = out
+
+        issuedRoundMap = {}
+        for iss in materialIssuanceList:
+            if getattr(iss, "isReworkReplacement", False):
+                rKey = (iss.orderID, iss.materialID, int(getattr(iss, "reworkRound", 0) or 0))
+                issuedRoundMap[rKey] = issuedRoundMap.get(rKey, Decimal("0.000")) + iss.quantityIssued
+
         reworkOrders = []
         for o in allOrders:
             if o.status != "In Progress":
@@ -2233,13 +2100,14 @@ def issuanceList():
             mon = monByOrder.get(o.orderID)
             if not mon or int(mon.reworkCount or 0) <= 0 or float(mon.progress or 0.0) >= 90.0:
                 continue
-            reworkUnits, pendingUnits, reworkReason = _getReworkRoundUnits(o.orderID, o.plannedQuantity)
+            pendingUnits = max(0, int(o.plannedQuantity or 0) - passedByOrder.get(o.orderID, 0) - failedByOrder.get(o.orderID, 0))
+            latestRework = latestReworkByOrder.get(o.orderID)
+            latestReworkQty = int(latestRework.quantity or 0) if latestRework else 0
+            reworkReason = (latestRework.reason or "").strip() if latestRework else ""
+            reworkUnits = min(latestReworkQty, pendingUnits)
             if pendingUnits <= 0 or reworkUnits <= 0:
                 continue
-            if o.furnitureID not in bomCache:
-                bomCache[o.furnitureID] = BillOfMaterials.getByFurnitureID(o.furnitureID, autoCreate=False)
-            bom = bomCache[o.furnitureID]
-            bomItems = bom.getItems() if bom else []
+            bomItems = allBomItemsMap.get(o.furnitureID) or []
             rwkRound = int(mon.reworkCount)
             reworkComponents = []
             for item in bomItems:
@@ -2248,7 +2116,7 @@ def issuanceList():
                 onHand = mat.currentStock if mat else Decimal("0.000")
                 perUnitQty = Decimal(str(item.quantityRequired))
                 roundCap = (perUnitQty * Decimal(str(reworkUnits))).quantize(Decimal("0.001"))
-                alreadyIssuedRound = MaterialIssuance.getIssuedForRound(o.orderID, mid, rwkRound)
+                alreadyIssuedRound = issuedRoundMap.get((o.orderID, mid, rwkRound), Decimal("0.000"))
                 remainingCap = max(Decimal("0.000"), roundCap - alreadyIssuedRound)
                 reworkComponents.append({
                     "materialID": mid,
@@ -2311,7 +2179,7 @@ def issuanceList():
 @manager_required
 def issueOrderMaterials(orderID):
     try:
-        issuerName = (session.get("employee_name") or "").strip() or "Manager"
+        issuerName = (session.get("email") or session.get("employee_name") or "").strip() or "Manager"
         with openTransaction() as conn:
             orderRow = fetchOne(
                 """
@@ -2367,6 +2235,15 @@ def issueOrderMaterials(orderID):
 
             ProductionOrder.updateStatus(orderID, "In Progress", conn=conn)
 
+            ActivityLog.record(
+                category="issued",
+                title=f"Materials issued for #PO-{orderID}",
+                meta="Stock deducted from inventory",
+                orderID=orderID,
+                employeeID=session.get("employee_id"),
+                conn=conn
+            )
+
         invalidateKeys("materials_all", "orders_all", "orders_summary", "furniture_all")
         flash(f"Materials dispatched for Order #PO-{orderID}! Order moved to 'In Progress' for workshop assembly.", "success")
     except ValueError as valErr:
@@ -2410,7 +2287,7 @@ def issueReworkReplacement(orderID):
         flash("Replacement reason cannot exceed 255 characters.", "warning")
         return redirect(url_for("production.issuanceList", tab="rework"))
 
-    issuerName = (session.get("employee_name") or "").strip() or "Manager"
+    issuerName = (session.get("email") or session.get("employee_name") or "").strip() or "Manager"
 
     try:
         with openTransaction() as conn:
@@ -2511,6 +2388,17 @@ def issueReworkReplacement(orderID):
                 issuanceType="Rework Replacement",
                 reason=reason,
                 reworkRound=reworkRound,
+                conn=conn
+            )
+
+            roundLabel = f"Round #{reworkRound}" if reworkRound > 0 else "Rework"
+            reasonText = reason or "Replacement material issued"
+            ActivityLog.record(
+                category="issued",
+                title=f"Rework replacement issued for #PO-{orderID} · {matName}",
+                meta=f"{roundLabel}: {reasonText}",
+                orderID=orderID,
+                employeeID=session.get("employee_id"),
                 conn=conn
             )
 
@@ -2636,6 +2524,20 @@ def updateMonitoringProgress(monitoringID):
                     conn=conn
                 )
 
+            stageLabel = "Cutting & Sizing" if stageInt <= 25 else (
+                "Joinery & Assembly" if stageInt <= 50 else (
+                    "Sanding & Finishing" if stageInt <= 75 else "Ready for QC"
+                )
+            )
+            ActivityLog.record(
+                category="stage",
+                title=f"#PO-{existing.orderID} moved to {stageInt}% · {stageLabel}",
+                meta=stageNote or "Workshop update",
+                orderID=existing.orderID,
+                employeeID=currentEmpID,
+                conn=conn
+            )
+
         if updated:
             invalidateKeys("orders_all", "orders_summary")
             stageName = stageLabels.get(stageInt, f"{stageInt}% Progress")
@@ -2657,13 +2559,23 @@ def updateMonitoringProgress(monitoringID):
 def finishedGoodsList():
     try:
         allMonitoring = ProductionMonitoring.getAll()
+        outputRecords = ProductionOutput.getAll()
+        passedByOrder = {}
+        failedByOrder = {}
+        for out in outputRecords:
+            oid = out.orderID
+            qVal = int(out.quantity or 0)
+            if out.qualityStatus == "Passed":
+                passedByOrder[oid] = passedByOrder.get(oid, 0) + qVal
+            elif out.qualityStatus == "Failed":
+                failedByOrder[oid] = failedByOrder.get(oid, 0) + qVal
+
         activeCandidateOrders = [m for m in allMonitoring if m.orderStatus == "In Progress" and m.progress >= 90.0]
         pendingOrders = []
         needsAttentionOrders = []
         for m in activeCandidateOrders:
-            summaryCounts = ProductionOutput.getOrderInspectionSummary(m.orderID)
-            m.alreadyPassed = summaryCounts["passed"]
-            m.alreadyFailed = summaryCounts["failed"]
+            m.alreadyPassed = passedByOrder.get(m.orderID, 0)
+            m.alreadyFailed = failedByOrder.get(m.orderID, 0)
             m.pendingInspectionQty = max(0, int(m.plannedQuantity) - m.alreadyPassed - m.alreadyFailed)
             if m.pendingInspectionQty > 0:
                 pendingOrders.append(m)
@@ -2673,9 +2585,8 @@ def finishedGoodsList():
         reworkScrapCandidates = []
         for m in allMonitoring:
             if m.orderStatus == "In Progress" and (m.reworkCount or 0) > 0 and m.progress < 90.0:
-                summaryCounts = ProductionOutput.getOrderInspectionSummary(m.orderID)
-                m.alreadyPassed = summaryCounts["passed"]
-                m.alreadyFailed = summaryCounts["failed"]
+                m.alreadyPassed = passedByOrder.get(m.orderID, 0)
+                m.alreadyFailed = failedByOrder.get(m.orderID, 0)
                 m.pendingInspectionQty = max(0, int(m.plannedQuantity) - m.alreadyPassed - m.alreadyFailed)
                 if m.pendingInspectionQty > 0:
                     reworkScrapCandidates.append(m)
@@ -2684,7 +2595,6 @@ def finishedGoodsList():
         for m in pendingOrders:
             m.latestProof = latestImgMap.get(m.orderID)
 
-        outputRecords = ProductionOutput.getAll()
         reworkScrapMap = {m.orderID: m for m in reworkScrapCandidates}
         latestReworkOutputIDMap = {}
         for out in outputRecords:
@@ -2817,10 +2727,11 @@ def recordInspection(orderID):
                 flash(f"Order #PO-{orderID} has reached maximum allowed reworks (2). Units must either Pass or be marked as Failed/Scrapped.", "error")
                 return redirect(url_for("production.finishedGoodsList"))
 
-            inspectorName = session.get("employee_name", "Dave Cagalitan")
+            inspectorName = (session.get("email") or session.get("employee_name") or "").strip() or "Dave Cagalitan"
             rawUserID = session.get("user_id")
             inspectorID = int(rawUserID) if (rawUserID and str(rawUserID).isdecimal()) else None
 
+            empID = session.get("employee_id")
             if passedQty > 0:
                 ProductionOutput.recordOutput(
                     orderID=orderID,
@@ -2833,6 +2744,15 @@ def recordInspection(orderID):
                     conn=conn
                 )
                 integration.add_finished_goods_stock(orderRow["furniture_id"], passedQty, conn=conn)
+                unitWordPassed = "unit" if passedQty == 1 else "units"
+                ActivityLog.record(
+                    category="passed",
+                    title=f"#PO-{orderID} passed QC",
+                    meta=f"{passedQty} {unitWordPassed} added to finished goods",
+                    orderID=orderID,
+                    employeeID=empID,
+                    conn=conn
+                )
 
             if reworkQty > 0:
                 ProductionOutput.recordOutput(
@@ -2852,6 +2772,14 @@ def recordInspection(orderID):
                     currentReworks + 1,
                     conn=conn
                 )
+                ActivityLog.record(
+                    category="rework",
+                    title=f"#PO-{orderID} sent back for rework",
+                    meta=reason or orderRow["furniture_name"],
+                    orderID=orderID,
+                    employeeID=empID,
+                    conn=conn
+                )
 
             if failedQty > 0:
                 ProductionOutput.recordOutput(
@@ -2862,6 +2790,15 @@ def recordInspection(orderID):
                     recordedBy=inspectorName,
                     reason=reason,
                     inspectorID=inspectorID,
+                    conn=conn
+                )
+                unitWordFailed = "unit" if failedQty == 1 else "units"
+                ActivityLog.record(
+                    category="rework",
+                    title=f"#PO-{orderID} scrapped {failedQty} {unitWordFailed} as Failed",
+                    meta=reason or orderRow["furniture_name"],
+                    orderID=orderID,
+                    employeeID=empID,
                     conn=conn
                 )
 
@@ -2893,10 +2830,37 @@ def recordInspection(orderID):
 def costingList():
     try:
         allOrders = ProductionOrder.getAll()
+        allCostRecords = ProductionCost.getAll()
+        allIssuances = MaterialIssuance.getAll()
+        allOutputs = ProductionOutput.getAll()
+        allBomItemsMap = BillOfMaterials.getAllItemsByFurnitureMap()
+
+        costByOrder = {c.orderID: c for c in allCostRecords}
+        issuedCostRawByOrder = {}
+        for iss in allIssuances:
+            issuedCostRawByOrder[iss.orderID] = issuedCostRawByOrder.get(iss.orderID, Decimal("0.00")) + (iss.quantityIssued * iss.unitCost)
+
+        passedUnitsByOrder = {}
+        for out in allOutputs:
+            if out.qualityStatus == "Passed":
+                passedUnitsByOrder[out.orderID] = passedUnitsByOrder.get(out.orderID, 0) + int(out.quantity or 0)
+
+        def _calcGoodCostMem(oid, totalVal):
+            pUnits = passedUnitsByOrder.get(oid, 0)
+            if pUnits <= 0:
+                return None, 0
+            return (Decimal(str(totalVal)) / Decimal(str(pUnits))).quantize(Decimal("0.01")), pUnits
+
         costOrders = [o for o in allOrders if o.status in ("In Progress", "Completed")]
         for o in costOrders:
-            savedCost = ProductionCost.getByOrderID(o.orderID)
-            actualMatCost = ProductionCost.calculateActualMaterialCost(o.orderID)
+            savedCost = costByOrder.get(o.orderID)
+            rawIssCost = issuedCostRawByOrder.get(o.orderID, Decimal("0.00"))
+            if rawIssCost > Decimal("0.00"):
+                actualMatCost = rawIssCost.quantize(Decimal("0.01"))
+            else:
+                bomItems = allBomItemsMap.get(o.furnitureID) or []
+                qtyMult = Decimal(str(o.plannedQuantity or 0))
+                actualMatCost = sum((it.quantityRequired * qtyMult * it.unitCost for it in bomItems), Decimal("0.00")).quantize(Decimal("0.01"))
             o.actualMaterialCost = actualMatCost
             if savedCost:
                 o.hasCostSheet = True
@@ -2911,7 +2875,7 @@ def costingList():
                 o.costOutOfSync = (actualMatCost != savedCost.materialCost)
                 o.costDelta = (actualMatCost - savedCost.materialCost).quantize(Decimal("0.01"))
                 o.syncedTotalCost = (actualMatCost + o.laborCost).quantize(Decimal("0.01"))
-                syncedGoodCost, _ = ProductionCost.calculateCostPerGoodUnit(o.orderID, o.syncedTotalCost)
+                syncedGoodCost, _ = _calcGoodCostMem(o.orderID, o.syncedTotalCost)
                 o.syncedCostPerGoodUnit = syncedGoodCost
             else:
                 o.hasCostSheet = False
@@ -2928,11 +2892,10 @@ def costingList():
                 o.syncedTotalCost = o.totalCost
                 o.syncedCostPerGoodUnit = None
 
-            goodCost, passedUnits = ProductionCost.calculateCostPerGoodUnit(o.orderID, o.totalCost)
+            goodCost, passedUnits = _calcGoodCostMem(o.orderID, o.totalCost)
             o.costPerGoodUnit = goodCost
             o.passedUnits = passedUnits
 
-        allCostRecords = ProductionCost.getAll()
         totalRecordedCost = sum((c.materialCost + c.laborCost) for c in allCostRecords)
         summary = {
             "totalCost": totalRecordedCost,

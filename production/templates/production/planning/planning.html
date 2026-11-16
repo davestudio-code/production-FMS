@@ -124,7 +124,7 @@
                         <td>
                             {% if ord.assignedStaffName %}
                             <span class="staffAssignChip">
-                                <span>{{ ord.assignedStaffName }}</span>
+                                <span>{{ ord.assignedStaffName|mail_link }}</span>
                             </span>
                             {% else %}
                             <span style="color: #5c513b; font-size: 12.5px; font-weight: 600;">Unassigned</span>
@@ -242,5 +242,5 @@
 {% endcall %}
 {% endif %}
 
-<script src="/production/feature-static/planning/planning.js?v=20261113h"></script>
+<script src="/production/feature-static/planning/planning.js?v=20261116a"></script>
 {% endblock %}

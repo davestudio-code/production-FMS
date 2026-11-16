@@ -1,6 +1,7 @@
 from decimal import Decimal
 from production.db import fetchAll, fetchOne, executeReturning
 from production.timefmt import formatManilaDateTime
+from production.cache import getCached, setCached, invalidateKeys
 
 class ProductionCost:
     DEFAULT_OVERHEAD_PERCENT = Decimal("0.00")
@@ -65,6 +66,10 @@ class ProductionCost:
 
     @classmethod
     def getAll(cls, conn=None):
+        if conn is None:
+            cached = getCached("costs_all")
+            if cached is not None:
+                return cached
         sql = """
             SELECT c.cost_id,
                    c.order_id,
@@ -83,7 +88,10 @@ class ProductionCost:
             ORDER BY c.cost_id DESC
         """
         rows = fetchAll(sql, conn=conn)
-        return [cls(r) for r in rows]
+        result = [cls(r) for r in rows]
+        if conn is None:
+            setCached("costs_all", result)
+        return result
 
     @classmethod
     def getByOrderID(cls, orderID, conn=None):
@@ -161,4 +169,5 @@ class ProductionCost:
             RETURNING cost_id, order_id, material_cost, labor_cost, overhead_cost, total_cost, cost_date
         """
         row = executeReturning(sql, (orderID, mat, lab, over, total), conn=conn)
+        invalidateKeys("costs_all")
         return cls(row)

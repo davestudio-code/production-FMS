@@ -675,7 +675,7 @@
             openModal('scheduleModal');
         }
 
-        const TAB_CACHE_TTL_MS = 15000;
+        const TAB_CACHE_TTL_MS = 300000;
         const rawTabHtmlCache = new Map();
         const tabHtmlTimestamps = new Map();
 
@@ -739,27 +739,7 @@
         window.normalizeUrlKey = normalizeUrlKey;
 
         function isLiveNoCacheTab(url) {
-            try {
-                const u = new URL(url, window.location.origin);
-                const p = u.pathname.replace(/\/+$/, '') || '/production';
-                return (
-                    p === '/production/issuance' || p.startsWith('/production/issuance/') ||
-                    p === '/production/finished-goods' || p.startsWith('/production/finished-goods/') ||
-                    p === '/production/costing' || p.startsWith('/production/costing/') ||
-                    p === '/production/requirement' || p.startsWith('/production/requirement/') ||
-                    p === '/production/requirements' || p.startsWith('/production/requirements/') ||
-                    p === '/production/materials' || p.startsWith('/production/materials/')
-                );
-            } catch (e) {
-                const s = String(url || '');
-                return (
-                    s.indexOf('/production/issuance') !== -1 ||
-                    s.indexOf('/production/finished-goods') !== -1 ||
-                    s.indexOf('/production/costing') !== -1 ||
-                    s.indexOf('/production/requirement') !== -1 ||
-                    s.indexOf('/production/materials') !== -1
-                );
-            }
+            return false;
         }
 
         function prefetchTab(targetUrl) {
@@ -2278,6 +2258,8 @@
                 }
 
                 if (incomingMain && mainContainer) {
+                    const prevUrlKey = normalizeUrlKey(window.location.href);
+                    const nextUrlKey = normalizeUrlKey(targetUrl);
                     let prevPath = window.location.pathname;
                     let nextPath = prevPath;
                     try {
@@ -2290,7 +2272,7 @@
 
                     window.syncGlobalSearchContext(targetUrl, shouldPushState || (prevPath !== nextPath));
 
-                    const isSameContent = (mainContainer.innerHTML.trim() === incomingMain.innerHTML.trim());
+                    const isSameContent = (prevUrlKey === nextUrlKey) && (mainContainer.innerHTML.trim() === incomingMain.innerHTML.trim());
                     if (!isSameContent) {
                         mainContainer.innerHTML = incomingMain.innerHTML;
                         document.title = parsedDocument.title;
@@ -2335,37 +2317,6 @@
                     applyTabHtml(cachedHtml, targetUrl, shouldPushState);
                     syncActiveNavLink(targetUrl);
                     window.scrollTo({ top: 0, behavior: 'instant' });
-
-                    fetch(targetUrl, { cache: 'no-store', headers: { 'X-Requested-With': 'XMLHttpRequest' } })
-                        .then(function (res) { return res.ok ? res.text() : null; })
-                        .then(function (freshHtml) {
-                            if (freshHtml) {
-                                const parser = new DOMParser();
-                                const freshDoc = parser.parseFromString(freshHtml, 'text/html');
-                                const freshMain = freshDoc.querySelector('main');
-                                const cachedDoc = parser.parseFromString(cachedHtml, 'text/html');
-                                const cachedMain = cachedDoc.querySelector('main');
-                                const mainChanged = freshMain && cachedMain && (freshMain.innerHTML.trim() !== cachedMain.innerHTML.trim());
-
-                                if (tabHtmlCache.size > 20) {
-                                    const oldestKey = tabHtmlCache.keys().next().value;
-                                    tabHtmlCache.delete(oldestKey);
-                                }
-                                tabHtmlCache.set(cacheKey, freshHtml);
-
-                                const currentKey = normalizeUrlKey(window.location.href);
-                                if (currentKey === cacheKey && mainChanged) {
-                                    const activeEl = document.activeElement;
-                                    const isUserTyping = activeEl && (activeEl.tagName === 'INPUT' || activeEl.tagName === 'TEXTAREA' || activeEl.tagName === 'SELECT');
-                                    if (!isUserTyping) {
-                                        applyTabHtml(freshHtml, targetUrl, false);
-                                    }
-                                }
-                            }
-                        })
-                        .catch(function (err) {
-                            console.log(`error message: ${err.message}`);
-                        });
                     return;
                 }
 
@@ -2531,14 +2482,6 @@
                     tabHtmlCache.set(normalizeUrlKey(window.location.href), initialDocHtml);
                 }
             }
-
-            const scheduleWarmup = window.requestIdleCallback || function (cb) { setTimeout(cb, 1200); };
-            scheduleWarmup(function () {
-                const navAnchors = document.querySelectorAll('.navLinksContainer a[href^="/production"]');
-                navAnchors.forEach(function (a) {
-                    prefetchTab(a.href);
-                });
-            });
         });
     </script>
 </body>

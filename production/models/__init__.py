@@ -7,6 +7,7 @@ from .materialissuance import MaterialIssuance
 from .monitoring import ProductionMonitoring
 from .productionoutput import ProductionOutput
 from .productioncost import ProductionCost
+from .activitylog import ActivityLog
 from .workflow import ProductionAttachment, uploadToSupabaseStorage, getLiveNotificationsForUser, getProductionStaffRoster, isValidActiveProdStaff
 
 __all__ = [
@@ -19,6 +20,7 @@ __all__ = [
     "ProductionMonitoring",
     "ProductionOutput",
     "ProductionCost",
+    "ActivityLog",
     "ProductionAttachment",
     "uploadToSupabaseStorage",
     "getLiveNotificationsForUser",

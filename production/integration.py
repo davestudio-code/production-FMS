@@ -25,7 +25,7 @@ def deduct_material_stock(materialID, quantity, conn=None):
     )
     if not row:
         raise ValueError(f"Insufficient stock to deduct {deductQty} for material ID {materialID}.")
-    invalidateKeys("materials_all")
+    invalidateKeys("materials_all", "warehouse_stockouts")
     return Decimal(str(row["current_stock"]))
 
 def add_finished_goods_stock(furnitureID, quantity, conn=None):
@@ -79,6 +79,7 @@ def add_finished_goods_stock(furnitureID, quantity, conn=None):
                       product_name = EXCLUDED.product_name
         RETURNING finished_goods_id, item_id, product_name, quantity, unit_price
     """, (itemID, furnName, addQty, furnPrice), conn=conn)
+    invalidateKeys("materials_all", "warehouse_stockouts")
     return row
 
 def get_finished_goods_stock(furnitureID, conn=None):
@@ -99,6 +100,10 @@ def get_finished_goods_stock(furnitureID, conn=None):
     return int(row["quantity"]) if row and row.get("quantity") is not None else 0
 
 def get_warehouse_stockouts(conn=None):
+    if conn is None:
+        cached = getCached("warehouse_stockouts")
+        if cached is not None:
+            return cached
     try:
         rows = fetchAll("""
             SELECT f.furniture_id, f.furniture_name, f.furniture_type,
@@ -143,7 +148,10 @@ def get_warehouse_stockouts(conn=None):
         WHERE COALESCE(fg.quantity, 0) <= 0
         ORDER BY f.furniture_name ASC;
     """, conn=conn)
-        return [dict(r) for r in rows]
+        result = [dict(r) for r in rows]
+        if conn is None:
+            setCached("warehouse_stockouts", result)
+        return result
     except Exception:
         return []
 

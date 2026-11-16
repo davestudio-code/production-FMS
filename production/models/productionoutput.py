@@ -1,5 +1,6 @@
 from production.db import fetchAll, fetchOne, executeReturning
 from production.timefmt import formatManilaDateTime
+from production.cache import getCached, setCached, invalidateKeys
 
 class ProductionOutput:
     VALID_STATUSES = ("Pending", "Passed", "Failed", "Rework")
@@ -48,10 +49,15 @@ class ProductionOutput:
             RETURNING output_id, order_id, furniture_id, quantity, quality_status, inspection_date, recorded_by, reason, inspector_id
         """
         row = executeReturning(sql, (orderID, furnitureID, quantity, qualityStatus, inspectorName, reason, inspectorID), conn=conn)
+        invalidateKeys("outputs_all")
         return cls(row)
 
     @classmethod
     def getAll(cls, conn=None, *, startDate=None, endDate=None, qualityStatus=None):
+        if conn is None and startDate is None and endDate is None and qualityStatus is None:
+            cached = getCached("outputs_all")
+            if cached is not None:
+                return cached
         query = """
             SELECT o.output_id,
                    o.order_id,
@@ -59,7 +65,16 @@ class ProductionOutput:
                    o.quantity,
                    o.quality_status,
                    o.inspection_date,
-                   o.recorded_by,
+                   COALESCE(
+                       NULLIF(TRIM((
+                           SELECT emp.email
+                           FROM public.employee emp
+                           WHERE LOWER(TRIM(COALESCE(emp.name, '') || ' ' || COALESCE(emp.last_name, ''))) = LOWER(TRIM(o.recorded_by))
+                           ORDER BY emp.employee_id ASC
+                           LIMIT 1
+                       )), ''),
+                       o.recorded_by
+                   ) AS recorded_by,
                    o.reason,
                    o.inspector_id,
                    f.furniture_name,
@@ -82,7 +97,10 @@ class ProductionOutput:
             query += " WHERE " + " AND ".join(whereClauses)
         query += " ORDER BY o.output_id DESC"
         rows = fetchAll(query, params, conn=conn)
-        return [cls(r) for r in rows]
+        result = [cls(r) for r in rows]
+        if conn is None and startDate is None and endDate is None and qualityStatus is None:
+            setCached("outputs_all", result)
+        return result
 
     @classmethod
     def getByOrderID(cls, orderID, conn=None):
@@ -93,7 +111,16 @@ class ProductionOutput:
                    o.quantity,
                    o.quality_status,
                    o.inspection_date,
-                   o.recorded_by,
+                   COALESCE(
+                       NULLIF(TRIM((
+                           SELECT emp.email
+                           FROM public.employee emp
+                           WHERE LOWER(TRIM(COALESCE(emp.name, '') || ' ' || COALESCE(emp.last_name, ''))) = LOWER(TRIM(o.recorded_by))
+                           ORDER BY emp.employee_id ASC
+                           LIMIT 1
+                       )), ''),
+                       o.recorded_by
+                   ) AS recorded_by,
                    o.reason,
                    o.inspector_id,
                    f.furniture_name,

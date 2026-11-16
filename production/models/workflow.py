@@ -8,6 +8,7 @@ import uuid
 from production.db import fetchAll, fetchOne, executeReturning
 from production.auth import PRODUCTION_DEPARTMENT_ID, STAFF_POSITION_ID
 from production.timefmt import manilaToday, formatManilaDateTime
+from production.cache import getCached, setCached, invalidateKeys
 
 
 def isValidActiveProdStaff(employeeID, conn=None):
@@ -33,6 +34,10 @@ def isValidActiveProdStaff(employeeID, conn=None):
 
 
 def getProductionStaffRoster(conn=None):
+    if conn is None:
+        cached = getCached("staff_roster")
+        if cached is not None:
+            return cached
     query = """
         SELECT e.employee_id,
                e.name,
@@ -57,7 +62,8 @@ def getProductionStaffRoster(conn=None):
     try:
         rows = fetchAll(query, (PRODUCTION_DEPARTMENT_ID, STAFF_POSITION_ID), conn=conn)
         for r in rows:
-            fullName = f"{r.get('name') or ''} {r.get('last_name') or ''}".strip() or (r.get("email") or f"Employee #{r['employee_id']}")
+            emailVal = (r.get("email") or "").strip()
+            fullName = emailVal or f"{r.get('name') or ''} {r.get('last_name') or ''}".strip() or f"Employee #{r['employee_id']}"
             roster.append({
                 "employeeID": int(r["employee_id"]),
                 "fullName": fullName,
@@ -66,6 +72,8 @@ def getProductionStaffRoster(conn=None):
             })
     except Exception:
         return []
+    if conn is None:
+        setCached("staff_roster", roster)
     return roster
 
 
@@ -171,8 +179,9 @@ class ProductionAttachment:
             self.fileUrl = data.get("file_url") or ""
             self.hasImage = bool(self.fileUrl)
             self.uploadedBy = data.get("uploaded_by")
+            uploaderEmail = (data.get("uploader_email") or "").strip()
             uploaderName = (data.get("uploader_name") or "").strip()
-            self.submittedBy = uploaderName or data.get("uploader_email") or "Workshop Staff"
+            self.submittedBy = uploaderEmail or uploaderName or "Workshop Staff"
             self.createdAt = data.get("created_at")
         else:
             self.attachmentID = None
@@ -216,6 +225,7 @@ class ProductionAttachment:
             (cleanType, orderID, cleanStage, cleanNote, cleanName, cleanUrl, cleanUploader),
             conn=conn
         )
+        invalidateKeys("orders_all")
         return newRow["attachment_id"]
 
     @classmethod
@@ -242,9 +252,14 @@ class ProductionAttachment:
 
     @classmethod
     def getLatestByOrderIDs(cls, orderIDs, requireImage=False, entityType="stage_proof", conn=None):
-        cleanIDs = [int(oid) for oid in (orderIDs or []) if oid is not None]
+        cleanIDs = sorted({int(oid) for oid in (orderIDs or []) if oid is not None})
         if not cleanIDs:
             return {}
+        cacheKey = f"attachments_latest:{'img' if requireImage else 'all'}:{entityType}:{','.join(str(i) for i in cleanIDs)}"
+        if conn is None:
+            cached = getCached(cacheKey)
+            if cached is not None:
+                return cached
         imgFilter = "AND a.file_url IS NOT NULL AND a.file_url <> ''" if requireImage else ""
         query = f"""
             SELECT DISTINCT ON (a.order_id)
@@ -261,7 +276,10 @@ class ProductionAttachment:
         """
         try:
             rows = fetchAll(query, (cleanIDs, entityType), conn=conn)
-            return {int(r["order_id"]): cls(r) for r in rows}
+            result = {int(r["order_id"]): cls(r) for r in rows}
+            if conn is None:
+                setCached(cacheKey, result)
+            return result
         except Exception:
             return {}
 
@@ -275,6 +293,11 @@ def _fmtShortDate(val):
 
 
 def getLiveNotificationsForUser(employeeID=None, isManager=False, isProdStaff=False, conn=None):
+    cacheKey = f"live_notifs:{'mgr' if isManager else 'staff'}:{employeeID or 0}"
+    if conn is None:
+        cached = getCached(cacheKey)
+        if cached is not None:
+            return cached
     items = []
     todayVal = manilaToday()
     try:
@@ -290,7 +313,7 @@ def getLiveNotificationsForUser(employeeID=None, isManager=False, isProdStaff=Fa
                        f.furniture_name,
                        COALESCE(pm.progress, 0.0) AS progress,
                        COALESCE(pm.rework_count, 0) AS rework_count,
-                       TRIM(COALESCE(e.name, '') || ' ' || COALESCE(e.last_name, '')) AS staff_name
+                       COALESCE(NULLIF(TRIM(e.email), ''), TRIM(COALESCE(e.name, '') || ' ' || COALESCE(e.last_name, ''))) AS staff_name
                 FROM prod_productionorder po
                 JOIN prod_furniture f ON f.furniture_id = po.furniture_id
                 LEFT JOIN prod_productionmonitoring pm ON pm.order_id = po.order_id
@@ -439,4 +462,7 @@ def getLiveNotificationsForUser(employeeID=None, isManager=False, isProdStaff=Fa
                     })
     except Exception:
         return []
-    return items[:15]
+    result = items[:15]
+    if conn is None:
+        setCached(cacheKey, result)
+    return result

@@ -58,20 +58,24 @@
             <div class="issueOrderCard" data-issuance-state="{{ 'shortage' if order.hasShortage else 'ready' }}"
                 data-search="po-{{ order.orderID }} {{ order.furnitureName|lower }} {{ (order.furnitureType or '')|lower }} {{ (order.assignedStaffName or 'unassigned')|lower }} {% for req in order.requirements %}{{ req.materialName|lower }} {% endfor %}">
                 <div class="issueCardHeader">
-                    <div class="issueCardTitleGroup">
-                        <a href="/production/orders/{{ order.orderID }}" class="issueOrderRef">#PO-{{ order.orderID
-                            }}</a>
-                        <span class="issueProductTitle">{{ order.furnitureName }}</span>
+                    <div>
+                        <div class="issueCardTitleGroup">
+                            <a href="/production/orders/{{ order.orderID }}" class="issueOrderRef">#PO-{{ order.orderID
+                                }}</a>
+                            <span class="issueProductTitle">{{ order.furnitureName }}</span>
+                            {% if not order.requirements %}
+                            <span class="statusBadge draft">No BOM</span>
+                            {% elif order.hasShortage %}
+                            <span class="statusBadge alert">{{ order.shortageCount }} Shortage{{ '' if
+                                order.shortageCount
+                                == 1 else 's' }}</span>
+                            {% else %}
+                            <span class="statusBadge released">Ready</span>
+                            {% endif %}
+                        </div>
                         {% if order.furnitureType %}
-                        <span class="issueTypeChip">{{ order.furnitureType }}</span>
-                        {% endif %}
-                        {% if not order.requirements %}
-                        <span class="statusBadge draft">No BOM</span>
-                        {% elif order.hasShortage %}
-                        <span class="statusBadge alert">{{ order.shortageCount }} Shortage{{ '' if order.shortageCount
-                            == 1 else 's' }}</span>
-                        {% else %}
-                        <span class="statusBadge released">Ready to Dispatch</span>
+                        <span style="display: block; color: var(--mt); font-size: 12.5px; margin-top: 2px;">{{
+                            order.furnitureType }}</span>
                         {% endif %}
                     </div>
 
@@ -116,7 +120,7 @@
                         <span class="issueMetaLabel">Assigned Staff</span>
                         <span class="issueMetaValue"
                             style="color: {{ 'var(--tx)' if order.assignedStaffName else '#5c513b' }};">{{
-                            order.assignedStaffName or 'Unassigned' }}</span>
+                            order.assignedStaffName|mail_link if order.assignedStaffName else 'Unassigned' }}</span>
                     </div>
                     <div class="issueMetaCell">
                         <span class="issueMetaLabel">Schedule</span>
@@ -191,7 +195,7 @@
                     <div
                         style="padding: 12px 14px; border-radius: 8px; background: #F6EEDA; border: 1px solid #D5C7AA; color: #5c513b; font-size: 12.5px;">
                         No BOM components defined for {{ order.furnitureName }}. Configure components in Bill of
-                        Materials before dispatching.
+                        Materials before issuing.
                     </div>
                     {% endif %}
                 </div>
@@ -220,15 +224,22 @@
             <div class="issueOrderCard reworkOrderCard"
                 data-search="po-{{ order.orderID }} {{ order.furnitureName|lower }} {{ (order.assignedStaffName or 'unassigned')|lower }} {% for comp in order.reworkComponents %}{{ comp.materialName|lower }} {% endfor %} {{ (order.reworkReason or '')|lower }}">
                 <div class="issueCardHeader">
-                    <div class="issueCardTitleGroup">
-                        <a href="/production/orders/{{ order.orderID }}" class="issueOrderRef">#PO-{{ order.orderID
-                            }}</a>
-                        <span class="issueProductTitle">{{ order.furnitureName }}</span>
-                        <span class="statusBadge inProgress">Rework #{{ order.reworkRound }}/2</span>
-                        <span class="issueTypeChip">{{ order.reworkUnitsInRound }} {{ 'unit' if order.reworkUnitsInRound
-                            == 1 else 'units' }} in round</span>
-                        {% if order.hasShortageInRework %}
-                        <span class="statusBadge alert">Stock Shortage</span>
+                    <div>
+                        <div class="issueCardTitleGroup">
+                            <a href="/production/orders/{{ order.orderID }}" class="issueOrderRef">#PO-{{ order.orderID
+                                }}</a>
+                            <span class="issueProductTitle">{{ order.furnitureName }}</span>
+                            <span class="statusBadge inProgress">Rework #{{ order.reworkRound }}/2</span>
+                            <span class="issueTypeChip">{{ order.reworkUnitsInRound }} {{ 'unit' if
+                                order.reworkUnitsInRound
+                                == 1 else 'units' }} in round</span>
+                            {% if order.hasShortageInRework %}
+                            <span class="statusBadge alert">Stock Shortage</span>
+                            {% endif %}
+                        </div>
+                        {% if order.furnitureType %}
+                        <span style="display: block; color: var(--mt); font-size: 12.5px; margin-top: 2px;">{{
+                            order.furnitureType }}</span>
                         {% endif %}
                     </div>
 
@@ -253,7 +264,7 @@
                     </div>
                     <div class="issueMetaCell">
                         <span class="issueMetaLabel">Assigned Staff</span>
-                        <span class="issueMetaValue">{{ order.assignedStaffName or 'Unassigned' }}</span>
+                        <span class="issueMetaValue">{{ order.assignedStaffName|mail_link if order.assignedStaffName else 'Unassigned' }}</span>
                     </div>
                     <div class="issueMetaCell">
                         <span class="issueMetaLabel">Workshop Stage</span>
@@ -466,7 +477,7 @@
                         </td>
                         <td style="max-width: 240px; font-size: 12.5px; color: var(--tx);">{{ iss.reason or '—' }}</td>
                         <td>{{ iss.formattedIssueDate }}</td>
-                        <td style="color: var(--mt);">{{ iss.recordedBy }}</td>
+                        <td style="color: var(--mt);">{{ iss.recordedBy|mail_link }}</td>
                     </tr>
                     {% else %}
                     <tr>
@@ -501,7 +512,7 @@
         var btn = form.querySelector('button[type="submit"]');
         if (btn) {
             btn.disabled = true;
-            btn.textContent = 'Dispatching...';
+            btn.textContent = 'Issuing...';
         }
         return true;
     };

@@ -1,6 +1,7 @@
 from decimal import Decimal
 from production.db import fetchAll, fetchOne, executeReturning
 from production.timefmt import manilaToday, toManilaDate, formatManilaDateTime, formatManilaDateOnly
+from production.cache import getCached, setCached, invalidateKeys
 
 class ProductionMonitoring:
     STAGE_LABELS = {
@@ -30,7 +31,8 @@ class ProductionMonitoring:
             self.assignedTo = int(rawAssigned) if rawAssigned is not None else None
             firstName = data.get("assigned_first_name") or ""
             lastName = data.get("assigned_last_name") or ""
-            self.assignedStaffName = f"{firstName} {lastName}".strip()
+            assignedEmail = (data.get("assigned_email") or "").strip()
+            self.assignedStaffName = assignedEmail or f"{firstName} {lastName}".strip()
         else:
             self.monitoringID = None
             self.orderID = None
@@ -77,6 +79,10 @@ class ProductionMonitoring:
 
     @classmethod
     def getAll(cls, conn=None):
+        if conn is None:
+            cached = getCached("monitoring_all")
+            if cached is not None:
+                return cached
         sql = """
             SELECT pm.monitoring_id,
                    pm.order_id,
@@ -91,6 +97,7 @@ class ProductionMonitoring:
                    po.assigned_to,
                    emp.name AS assigned_first_name,
                    emp.last_name AS assigned_last_name,
+                   emp.email AS assigned_email,
                    f.furniture_name
             FROM prod_productionmonitoring pm
             JOIN prod_productionorder po ON pm.order_id = po.order_id
@@ -99,7 +106,10 @@ class ProductionMonitoring:
             ORDER BY pm.monitoring_id DESC
         """
         rows = fetchAll(sql, conn=conn)
-        return [cls(r) for r in rows]
+        result = [cls(r) for r in rows]
+        if conn is None:
+            setCached("monitoring_all", result)
+        return result
 
     @classmethod
     def getByID(cls, monitoringID, conn=None):
@@ -117,6 +127,7 @@ class ProductionMonitoring:
                    po.assigned_to,
                    emp.name AS assigned_first_name,
                    emp.last_name AS assigned_last_name,
+                   emp.email AS assigned_email,
                    f.furniture_name
             FROM prod_productionmonitoring pm
             JOIN prod_productionorder po ON pm.order_id = po.order_id
@@ -143,6 +154,7 @@ class ProductionMonitoring:
                    po.assigned_to,
                    emp.name AS assigned_first_name,
                    emp.last_name AS assigned_last_name,
+                   emp.email AS assigned_email,
                    f.furniture_name
             FROM prod_productionmonitoring pm
             JOIN prod_productionorder po ON pm.order_id = po.order_id
@@ -165,6 +177,7 @@ class ProductionMonitoring:
             RETURNING monitoring_id, order_id, progress, start_date, completion_date, rework_count, updated_at
         """
         row = executeReturning(sql, (val, val, monitoringID), conn=conn)
+        invalidateKeys("monitoring_all")
         return cls(row) if row else None
 
     @classmethod
@@ -180,4 +193,5 @@ class ProductionMonitoring:
             RETURNING monitoring_id, order_id, progress, start_date, completion_date, rework_count, updated_at
         """
         row = executeReturning(sql, (val, reworkCount, val, monitoringID), conn=conn)
+        invalidateKeys("monitoring_all")
         return cls(row) if row else None

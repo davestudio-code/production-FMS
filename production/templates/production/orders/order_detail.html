@@ -237,7 +237,7 @@
                 style="font-size: 11.5px; color: var(--mt); display: block; text-transform: uppercase; font-weight: 600;">Assigned
                 Staff</span>
             {% if order.assignedStaffName %}
-            <b style="font-size: 14.5px; color: var(--tx); display: block; margin-top: 2px;">{{ order.assignedStaffName
+            <b style="font-size: 14.5px; color: var(--tx); display: block; margin-top: 2px;">{{ order.assignedStaffName|mail_link
                 }}</b>
             {% else %}
             <b style="font-size: 14.5px; color: #5c513b; display: block; margin-top: 2px;">Unassigned</b>
@@ -472,7 +472,7 @@
                             <tr>
                                 <td>{{ sp.formattedCreatedAt }}</td>
                                 <td><b>{{ sp.stageLabel }}</b></td>
-                                <td>{{ sp.submittedBy }}</td>
+                                <td>{{ sp.submittedBy|mail_link }}</td>
                                 <td>{{ sp.note or '—' }}</td>
                                 <td>
                                     {% if sp.hasImage %}
@@ -533,7 +533,7 @@
                                 {% if isManager %}
                                 <td style="text-align: right;">₱{{ "{:,.2f}".format(iss.lineCost) }}</td>
                                 {% endif %}
-                                <td>{{ iss.recordedBy }}</td>
+                                <td>{{ iss.recordedBy|mail_link }}</td>
                             </tr>
                             {% else %}
                             <tr>
@@ -587,7 +587,7 @@
                                 <td style="text-align: right; font-weight: 700; color: #8a5315;">+₱{{
                                     "{:,.2f}".format(iss.lineCost) }}</td>
                                 {% endif %}
-                                <td>{{ iss.recordedBy }}</td>
+                                <td>{{ iss.recordedBy|mail_link }}</td>
                             </tr>
                             {% else %}
                             <tr>
@@ -627,7 +627,7 @@
                                 </td>
                                 <td><b>{{ qa.quantity }}</b> {{ 'unit' if qa.quantity == 1 else 'units' }}</td>
                                 <td>{{ qa.reason or '—' }}</td>
-                                <td>{{ qa.recordedBy }}</td>
+                                <td>{{ qa.recordedBy|mail_link }}</td>
                             </tr>
                             {% else %}
                             <tr>

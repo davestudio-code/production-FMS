@@ -385,7 +385,7 @@
     <div class="bomSelectBar">
         <div style="display: flex; gap: 12px; align-items: center; flex-wrap: wrap;">
             <label style="font-weight: 600; font-size: 13.5px;">Product BOM:</label>
-            <select id="bomSelect" onchange="window.location.href='/production/bom?furniture_id=' + this.value"
+            <select id="bomSelect" onchange="if (window.loadTabContent) { window.loadTabContent('/production/bom?furniture_id=' + this.value); } else { window.location.href='/production/bom?furniture_id=' + this.value; }"
                 style="min-width: 280px;" {% if not furnitureItems %}disabled{% endif %}>
                 {% for f in furnitureItems %}
                 <option value="{{ f.furnitureID }}" {{ 'selected' if selectedFurniture and
@@ -571,7 +571,7 @@
 </div>
 
 <script>
-    document.addEventListener('DOMContentLoaded', function () {
+    function initBomWorkspace() {
         var form = document.getElementById('bomItemForm');
         var input = document.getElementById('materialSearchInput');
         var toggleBtn = document.getElementById('materialDropdownToggle');
@@ -582,7 +582,22 @@
         var wrap = document.getElementById('materialFieldWrap');
         var emptyEl = document.getElementById('materialLedgerEmpty');
 
-        if (!input || !menu) return;
+        var batchInput = document.getElementById('receiptBatchInput');
+        var batchTotalEl = document.getElementById('receiptBatchTotal');
+        var unitCostVal = parseFloat('{{ unitTotalCost }}') || 0;
+
+        if (batchInput && batchTotalEl && batchInput.dataset.bomBatchBound !== '1') {
+            batchInput.dataset.bomBatchBound = '1';
+            batchInput.addEventListener('input', function () {
+                var qty = parseInt(this.value, 10);
+                if (isNaN(qty) || qty < 1) qty = 1;
+                var total = unitCostVal * qty;
+                batchTotalEl.textContent = '₱' + total.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+            });
+        }
+
+        if (!input || !menu || input.dataset.bomBound === '1') return;
+        input.dataset.bomBound = '1';
 
         var rows = Array.prototype.slice.call(menu.querySelectorAll('.materialLedgerRow'));
         var currentIndex = -1;
@@ -659,6 +674,12 @@
             openMenu();
         });
 
+        input.addEventListener('click', function () {
+            if (!menu.classList.contains('isOpen')) {
+                openMenu();
+            }
+        });
+
         input.addEventListener('input', function () {
             hiddenId.value = '';
             if (!menu.classList.contains('isOpen')) {
@@ -715,11 +736,19 @@
             });
         });
 
-        document.addEventListener('click', function (e) {
-            if (wrap && !wrap.contains(e.target)) {
-                closeMenu();
-            }
-        });
+        if (!window.__bomOutsideClickBound) {
+            window.__bomOutsideClickBound = true;
+            document.addEventListener('click', function (e) {
+                var currentWrap = document.getElementById('materialFieldWrap');
+                var currentMenu = document.getElementById('materialLedgerMenu');
+                if (currentWrap && currentMenu && !currentWrap.contains(e.target)) {
+                    currentMenu.classList.remove('isOpen');
+                    currentMenu.querySelectorAll('.materialLedgerRow.isHighlighted').forEach(function (r) {
+                        r.classList.remove('isHighlighted');
+                    });
+                }
+            });
+        }
 
         if (form) {
             form.addEventListener('submit', function (e) {
@@ -731,19 +760,12 @@
                 }
             });
         }
+    }
 
-        var batchInput = document.getElementById('receiptBatchInput');
-        var batchTotalEl = document.getElementById('receiptBatchTotal');
-        var unitCostVal = parseFloat('{{ unitTotalCost }}') || 0;
-
-        if (batchInput && batchTotalEl) {
-            batchInput.addEventListener('input', function () {
-                var qty = parseInt(this.value, 10);
-                if (isNaN(qty) || qty < 1) qty = 1;
-                var total = unitCostVal * qty;
-                batchTotalEl.textContent = '₱' + total.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-            });
-        }
-    });
+    if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', initBomWorkspace);
+    } else {
+        initBomWorkspace();
+    }
 </script>
 {% endblock %}

@@ -84,7 +84,7 @@
                     <td data-label="Assigned Staff">
                         {% if mon.assignedStaffName %}
                         <span class="staffAssignChip">
-                            <span>{{ mon.assignedStaffName }}</span>
+                            <span>{{ mon.assignedStaffName|mail_link }}</span>
                             {% if isMyOrder %}
                             <span
                                 style="font-size: 10.5px; font-weight: 700; color: var(--p); background: rgba(102, 117, 76, 0.14); padding: 1px 6px; border-radius: 99px;">You</span>

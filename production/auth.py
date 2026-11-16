@@ -13,7 +13,7 @@ ALLOWED_POSITION_IDS = (MANAGER_POSITION_ID, STAFF_POSITION_ID)
 PRODUCTION_MODULE_CODE = "production"
 
 _empVerifyTimestamps = {}
-_EMP_VERIFY_TTL_SECONDS = 15
+_EMP_VERIFY_TTL_SECONDS = 300
 
 
 def is_authorized_production_employee(department_id, position_id, is_active=True):

@@ -23,7 +23,8 @@ class ProductionOrder:
             self.assignedTo = int(rawAssigned) if rawAssigned is not None else None
             firstName = data.get("assigned_first_name") or ""
             lastName = data.get("assigned_last_name") or ""
-            self.assignedStaffName = f"{firstName} {lastName}".strip()
+            assignedEmail = (data.get("assigned_email") or "").strip()
+            self.assignedStaffName = assignedEmail or f"{firstName} {lastName}".strip()
         else:
             self.orderID = None
             self.furnitureID = None
@@ -92,7 +93,7 @@ class ProductionOrder:
             SELECT po.order_id, po.furniture_id, f.furniture_name, f.furniture_type,
                    po.planned_quantity, po.order_date, po.planned_start_date,
                    po.due_date, po.status, po.purpose, po.assigned_to,
-                   emp.name AS assigned_first_name, emp.last_name AS assigned_last_name
+                   emp.name AS assigned_first_name, emp.last_name AS assigned_last_name, emp.email AS assigned_email
             FROM prod_productionorder po
             JOIN prod_furniture f ON po.furniture_id = f.furniture_id
             LEFT JOIN public.employee emp ON emp.employee_id = po.assigned_to
@@ -123,7 +124,7 @@ class ProductionOrder:
             SELECT po.order_id, po.furniture_id, f.furniture_name, f.furniture_type,
                    po.planned_quantity, po.order_date, po.planned_start_date,
                    po.due_date, po.status, po.purpose, po.assigned_to,
-                   emp.name AS assigned_first_name, emp.last_name AS assigned_last_name
+                   emp.name AS assigned_first_name, emp.last_name AS assigned_last_name, emp.email AS assigned_email
             FROM prod_productionorder po
             JOIN prod_furniture f ON po.furniture_id = f.furniture_id
             LEFT JOIN public.employee emp ON emp.employee_id = po.assigned_to
@@ -149,7 +150,7 @@ class ProductionOrder:
             SELECT po.order_id, po.furniture_id, f.furniture_name, f.furniture_type,
                    po.planned_quantity, po.order_date, po.planned_start_date,
                    po.due_date, po.status, po.purpose, po.assigned_to,
-                   emp.name AS assigned_first_name, emp.last_name AS assigned_last_name
+                   emp.name AS assigned_first_name, emp.last_name AS assigned_last_name, emp.email AS assigned_email
             FROM prod_productionorder po
             JOIN prod_furniture f ON po.furniture_id = f.furniture_id
             LEFT JOIN public.employee emp ON emp.employee_id = po.assigned_to

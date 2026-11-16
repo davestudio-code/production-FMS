@@ -1,6 +1,7 @@
 from decimal import Decimal
 from production.db import fetchAll, fetchOne, executeReturning
 from production.timefmt import formatManilaDateTime, toManilaIsoDate
+from production.cache import getCached, setCached, invalidateKeys
 
 class MaterialIssuance:
     VALID_ISSUANCE_TYPES = ("Initial", "Rework Replacement")
@@ -88,6 +89,7 @@ class MaterialIssuance:
             RETURNING issuance_id, order_id, material_id, quantity_issued, issue_date, recorded_by, issuance_type, reason, rework_round
         """
         row = executeReturning(sql, (orderID, materialID, qtyVal, issuerName, cleanType, dbReason, cleanRound), conn=conn)
+        invalidateKeys("issuances_all")
         return cls(row)
 
     @classmethod
@@ -124,13 +126,26 @@ class MaterialIssuance:
 
     @classmethod
     def getAll(cls, conn=None):
+        if conn is None:
+            cached = getCached("issuances_all")
+            if cached is not None:
+                return cached
         sql = """
             SELECT mi.issuance_id,
                    mi.order_id,
                    mi.material_id,
                    mi.quantity_issued,
                    mi.issue_date,
-                   mi.recorded_by,
+                   COALESCE(
+                       NULLIF(TRIM((
+                           SELECT emp.email
+                           FROM public.employee emp
+                           WHERE LOWER(TRIM(COALESCE(emp.name, '') || ' ' || COALESCE(emp.last_name, ''))) = LOWER(TRIM(mi.recorded_by))
+                           ORDER BY emp.employee_id ASC
+                           LIMIT 1
+                       )), ''),
+                       mi.recorded_by
+                   ) AS recorded_by,
                    COALESCE(mi.issuance_type, 'Initial') AS issuance_type,
                    mi.reason,
                    COALESCE(mi.rework_round, 0) AS rework_round,
@@ -146,7 +161,10 @@ class MaterialIssuance:
             ORDER BY mi.issuance_id DESC
         """
         rows = fetchAll(sql, conn=conn)
-        return [cls(r) for r in rows]
+        result = [cls(r) for r in rows]
+        if conn is None:
+            setCached("issuances_all", result)
+        return result
 
     @classmethod
     def getByOrderID(cls, orderID, conn=None):
@@ -156,7 +174,16 @@ class MaterialIssuance:
                    mi.material_id,
                    mi.quantity_issued,
                    mi.issue_date,
-                   mi.recorded_by,
+                   COALESCE(
+                       NULLIF(TRIM((
+                           SELECT emp.email
+                           FROM public.employee emp
+                           WHERE LOWER(TRIM(COALESCE(emp.name, '') || ' ' || COALESCE(emp.last_name, ''))) = LOWER(TRIM(mi.recorded_by))
+                           ORDER BY emp.employee_id ASC
+                           LIMIT 1
+                       )), ''),
+                       mi.recorded_by
+                   ) AS recorded_by,
                    COALESCE(mi.issuance_type, 'Initial') AS issuance_type,
                    mi.reason,
                    COALESCE(mi.rework_round, 0) AS rework_round,

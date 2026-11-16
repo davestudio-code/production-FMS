@@ -121,7 +121,7 @@
                                 ord.plannedQuantity != 1 %}s{% endif %}
                             </div>
                             <div style="font-size: 11.5px; color: var(--mt); margin-top: 2px;">
-                                Staff: <b>{{ ord.assignedStaffName or 'Unassigned' }}</b>
+                                Staff: <b>{{ ord.assignedStaffName|mail_link if ord.assignedStaffName else 'Unassigned' }}</b>
                             </div>
                         </td>
                         <td data-label="Progress">

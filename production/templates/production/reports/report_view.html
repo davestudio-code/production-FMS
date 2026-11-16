@@ -338,8 +338,7 @@
                         </td>
                         <td data-label="Issue Date">{{ iss.issueDate|date_fmt }}</td>
                         <td data-label="Issued By">
-                            <span style="font-weight: 500; color: var(--tx);">{{ iss.recordedBy or 'Dave Cagalitan'
-                                }}</span>
+                            <span style="font-weight: 500; color: var(--tx);">{{ (iss.recordedBy or session.get('email') or 'Dave Cagalitan')|mail_link }}</span>
                         </td>
                     </tr>
                     {% else %}

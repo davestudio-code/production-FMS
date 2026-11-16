@@ -263,8 +263,7 @@ window.renderPlanningTimeline = function() {
                     else if (item.status === 'In Progress') barCls = 'barInProgress';
                     else if (item.status === 'Released') barCls = 'barReleased';
 
-                    const staffShort = item.assignedName ? (' · ' + item.assignedName.split(' ')[0]) : ' · Unassigned';
-                    const labelLeft = (clippedLeft ? '← ' : '') + item.product + ' (' + item.qty + ' ' + unitWord + ')' + staffShort;
+                    const labelLeft = (clippedLeft ? '← ' : '') + item.product + ' (' + item.qty + ' ' + unitWord + ')';
                     const labelRight = (item.health === 'Overdue' ? '! Overdue' : ('Due ' + formatShortMonthDay(item.effEnd))) + (clippedRight ? ' →' : '');
 
                     html += '<button type="button" class="ganttBar ' + barCls + '" style="grid-column: ' + clampedStart + ' / ' + clampedEnd + ';" ' +
