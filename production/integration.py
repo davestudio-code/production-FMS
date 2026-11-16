@@ -5,12 +5,12 @@ from production.timefmt import toManilaDatetime
 
 def get_material_stock(materialID, conn=None):
     row = fetchOne(
-        "SELECT current_stock FROM raw_material WHERE raw_material_id = %s",
+        "SELECT quantity FROM raw_material WHERE raw_material_id = %s",
         (materialID,),
         conn=conn
     )
-    if row and row.get("current_stock") is not None:
-        return Decimal(str(row["current_stock"]))
+    if row and row.get("quantity") is not None:
+        return Decimal(str(row["quantity"]))
     return Decimal("0.000")
 
 def deduct_material_stock(materialID, quantity, conn=None):
@@ -19,14 +19,19 @@ def deduct_material_stock(materialID, quantity, conn=None):
         raise ValueError("Deduct quantity must be greater than zero.")
 
     row = executeReturning(
-        "UPDATE raw_material SET current_stock = current_stock - %s WHERE raw_material_id = %s AND current_stock >= %s RETURNING current_stock",
+        "UPDATE raw_material SET quantity = quantity - %s WHERE raw_material_id = %s AND quantity >= %s RETURNING quantity",
         (deductQty, materialID, deductQty),
         conn=conn
     )
     if not row:
         raise ValueError(f"Insufficient stock to deduct {deductQty} for material ID {materialID}.")
+    execute(
+        "UPDATE item_master SET quantity = CASE WHEN quantity >= %s THEN quantity - %s ELSE 0.0 END WHERE item_id = (SELECT item_id FROM raw_material WHERE raw_material_id = %s)",
+        (float(deductQty), float(deductQty), materialID),
+        conn=conn
+    )
     invalidateKeys("materials_all", "warehouse_stockouts")
-    return Decimal(str(row["current_stock"]))
+    return Decimal(str(row["quantity"]))
 
 def add_finished_goods_stock(furnitureID, quantity, conn=None):
     addQty = int(quantity)

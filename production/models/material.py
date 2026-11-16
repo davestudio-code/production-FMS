@@ -37,7 +37,7 @@ class Material:
                    rm.material_type,
                    im.unit,
                    rm.unit_cost,
-                   rm.current_stock
+                   rm.quantity AS current_stock
             FROM raw_material rm
             JOIN item_master im ON rm.item_id = im.item_id
             ORDER BY im.item_code ASC, rm.raw_material_id ASC
@@ -64,7 +64,7 @@ class Material:
                    rm.material_type,
                    im.unit,
                    rm.unit_cost,
-                   rm.current_stock
+                   rm.quantity AS current_stock
             FROM raw_material rm
             JOIN item_master im ON rm.item_id = im.item_id
             WHERE rm.raw_material_id = %s

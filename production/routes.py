@@ -2340,7 +2340,7 @@ def issueReworkReplacement(orderID):
                        bi.quantity_required,
                        im.item_name AS material_name,
                        im.unit,
-                       rm.current_stock
+                       rm.quantity AS current_stock
                 FROM prod_billofmaterials bom
                 JOIN prod_bomitem bi ON bom.bom_id = bi.bom_id
                 JOIN raw_material rm ON bi.material_id = rm.raw_material_id

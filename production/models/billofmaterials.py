@@ -60,7 +60,7 @@ class BillOfMaterials:
         sql = """
             SELECT bi.bom_item_id, bi.bom_id, bi.material_id, bi.quantity_required,
                    im.item_code, im.item_name AS material_name, im.unit, rm.unit_cost,
-                   rm.current_stock
+                   rm.quantity AS current_stock
             FROM prod_bomitem bi
             JOIN raw_material rm ON bi.material_id = rm.raw_material_id
             JOIN item_master im ON rm.item_id = im.item_id
@@ -84,7 +84,7 @@ class BillOfMaterials:
             SELECT bom.furniture_id,
                    bi.bom_item_id, bi.bom_id, bi.material_id, bi.quantity_required,
                    im.item_code, im.item_name AS material_name, im.unit, rm.unit_cost,
-                   rm.current_stock
+                   rm.quantity AS current_stock
             FROM prod_billofmaterials bom
             JOIN prod_bomitem bi ON bom.bom_id = bi.bom_id
             JOIN raw_material rm ON bi.material_id = rm.raw_material_id
