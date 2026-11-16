@@ -87,8 +87,11 @@ class ActivityLog:
         baseSql += " ORDER BY al.created_at DESC, al.id DESC LIMIT %s"
         params.append(int(limit))
 
-        rows = fetchAll(baseSql, tuple(params), conn=conn)
-        result = [cls(r) for r in rows]
-        if conn is None:
-            setCached(cacheKey, result)
-        return result
+        try:
+            rows = fetchAll(baseSql, tuple(params), conn=conn)
+            result = [cls(r) for r in rows]
+            if conn is None:
+                setCached(cacheKey, result)
+            return result
+        except Exception:
+            return []

@@ -74,6 +74,11 @@ def getConnection():
 @contextmanager
 def openTransaction(externalConnection=None):
     if externalConnection is not None:
+        try:
+            if hasattr(externalConnection, "get_transaction_status") and externalConnection.get_transaction_status() == 3:
+                externalConnection.rollback()
+        except Exception:
+            pass
         yield externalConnection
         return
 
@@ -91,12 +96,20 @@ def openTransaction(externalConnection=None):
         conn = checkoutConnection()
 
     try:
+        if hasattr(conn, "get_transaction_status") and conn.get_transaction_status() == 3:
+            conn.rollback()
+    except Exception:
+        pass
+
+    try:
         yield conn
         if not isRequestScoped:
             conn.commit()
     except Exception:
-        if not isRequestScoped:
+        try:
             conn.rollback()
+        except Exception:
+            pass
         raise
     finally:
         if not isRequestScoped:

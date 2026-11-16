@@ -698,7 +698,11 @@ def index():
         allOutputs = []
         chartError = True
 
-    recentLogs = ActivityLog.getRecent(isManager=isMgr, currentEmployeeID=currentEmpID, limit=20)
+    try:
+        recentLogs = ActivityLog.getRecent(isManager=isMgr, currentEmployeeID=currentEmpID, limit=20)
+    except Exception as err:
+        logger.exception("Failed to query recent activity logs: %s", err)
+        recentLogs = []
     activityTimeline = []
     for log in recentLogs:
         cleanActor = (log.employeeName or "").strip()
