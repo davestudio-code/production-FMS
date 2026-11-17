@@ -64,13 +64,14 @@ def add_finished_goods_stock(furnitureID, quantity, conn=None):
         execute("""
             UPDATE item_master
             SET quantity = COALESCE(quantity, 0) + %s,
+                item_type = CASE WHEN item_type = 'Finished Goods' THEN 'FINISHED' ELSE item_type END,
                 is_archived = false
             WHERE item_id = %s
         """, (float(addQty), itemID), conn=conn)
     else:
         itemRow = executeReturning("""
             INSERT INTO item_master (item_code, item_name, unit, description, item_type, quantity, is_archived)
-            VALUES (%s, %s, 'pcs', %s, 'Finished Goods', %s, false)
+            VALUES (%s, %s, 'pcs', %s, 'FINISHED', %s, false)
             RETURNING item_id
         """, (itemCode, furnName, f"Produced {furnName}", float(addQty)), conn=conn)
         itemID = itemRow["item_id"]
