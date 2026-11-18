@@ -251,6 +251,10 @@ window.resetOrdersFilter = function() {
 };
 
 function initOrdersWorkspace() {
+    const sizeSelect = document.getElementById('ordersPageSize');
+    const parsedSize = sizeSelect ? parseInt(sizeSelect.value, 10) : 10;
+    ordersPageSize = (!isNaN(parsedSize) && parsedSize > 0) ? parsedSize : 10;
+    currentOrdersPage = 1;
     const params = new URLSearchParams(window.location.search);
     const statusSelect = document.getElementById('orderStatusSelect');
     if (params.get('stockouts') === '1' && statusSelect) {

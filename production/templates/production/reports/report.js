@@ -1,8 +1,9 @@
-const reportState = {
+var reportState = window.reportState || {
     activeTab: 'orders',
     pages: { orders: 1, materials: 1, dispatches: 1 },
     pageSizes: { orders: 10, materials: 10, dispatches: 10 }
 };
+window.reportState = reportState;
 
 window.setReportWorkspaceTab = function (tabKey) {
     const validTabs = ['orders', 'materials', 'dispatches'];
@@ -142,6 +143,17 @@ window.resetAuditFilters = function () {
 };
 
 function initReportWorkspace() {
+    reportState.pages = { orders: 1, materials: 1, dispatches: 1 };
+    const sizeIds = {
+        orders: 'ordersPageSizeSelect',
+        materials: 'materialsPageSizeSelect',
+        dispatches: 'dispatchesPageSizeSelect'
+    };
+    Object.keys(sizeIds).forEach(function (key) {
+        const sel = document.getElementById(sizeIds[key]);
+        const parsed = sel ? parseInt(sel.value, 10) : 10;
+        reportState.pageSizes[key] = (!isNaN(parsed) && parsed > 0) ? parsed : 10;
+    });
     const urlParams = new URLSearchParams(window.location.search);
     const tabParam = (urlParams.get('tab') || '').toLowerCase();
     if (tabParam === 'audit' || tabParam === 'dispatches') {

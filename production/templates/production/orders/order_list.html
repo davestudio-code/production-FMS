@@ -58,8 +58,9 @@
         </div>
 
         {% if isManager %}
-        <button type="button" class="actionButton" style="padding: 8px 16px; font-size: 13px; white-space: nowrap;"
-            onclick="openModal('createOrderModal')">+ New Production Order</button>
+        <button type="button" class="actionButton"
+            style="padding: 8px 14px; font-size: 12.5px; white-space: nowrap; flex-shrink: 0;"
+            onclick="openModal('createOrderModal')">+ New Order</button>
         {% endif %}
         <input type="hidden" id="orderStatusSelect"
             value="{{ '__stockouts__' if showStockoutsTab else (statusFilter or '') }}">
@@ -123,7 +124,7 @@
                     {% else %}
                     <tr>
                         <td colspan="6" style="text-align: center; color: var(--mt); padding: 28px;">
-                            No production orders created yet. Click '+ New Production Order' to begin.
+                            No production orders created yet. Click '+ New Order' to begin.
                         </td>
                     </tr>
                     {% endfor %}
@@ -167,9 +168,9 @@
                     <tr>
                         <th>Product</th>
                         <th>Category</th>
-                        <th>Inventory Stock</th>
-                        <th>Restock &amp; BOM Status</th>
-                        <th>Actions</th>
+                        <th style="text-align: center;">Stock</th>
+                        <th style="text-align: center;">BOM</th>
+                        <th style="text-align: center;">Action</th>
                     </tr>
                 </thead>
                 <tbody>
@@ -178,29 +179,22 @@
                         data-search="{{ alert.furniture_name|lower }} {{ alert.furniture_type|lower }}">
                         <td><b>{{ alert.furniture_name }}</b></td>
                         <td><span style="color: var(--mt); font-size: 13px;">{{ alert.furniture_type }}</span></td>
-                        <td><span class="statusBadge alert">0 in inventory</span></td>
-                        <td>
-                            {% if alert.active_order_id %}
-                            <span class="statusBadge released">
-                                Restock Pending (#PO-{{ alert.active_order_id }} &bull; {{ alert.active_order_qty }}
-                                units)
-                            </span>
-                            {% elif alert.bom_item_count == 0 %}
-                            <span class="statusBadge draft">
-                                No BOM Configured
-                            </span>
+                        <td style="text-align: center;">
+                            <span style="font-weight: 700; color: var(--rd); font-size: 13px;">0 units</span>
+                        </td>
+                        <td style="text-align: center;">
+                            {% if alert.bom_item_count > 0 %}
+                            <span style="font-size: 13px; font-weight: 600; color: var(--p);">Ready ({{
+                                alert.bom_item_count }})</span>
                             {% else %}
-                            <span class="statusBadge inProgress">
-                                Ready to Restock ({{ alert.bom_item_count }} BOM item{{ '' if alert.bom_item_count == 1
-                                else 's' }})
-                            </span>
+                            <span style="font-size: 13px; font-weight: 500; color: var(--mt);">No BOM</span>
                             {% endif %}
                         </td>
-                        <td>
+                        <td style="text-align: center;">
                             {% if alert.active_order_id %}
                             <a href="/production/orders/{{ alert.active_order_id }}" class="actionButton secondary"
                                 style="padding: 5px 11px; font-size: 12px; text-decoration: none; white-space: nowrap;">
-                                View Order &rarr;
+                                View #PO-{{ alert.active_order_id }}
                             </a>
                             {% elif alert.bom_item_count == 0 %}
                             <a href="/production/bom?furniture_id={{ alert.furniture_id }}"
@@ -278,5 +272,5 @@ border-box; overflow-x: hidden;") %}
 <script>
     window.furnitureBomMap = {{ furnitureBomMap | tojson }};
 </script>
-<script src="/production/feature-static/orders/order_list.js"></script>
+<script src="/production/feature-static/orders/order_list.js?v=20261118a"></script>
 {% endblock %}

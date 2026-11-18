@@ -128,7 +128,7 @@
 
         {% if isManager %}
         <button type="button" class="actionButton" style="padding: 8px 16px; font-size: 13px; white-space: nowrap;"
-            onclick="openModal('addFurnitureModal')">+ Add New Product</button>
+            onclick="openModal('addFurnitureModal')">+ New Product</button>
         {% endif %}
         <input type="hidden" id="furnitureCategorySelect" value="">
     </div>
@@ -156,7 +156,8 @@
                     <td style="text-align: center;">
                         {% if item.hasBOM %}
                         <div class="productBomBox">
-                            <a href="/production/bom?furniture_id={{ item.furnitureID }}" class="productBomCost" title="View Bill of Materials">₱{{ "{:,.2f}".format(item.bomCost) }}</a>
+                            <a href="/production/bom?furniture_id={{ item.furnitureID }}" class="productBomCost"
+                                title="View Bill of Materials">₱{{ "{:,.2f}".format(item.bomCost) }}</a>
                         </div>
                         {% else %}
                         <div class="productBomBox unconfigured">
@@ -215,7 +216,7 @@
                 {% else %}
                 <tr>
                     <td colspan="5" style="text-align: center; color: var(--mt); padding: 24px;">No products found.
-                        Click '+ Add New Product' to register one.</td>
+                        Click '+ New Product' to register one.</td>
                 </tr>
                 {% endfor %}
                 <tr id="furnitureEmptyRow" style="display: none;">
@@ -298,5 +299,5 @@
 {% endcall %}
 {% endif %}
 
-<script src="/production/feature-static/products/furniture_list.js"></script>
+<script src="/production/feature-static/products/furniture_list.js?v=20261118a"></script>
 {% endblock %}

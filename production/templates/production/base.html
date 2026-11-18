@@ -6,7 +6,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>Velmora Co.</title>
     <link rel="icon" type="image/png" href="/production/static/images/velmora-logo.png">
-    <link rel="stylesheet" href="/production/static/css/style.css?v=20261116a">
+    <link rel="stylesheet" href="/production/static/css/style.css?v=20261118i">
 </head>
 
 <body>
@@ -151,36 +151,6 @@
                     <span>Production Reports</span>
                 </a>
                 {% endif %}
-
-                {% if session.get('user_id') %}
-                <div class="userProfileFooter">
-                    <div class="userProfileBar" onclick="window.toggleAccountDropdown(event)"
-                        title="View account profile">
-                        <div class="userAvatar">
-                            {{ (session.get('employee_name') or 'U')[:1]|upper }}
-                        </div>
-                        <div class="userMeta">
-                            <span class="userFullName" title="{{ session.get('employee_name') }}">
-                                {{ session.get('employee_name', 'Operator') }}
-                            </span>
-                            <div>
-                                <span class="userBadge {{ 'managerBadge' if isManager else 'staffBadge' }}">
-                                    {{ 'Manager' if isManager else 'Staff' }}
-                                </span>
-                            </div>
-                        </div>
-                        <button type="button" class="sidebarSignOutIconBtn"
-                            onclick="event.stopPropagation(); window.promptSignOut();" title="Sign Out">
-                            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor"
-                                stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
-                                <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path>
-                                <polyline points="16 17 21 12 16 7"></polyline>
-                                <line x1="21" y1="12" x2="9" y2="12"></line>
-                            </svg>
-                        </button>
-                    </div>
-                </div>
-                {% endif %}
             </div>
         </nav>
         <div class="appContentWrapper">
@@ -271,10 +241,17 @@
                     </div>
                     <div class="topAccountContainer" id="topAccountWrap">
                         <button type="button" class="topUserAvatarBtn" id="topAccountBtn"
-                            onclick="window.toggleAccountDropdown(event)" title="Account details & options">
+                            onclick="window.toggleAccountDropdown(event)" title="Account details &amp; options">
                             <span class="topUserAvatar">
                                 {{ (session.get('employee_name') or 'U')[:1]|upper }}
                             </span>
+                            <span class="userFullName topUserName" title="{{ session.get('employee_name', 'Operator') }}">
+                                {{ session.get('employee_name', 'Operator') }}
+                            </span>
+                            <svg class="topUserChevron" width="13" height="13" viewBox="0 0 24 24" fill="none"
+                                stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+                                <polyline points="6 9 12 15 18 9"></polyline>
+                            </svg>
                         </button>
                         <div class="topAccountDropdown" id="topAccountDropdown">
                             <div class="topAccountHeader">
@@ -459,11 +436,14 @@
                     session.get('employee_name', 'Operator') }}</b>?
             </p>
             <div style="display: flex; gap: 10px; justify-content: center;">
-                <button type="button" class="actionButton secondary" onclick="window.closeSignOutModal()"
-                    style="min-width: 105px;">Cancel</button>
-                <a href="/production/logout" class="actionButton"
-                    style="min-width: 125px; background: #9A4A3A; border-color: #9A4A3A; color: #ffffff; text-decoration: none; display: inline-flex; align-items: center; justify-content: center;">Yes,
-                    Sign Out</a>
+                <button type="button" id="cancelSignOutBtn" class="actionButton secondary"
+                    onclick="window.closeSignOutModal()" style="min-width: 105px;">Cancel</button>
+                <a href="/production/logout" id="confirmSignOutBtn" class="actionButton"
+                    onclick="return window.handleConfirmSignOut(event, this);"
+                    style="min-width: 132px; background: #9A4A3A; border-color: #9A4A3A; color: #ffffff; text-decoration: none; display: inline-flex; align-items: center; justify-content: center; gap: 8px;">
+                    <span class="signOutBtnSpinner" aria-hidden="true"></span>
+                    <span class="signOutBtnLabel">Yes, Sign Out</span>
+                </a>
             </div>
         </div>
     </div>
@@ -984,7 +964,15 @@
                                         <div class="skeletonBlock" style="width: 28px; height: 28px; border-radius: 50%; min-width: 28px;"></div>
                                         <div style="flex: 1;"><div class="skeletonBlock" style="width: 55%; height: 14px; margin-bottom: 4px;"></div><div class="skeletonBlock" style="width: 40%; height: 11px;"></div></div>
                                     </div>
-                                    <div style="display: flex; align-items: center; gap: 12px; opacity: 0.55;">
+                                    <div style="display: flex; align-items: center; gap: 12px; margin-bottom: 12px; opacity: 0.6;">
+                                        <div class="skeletonBlock" style="width: 28px; height: 28px; border-radius: 50%; min-width: 28px;"></div>
+                                        <div style="flex: 1;"><div class="skeletonBlock" style="width: 68%; height: 14px; margin-bottom: 4px;"></div><div class="skeletonBlock" style="width: 32%; height: 11px;"></div></div>
+                                    </div>
+                                    <div style="display: flex; align-items: center; gap: 12px; margin-bottom: 12px; opacity: 0.5;">
+                                        <div class="skeletonBlock" style="width: 28px; height: 28px; border-radius: 50%; min-width: 28px;"></div>
+                                        <div style="flex: 1;"><div class="skeletonBlock" style="width: 52%; height: 14px; margin-bottom: 4px;"></div><div class="skeletonBlock" style="width: 36%; height: 11px;"></div></div>
+                                    </div>
+                                    <div style="display: flex; align-items: center; gap: 12px; opacity: 0.4;">
                                         <div class="skeletonBlock" style="width: 28px; height: 28px; border-radius: 50%; min-width: 28px;"></div>
                                         <div style="flex: 1;"><div class="skeletonBlock" style="width: 60%; height: 14px; margin-bottom: 4px;"></div><div class="skeletonBlock" style="width: 25%; height: 11px;"></div></div>
                                     </div>
@@ -1071,9 +1059,9 @@
                     const orderCols = showStockouts ? [
                         { colW: '26%', w: '160px', h: '16px' },
                         { colW: '16%', w: '85px', h: '16px' },
-                        { colW: '18%', w: '105px', h: '22px', br: '9999px' },
-                        { colW: '24%', w: '150px', h: '22px', br: '9999px' },
-                        { colW: '16%', w: '95px', h: '28px', br: '6px' }
+                        { colW: '18%', w: '55px', h: '16px', align: 'center' },
+                        { colW: '24%', w: '75px', h: '16px', align: 'center' },
+                        { colW: '16%', w: '95px', h: '28px', br: '6px', align: 'center' }
                     ] : [
                         { colW: '12%', w: '65px', h: '20px', br: '5px' },
                         { colW: '26%', w: '150px', h: '16px' },
@@ -1083,11 +1071,11 @@
                         { colW: '14%', w: '85px', h: '28px', br: '6px' }
                     ];
                     const orderHeadCols = showStockouts ? [
-                        { colW: '26%', w: '115px' },
+                        { colW: '26%', w: '80px' },
                         { colW: '16%', w: '70px' },
-                        { colW: '18%', w: '105px' },
-                        { colW: '24%', w: '125px' },
-                        { colW: '16%', w: '55px' }
+                        { colW: '18%', w: '50px', align: 'center' },
+                        { colW: '24%', w: '45px', align: 'center' },
+                        { colW: '16%', w: '55px', align: 'center' }
                     ] : [
                         { colW: '12%', w: '65px' },
                         { colW: '26%', w: '115px' },
@@ -1108,7 +1096,7 @@
                             <div class="card">
                                 <div class="workspaceToolbar" style="margin-bottom: 14px;">
                                     ${orderTabs}
-                                    ${isManagerUser ? '<div class="skeletonBlock" style="width: 165px; height: 34px; border-radius: 8px;"></div>' : ''}
+                                    ${isManagerUser ? '<div class="skeletonBlock" style="width: 84px; height: 34px; border-radius: 8px;"></div>' : ''}
                                 </div>
                                 <div class="tableContainer">
                                     <table>
@@ -1149,6 +1137,7 @@
                                 <tbody>${tableRows(planCols, 5)}</tbody>
                             </table>
                         </div>
+                        ${paginationFooter()}
                     ` : `
                         <div class="ganttHeaderBar">
                             <div class="ganttNavControls">
@@ -1914,15 +1903,59 @@
                 if (dd) dd.classList.remove('open');
             };
 
+            window.resetSignOutModalState = function () {
+                window._isSigningOut = false;
+                const btn = document.getElementById('confirmSignOutBtn');
+                const cancelBtn = document.getElementById('cancelSignOutBtn');
+                if (cancelBtn) {
+                    cancelBtn.disabled = false;
+                    cancelBtn.style.opacity = '';
+                    cancelBtn.style.cursor = '';
+                }
+                if (btn) {
+                    btn.classList.remove('isSigningOut');
+                    btn.removeAttribute('aria-disabled');
+                    const labelEl = btn.querySelector('.signOutBtnLabel');
+                    if (labelEl) labelEl.textContent = 'Yes, Sign Out';
+                }
+            };
+
             window.promptSignOut = function () {
                 window.closeAccountDropdown();
+                window.resetSignOutModalState();
                 const modal = document.getElementById('signOutConfirmModal');
                 if (modal) modal.classList.add('active');
             };
 
             window.closeSignOutModal = function () {
+                if (window._isSigningOut) return;
                 const modal = document.getElementById('signOutConfirmModal');
                 if (modal) modal.classList.remove('active');
+            };
+
+            window.handleConfirmSignOut = function (event, el) {
+                if (window._isSigningOut) {
+                    if (event) event.preventDefault();
+                    return false;
+                }
+                if (event) event.preventDefault();
+                window._isSigningOut = true;
+                const btn = el || document.getElementById('confirmSignOutBtn');
+                const cancelBtn = document.getElementById('cancelSignOutBtn');
+                if (cancelBtn) {
+                    cancelBtn.disabled = true;
+                    cancelBtn.style.opacity = '0.5';
+                    cancelBtn.style.cursor = 'not-allowed';
+                }
+                if (btn) {
+                    btn.classList.add('isSigningOut');
+                    btn.setAttribute('aria-disabled', 'true');
+                    const labelEl = btn.querySelector('.signOutBtnLabel');
+                    if (labelEl) labelEl.textContent = 'Signing out...';
+                }
+                tabHtmlCache.clear();
+                window.location.assign(btn ? (btn.getAttribute('href') || '/production/logout') : '/production/logout');
+                return false;
             };
 
             window.openAccountSettingsModal = function (initialTab) {
@@ -2459,6 +2492,7 @@
             });
 
             window.addEventListener('pageshow', function (event) {
+                window.resetSignOutModalState();
                 if (event.persisted) {
                     tabHtmlCache.clear();
                 }

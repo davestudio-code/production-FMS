@@ -90,6 +90,37 @@ def _clearAuthSessionKeys():
     ):
         session.pop(key, None)
 
+def _isAssignedToEmp(assignedTo, currentEmpID):
+    if assignedTo is None or not currentEmpID:
+        return False
+    return str(assignedTo).strip() == str(currentEmpID).strip()
+
+def _scopeForUser(items, isMgr=None):
+    if is_manager_session() if isMgr is None else isMgr:
+        return items
+    empID = session.get("employee_id")
+    return [x for x in items if _isAssignedToEmp(getattr(x, "assignedTo", None), empID)]
+
+def _fmtQtyStr(val):
+    d = Decimal(str(val or 0)).quantize(Decimal("0.001"))
+    s = f"{d:,.3f}".rstrip("0").rstrip(".")
+    return s if s else "0"
+
+def _buildReservedMaterialMap(ordersList, excludeOrderID=None):
+    reservedMap = {}
+    for ro in ordersList:
+        if ro.status != "Released" or (excludeOrderID is not None and ro.orderID == excludeOrderID):
+            continue
+        try:
+            roBom = BillOfMaterials.getByFurnitureID(ro.furnitureID, autoCreate=False)
+            if roBom:
+                for r in roBom.calculateRequirements(Decimal(str(ro.plannedQuantity))):
+                    mid = r["materialID"]
+                    reservedMap[mid] = reservedMap.get(mid, Decimal("0.000")) + r["batchQuantity"]
+        except Exception:
+            pass
+    return reservedMap
+
 @productionBlueprint.before_request
 def requireLogin():
     if request.endpoint in ("production.login", "production.logout", "production.static", "production.loginpageStatic", "production.featureStatic"):
@@ -368,14 +399,7 @@ def index():
     currentEmpID = session.get("employee_id")
     orderMap = {o.orderID: o for o in allOrders}
 
-    def _matchesEmp(val, target):
-        if not val or not target:
-            return False
-        return str(val).strip() == str(target).strip()
-
-    scopedOrders = allOrders if isMgr else [
-        o for o in allOrders if _matchesEmp(getattr(o, "assignedTo", None), currentEmpID)
-    ]
+    scopedOrders = _scopeForUser(allOrders, isMgr)
 
     draftOrders = sum(1 for o in scopedOrders if o.status == "Draft")
     releasedOrders = sum(1 for o in scopedOrders if o.status == "Released")
@@ -398,7 +422,7 @@ def index():
     activeMonitoring = [m for m in allMonitoring if m.orderStatus == "In Progress"]
     scopedMonitoring = activeMonitoring if isMgr else [
         m for m in activeMonitoring
-        if _matchesEmp(
+        if _isAssignedToEmp(
             m.assignedTo or (getattr(orderMap.get(m.orderID), "assignedTo", None) if orderMap.get(m.orderID) else None),
             currentEmpID
         )
@@ -910,7 +934,7 @@ def index():
     if not isMgr:
         chartOutputs = [
             out for out in chartOutputs
-            if currentEmpID and _matchesEmp(getattr(orderMap.get(out.orderID), "assignedTo", None), currentEmpID)
+            if _isAssignedToEmp(getattr(orderMap.get(out.orderID), "assignedTo", None), currentEmpID)
         ]
 
     ordersPerDay = [0] * 7
@@ -1124,16 +1148,12 @@ def index():
     if not isMgr:
         activeOrdersList.sort(key=lambda item: (0 if item["isAssignedToMe"] else 1, -int(item["orderID"] or 0)))
 
-    def _fmtQty(val):
-        txt = f"{val:f}".rstrip("0").rstrip(".") if "." in f"{val:f}" else f"{val:f}"
-        return txt or "0"
-
     lowStockList = [
         {
             "materialID": m.materialID,
             "itemCode": getattr(m, "itemCode", "") or str(m.materialID),
             "name": m.materialName,
-            "onHand": f"{_fmtQty(m.currentStock)} {m.unit or ''}".strip(),
+            "onHand": f"{_fmtQtyStr(m.currentStock)} {m.unit or ''}".strip(),
             "unitCost": m.unitCost
         }
         for m in materials if m.currentStock <= Decimal("0.000")
@@ -1492,9 +1512,8 @@ def orderList():
     except Exception:
         stockoutAlerts = []
 
-    currentEmpID = session.get("employee_id")
     if not is_manager_session():
-        productionOrderList = [o for o in productionOrderList if currentEmpID and getattr(o, "assignedTo", None) == currentEmpID]
+        productionOrderList = _scopeForUser(productionOrderList, False)
         summary = {
             "total": len(productionOrderList),
             "draft": sum(1 for o in productionOrderList if o.status == "Draft"),
@@ -1543,7 +1562,7 @@ def orderDetail(orderID):
             return redirect(url_for("production.orderList"))
 
         currentEmpID = session.get("employee_id")
-        if not is_manager_session() and (not currentEmpID or getattr(order, "assignedTo", None) != currentEmpID):
+        if not is_manager_session() and not _isAssignedToEmp(getattr(order, "assignedTo", None), currentEmpID):
             flash("You can only view production orders assigned to you.", "warning")
             return redirect(url_for("production.orderList"))
 
@@ -1553,18 +1572,7 @@ def orderDetail(orderID):
         estimatedBatchMaterialCost = estimatedUnitMaterialCost * Decimal(str(order.plannedQuantity))
         rawRequirements = bom.calculateRequirements(order.plannedQuantity) if bom else []
 
-        reservedMap = {}
-        if order.status == "Draft":
-            otherReleased = [o for o in ProductionOrder.getAll() if o.status == "Released" and o.orderID != order.orderID]
-            for ro in otherReleased:
-                try:
-                    roBom = BillOfMaterials.getByFurnitureID(ro.furnitureID, autoCreate=False)
-                    if roBom:
-                        for r in roBom.calculateRequirements(Decimal(str(ro.plannedQuantity))):
-                            mid = r["materialID"]
-                            reservedMap[mid] = reservedMap.get(mid, Decimal("0.000")) + r["batchQuantity"]
-                except Exception:
-                    pass
+        reservedMap = _buildReservedMaterialMap(ProductionOrder.getAll(), excludeOrderID=order.orderID) if order.status == "Draft" else {}
 
         matsMap = {m.materialID: m for m in Material.getAll()}
         issuances = MaterialIssuance.getByOrderID(orderID)
@@ -1746,8 +1754,8 @@ def planningList():
     statusFilter = request.args.get("status", "").strip()
     searchQuery = request.args.get("q", "").strip()
     try:
-        plannedOrders = ProductionOrder.getPlanningOrders()
-        staffRoster = getProductionStaffRoster()
+        plannedOrders = _scopeForUser(ProductionOrder.getPlanningOrders())
+        staffRoster = getProductionStaffRoster() if is_manager_session() else []
         totalCount = len(plannedOrders)
         scheduledCount = sum(1 for o in plannedOrders if o.scheduleHealth == "On Schedule")
         needsPlanCount = sum(1 for o in plannedOrders if o.scheduleHealth == "Needs Plan")
@@ -1860,18 +1868,7 @@ def requirementList():
     if not selectedOrder and displayedOrders:
         selectedOrder = displayedOrders[0]
 
-    reservedMap = {}
-    otherReleased = [o for o in allOrders if o.status == "Released" and (not selectedOrder or o.orderID != selectedOrder.orderID)]
-    for ro in otherReleased:
-        try:
-            roBom = BillOfMaterials.getByFurnitureID(ro.furnitureID, autoCreate=False)
-            if roBom:
-                roReqs = roBom.calculateRequirements(Decimal(str(ro.plannedQuantity)))
-                for r in roReqs:
-                    mid = r["materialID"]
-                    reservedMap[mid] = reservedMap.get(mid, Decimal("0.000")) + r["batchQuantity"]
-        except Exception:
-            pass
+    reservedMap = _buildReservedMaterialMap(allOrders, excludeOrderID=selectedOrder.orderID if selectedOrder else None)
 
     requirementsList = []
     hasShortage = False
@@ -1994,11 +1991,6 @@ def releaseOrder(orderID):
         flash(f"Failed to release order: {str(err)}", "error")
 
     return redirect(url_for("production.requirementList", order_id=orderID))
-
-def _fmtQtyStr(val):
-    d = Decimal(str(val or 0)).quantize(Decimal("0.001"))
-    s = f"{d:,.3f}".rstrip("0").rstrip(".")
-    return s if s else "0"
 
 def _getReworkRoundUnits(orderID, plannedQuantity, conn=None):
     countsRow = fetchOne(
@@ -2205,7 +2197,7 @@ def issueOrderMaterials(orderID):
                 return redirect(url_for("production.issuanceList"))
 
             if MaterialIssuance.getInitialCountForOrder(orderID, conn=conn) > 0:
-                flash(f"Initial materials have already been dispatched for Order #PO-{orderID}.", "warning")
+                flash(f"Initial materials have already been issued for Order #PO-{orderID}.", "warning")
                 return redirect(url_for("production.issuanceList"))
 
             bom = BillOfMaterials.getByFurnitureID(orderRow["furniture_id"], autoCreate=False, conn=conn)
@@ -2249,7 +2241,7 @@ def issueOrderMaterials(orderID):
             )
 
         invalidateKeys("materials_all", "orders_all", "orders_summary", "furniture_all")
-        flash(f"Materials dispatched for Order #PO-{orderID}! Order moved to 'In Progress' for workshop assembly.", "success")
+        flash(f"Materials issued for Order #PO-{orderID}! Order moved to 'In Progress' for workshop assembly.", "success")
     except ValueError as valErr:
         flash(f"Issuance blocked: {str(valErr)}", "error")
     except Exception as err:
@@ -2408,7 +2400,7 @@ def issueReworkReplacement(orderID):
 
         invalidateKeys("materials_all", "orders_all", "orders_summary")
         flash(
-            f"Rework #{reworkRound} replacement dispatched for Order #PO-{orderID}: {_fmtQtyStr(qty)} {unit} of {matName}.",
+            f"Rework #{reworkRound} replacement issued for Order #PO-{orderID}: {_fmtQtyStr(qty)} {unit} of {matName}.",
             "success"
         )
     except ValueError as valErr:
@@ -2421,16 +2413,16 @@ def issueReworkReplacement(orderID):
 @productionBlueprint.route("/monitoring")
 def monitoringList():
     try:
-        productionMonitoringList = ProductionMonitoring.getAll()
+        productionMonitoringList = _scopeForUser(ProductionMonitoring.getAll())
+        currentEmpID = session.get("employee_id")
         latestProofMap = ProductionAttachment.getLatestByOrderIDs([m.orderID for m in productionMonitoringList])
         for m in productionMonitoringList:
             m.latestProof = latestProofMap.get(m.orderID)
-        currentEmpID = session.get("employee_id")
         summary = {
             "total": len(productionMonitoringList),
             "inProgress": sum(1 for m in productionMonitoringList if m.progress < 100),
             "completed": sum(1 for m in productionMonitoringList if m.progress >= 100),
-            "myAssigned": sum(1 for m in productionMonitoringList if m.progress < 100 and currentEmpID and m.assignedTo == currentEmpID)
+            "myAssigned": sum(1 for m in productionMonitoringList if m.progress < 100 and _isAssignedToEmp(getattr(m, "assignedTo", None), currentEmpID))
         }
     except Exception as err:
         flash(f"Failed to load monitoring records: {str(err)}", "error")
@@ -3135,11 +3127,35 @@ def reportView():
         else:
             lastActivity = "-"
 
+        dispatchMap = {}
+        groupedDispatches = []
+        for iss in issuances:
+            oid = iss.orderID
+            if oid not in dispatchMap:
+                group = {
+                    "orderID": oid,
+                    "furnitureName": iss.furnitureName,
+                    "materials": [],
+                    "totalCost": Decimal("0.00"),
+                    "latestIssueDate": iss.issueDate,
+                    "latestIssueDateIso": iss.issueDateIso,
+                    "actors": []
+                }
+                dispatchMap[oid] = group
+                groupedDispatches.append(group)
+            group = dispatchMap[oid]
+            group["materials"].append(iss)
+            group["totalCost"] = (group["totalCost"] + iss.lineCost).quantize(Decimal("0.01"))
+            actor = (iss.recordedBy or "").strip()
+            if actor and actor not in group["actors"]:
+                group["actors"].append(actor)
+
     except Exception as err:
         flash(f"Failed to load production reports: {str(err)}", "error")
         filteredOrders = []
         materialUsageRows = []
         issuances = []
+        groupedDispatches = []
         outputRecords = []
         lastActivity = "-"
         summary = {
@@ -3166,6 +3182,7 @@ def reportView():
         summary=summary,
         currentFilter=statusFilter,
         issuances=issuances,
+        groupedDispatches=groupedDispatches,
         outputRecords=outputRecords,
         lastActivity=lastActivity,
         reportDate=manilaToday().strftime("%B %d, %Y")
@@ -3175,6 +3192,4 @@ def reportView():
 @manager_required
 def logsView():
     return redirect(url_for("production.reportView", tab="audit"))
-
-
 

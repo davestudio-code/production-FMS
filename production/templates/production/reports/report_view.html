@@ -1,7 +1,7 @@
 {% extends "production/base.html" %}
 
 {% block content %}
-<link rel="stylesheet" href="/production/feature-static/reports/report.css">
+<link rel="stylesheet" href="/production/feature-static/reports/report.css?v=20261118a">
 
 <div class="printDocumentHeader">
     <div class="printHeaderMain">
@@ -60,8 +60,8 @@
             <span class="workspaceTabDivider"></span>
             <button type="button" class="workspaceTabBtn" data-reporttab="dispatches"
                 onclick="setReportWorkspaceTab('dispatches')">
-                <span>Material Dispatches</span>
-                <span class="workspaceTabCount">{{ issuances|length }}</span>
+                <span>Materials Issued</span>
+                <span class="workspaceTabCount">{{ groupedDispatches|length }}</span>
             </button>
         </div>
 
@@ -82,12 +82,8 @@
         <div class="workspaceMetaGroup reportAuditFilterWrap" id="reportToolbarDispatches" style="display: none;">
             <select id="auditOrderSelect" class="reportCompactSelect" onchange="applyReportFilters()">
                 <option value="">All Orders</option>
-                {% set seenOrders = [] %}
-                {% for iss in issuances %}
-                {% if iss.orderID not in seenOrders %}
-                {% set _ = seenOrders.append(iss.orderID) %}
-                <option value="PO-{{ iss.orderID }}">Order #PO-{{ iss.orderID }}</option>
-                {% endif %}
+                {% for d in groupedDispatches %}
+                <option value="PO-{{ d.orderID }}">Order #PO-{{ d.orderID }}</option>
                 {% endfor %}
             </select>
             <div class="reportCompactDateGroup">
@@ -297,59 +293,69 @@
     </div>
 
     <div id="reportSectionDispatches" class="reportWorkspaceSection" style="display: none;">
+        <div class="printSectionHeading">3. Materials Issued by Order</div>
         <div class="tableContainer">
             <table class="reportTable">
                 <thead>
                     <tr>
-                        <th>Issuance Ref</th>
-                        <th>Associated Order</th>
-                        <th>Raw Material</th>
-                        <th style="text-align: center;">Dispatched Quantity</th>
+                        <th>Order Reference</th>
+                        <th>Materials Issued</th>
+                        <th>Total Issued Cost</th>
                         <th>Issue Date</th>
                         <th>Issued By</th>
                     </tr>
                 </thead>
                 <tbody id="dispatchesTableBody">
-                    {% for iss in issuances %}
-                    <tr class="dispatchRow" data-order="PO-{{ iss.orderID }}"
-                        data-search="is-{{ iss.issuanceID }} po-{{ iss.orderID }} {{ iss.furnitureName|lower }} {{ iss.materialName|lower }} {{ (iss.recordedBy or '')|lower }}"
-                        data-date="{{ iss.issueDateIso }}">
-                        <td data-label="Issuance Ref"><b>#IS-{{ iss.issuanceID }}</b></td>
-                        <td data-label="Associated Order">
-                            <a href="/production/orders/{{ iss.orderID }}"
-                                style="color: var(--tx); font-weight: 700; text-decoration: none;">Order #PO-{{
-                                iss.orderID }}</a>
-                            <div style="color: var(--mt); font-size: 12px; margin-top: 2px;">{{ iss.furnitureName }}
+                    {% for d in groupedDispatches %}
+                    <tr class="dispatchRow" data-order="PO-{{ d.orderID }}"
+                        data-search="po-{{ d.orderID }} {{ d.furnitureName|lower }} {% for iss in d.materials %}{{ iss.materialName|lower }} {% endfor %}{% for actor in d.actors %}{{ actor|lower }} {% endfor %}"
+                        data-date="{{ d.latestIssueDateIso }}">
+                        <td data-label="Order Reference">
+                            <a href="/production/orders/{{ d.orderID }}"
+                                style="color: var(--tx); font-weight: 700; text-decoration: none;">#PO-{{ d.orderID }}</a>
+                            <div style="color: var(--mt); font-size: 12px; margin-top: 2px;">{{ d.furnitureName }}</div>
+                        </td>
+                        <td data-label="Materials Issued">
+                            <div style="display: flex; flex-direction: column; gap: 4px;">
+                                {% for iss in d.materials %}
+                                <div style="font-size: 12.5px; line-height: 1.35;">
+                                    <b>{{ iss.materialName }}</b>
+                                    <span style="color: var(--mt);">&middot;</span>
+                                    <span>{{ "{:,.3f}".format(iss.quantityIssued).rstrip('0').rstrip('.') or '0' }} {{ iss.unit }}</span>
+                                    {% if iss.isReworkReplacement %}
+                                    <span class="statusBadge inProgress" style="font-size: 10px; margin-left: 4px;">Rework #{{ iss.reworkRound }}</span>
+                                    {% if iss.reason %}
+                                    <span style="font-size: 11px; color: var(--mt); margin-left: 4px;">({{ iss.reason }})</span>
+                                    {% endif %}
+                                    {% endif %}
+                                </div>
+                                {% endfor %}
                             </div>
                         </td>
-                        <td data-label="Raw Material">
-                            <b>{{ iss.materialName }}</b>
-                            {% if iss.isReworkReplacement %}
-                            <div style="margin-top: 2px;">
-                                <span class="statusBadge inProgress" style="font-size: 10.5px;">Rework #{{ iss.reworkRound }} Replacement</span>
-                                {% if iss.reason %}
-                                <span style="font-size: 11px; color: var(--mt); margin-left: 4px;">{{ iss.reason }}</span>
-                                {% endif %}
-                            </div>
-                            {% endif %}
+                        <td data-label="Total Issued Cost">
+                            <b style="color: var(--tx); font-size: 13.5px;">₱{{ "{:,.2f}".format(d.totalCost) }}</b>
+                            <div style="font-size: 11.5px; color: var(--mt); margin-top: 2px;">{{ d.materials|length }} material{{ '' if d.materials|length == 1 else 's' }}</div>
                         </td>
-                        <td data-label="Dispatched Quantity" style="text-align: center; font-weight: 600;">
-                            {{ "{:,.3f}".format(iss.quantityIssued).rstrip('0').rstrip('.') }} {{ iss.unit }}
-                        </td>
-                        <td data-label="Issue Date">{{ iss.issueDate|date_fmt }}</td>
+                        <td data-label="Issue Date">{{ d.latestIssueDate|date_fmt }}</td>
                         <td data-label="Issued By">
-                            <span style="font-weight: 500; color: var(--tx);">{{ (iss.recordedBy or session.get('email') or 'Dave Cagalitan')|mail_link }}</span>
+                            <div style="display: flex; flex-direction: column; gap: 3px;">
+                                {% for actor in d.actors %}
+                                <span style="font-weight: 500; color: var(--tx);">{{ actor|mail_link }}</span>
+                                {% else %}
+                                <span style="color: var(--mt);">{{ (session.get('email') or 'Dave Cagalitan')|mail_link }}</span>
+                                {% endfor %}
+                            </div>
                         </td>
                     </tr>
                     {% else %}
                     <tr>
-                        <td colspan="6" style="text-align: center; color: var(--mt); padding: 28px;">No material
-                            dispatch records recorded yet.</td>
+                        <td colspan="5" style="text-align: center; color: var(--mt); padding: 28px;">No material
+                            issuance records recorded yet.</td>
                     </tr>
                     {% endfor %}
                     <tr id="dispatchesEmptyFilterRow" style="display: none;">
-                        <td colspan="6" style="text-align: center; color: var(--mt); padding: 28px;">
-                            No dispatch records match your filter criteria.
+                        <td colspan="5" style="text-align: center; color: var(--mt); padding: 28px;">
+                            No issued material records match your filter criteria.
                         </td>
                     </tr>
                 </tbody>
@@ -404,5 +410,5 @@
     </div>
 </div>
 
-<script src="/production/feature-static/reports/report.js"></script>
+<script src="/production/feature-static/reports/report.js?v=20261118a"></script>
 {% endblock %}

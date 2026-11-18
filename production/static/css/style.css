@@ -38,7 +38,7 @@ body {
 }
 
 nav {
-    width: 245px;
+    width: 258px;
     background: var(--nav-bg);
     padding: 16px 12px;
     flex-shrink: 0;
@@ -184,20 +184,21 @@ nav {
     display: flex;
     align-items: center;
     gap: 10px;
-    padding: 7px 12px;
+    padding: 9px 12px;
     color: rgba(246, 238, 218, 0.88);
     text-decoration: none;
     border-radius: 9px;
-    font-size: 13px;
+    font-size: 14px;
     font-weight: 500;
+    white-space: nowrap;
     transition: all 0.15s ease;
 }
 
 .navSectionLabel {
-    margin-top: 12px;
-    margin-bottom: 3px;
+    margin-top: 15px;
+    margin-bottom: 5px;
     padding: 0 12px;
-    font-size: 10px;
+    font-size: 11px;
     font-weight: 700;
     text-transform: uppercase;
     letter-spacing: 0.08em;
@@ -210,8 +211,8 @@ nav {
 }
 
 .navLinksContainer a svg {
-    width: 16px;
-    height: 16px;
+    width: 17px;
+    height: 17px;
     flex-shrink: 0;
     opacity: 0.85;
     transition: opacity 0.15s ease;
@@ -469,17 +470,17 @@ button.topIconBtn:hover {
 }
 
 .topUserAvatar {
-    width: 36px;
-    height: 36px;
+    width: 28px;
+    height: 28px;
     border-radius: 50%;
     background: var(--p);
     color: #ffffff;
     font-weight: 700;
-    font-size: 13.5px;
+    font-size: 12.5px;
     display: flex;
     align-items: center;
     justify-content: center;
-    box-shadow: 0 2px 6px rgba(43, 51, 31, 0.15);
+    flex-shrink: 0;
 }
 
 main {
@@ -522,6 +523,28 @@ main {
     to {
         transform: rotate(360deg);
     }
+}
+
+.signOutBtnSpinner {
+    display: none;
+    width: 14px;
+    height: 14px;
+    border-radius: 50%;
+    border: 2px solid rgba(255, 255, 255, 0.35);
+    border-top-color: #ffffff;
+    flex-shrink: 0;
+    animation: spinRefresh 0.7s linear infinite;
+}
+
+#confirmSignOutBtn.isSigningOut {
+    opacity: 0.78;
+    pointer-events: none;
+    cursor: wait;
+    transform: none;
+}
+
+#confirmSignOutBtn.isSigningOut .signOutBtnSpinner {
+    display: inline-block;
 }
 
 .headerRow {
@@ -983,7 +1006,7 @@ button.modalClose:hover {
     .navLinksContainer a {
         width: 100%;
         padding: 10px 14px;
-        font-size: 13.5px;
+        font-size: 14px;
         border-radius: 8px;
     }
 
@@ -1031,6 +1054,25 @@ button.modalClose:hover {
         height: 32px;
         min-width: 32px;
         min-height: 32px;
+    }
+
+    button.topUserAvatarBtn {
+        height: 32px;
+        padding: 0;
+        gap: 0;
+        border: none;
+        background: transparent;
+        border-radius: 50%;
+    }
+
+    .topUserAvatar {
+        width: 32px;
+        height: 32px;
+    }
+
+    .topUserName,
+    .topUserChevron {
+        display: none;
     }
 
     main {
@@ -2916,7 +2958,29 @@ button.viewModeBtn.active:hover {
     border: 1px solid var(--bd);
     border-radius: 10px;
     overflow-x: auto;
+    overflow-y: auto;
+    max-height: 480px;
     background: #ffffff;
+    -webkit-overflow-scrolling: touch;
+}
+
+.ganttScrollWrap::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+}
+
+.ganttScrollWrap::-webkit-scrollbar-track {
+    background: #f5f0e3;
+    border-radius: 4px;
+}
+
+.ganttScrollWrap::-webkit-scrollbar-thumb {
+    background: #dcd2b6;
+    border-radius: 4px;
+}
+
+.ganttScrollWrap::-webkit-scrollbar-thumb:hover {
+    background: #c7ba96;
 }
 
 .ganttGrid {
@@ -2929,8 +2993,9 @@ button.viewModeBtn.active:hover {
 .ganttCornerHead {
     grid-column: 1;
     position: sticky;
+    top: 0;
     left: 0;
-    z-index: 4;
+    z-index: 6;
     background: #f6f2e7;
     border-right: 1px solid var(--bd);
     border-bottom: 1px solid var(--bd);
@@ -2945,6 +3010,9 @@ button.viewModeBtn.active:hover {
 }
 
 .ganttDayHead {
+    position: sticky;
+    top: 0;
+    z-index: 5;
     background: #f6f2e7;
     border-bottom: 1px solid var(--bd);
     border-right: 1px solid rgba(213, 199, 170, 0.45);
@@ -2962,7 +3030,7 @@ button.viewModeBtn.active:hover {
 }
 
 .ganttDayHead.isToday {
-    background: rgba(102, 117, 76, 0.16);
+    background: #e6ece0;
 }
 
 .ganttDayDow {
@@ -3399,24 +3467,53 @@ button.proofThumbBtn:hover {
 }
 
 button.topUserAvatarBtn {
-    background: transparent;
-    border: none;
-    padding: 0;
+    background: var(--cd);
+    border: 1px solid var(--bd);
+    height: 36px;
+    padding: 3px 10px 3px 4px;
     cursor: pointer;
-    border-radius: 50%;
-    display: flex;
+    border-radius: 999px;
+    display: inline-flex;
     align-items: center;
-    justify-content: center;
+    gap: 8px;
     outline: none;
     transform: none;
+    transition: border-color 0.15s ease, background 0.15s ease;
+}
+
+.topUserName {
+    font-size: 12.5px;
+    font-weight: 600;
+    color: var(--tx);
+    max-width: 140px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.topUserChevron {
+    color: var(--mt);
+    flex-shrink: 0;
+    transition: transform 0.18s ease;
+}
+
+.topAccountContainer:has(.topAccountDropdown.open) button.topUserAvatarBtn {
+    border-color: var(--p);
+    background: #fdfbf7;
+}
+
+.topAccountContainer:has(.topAccountDropdown.open) .topUserChevron {
+    transform: rotate(180deg);
 }
 
 button.topUserAvatarBtn:hover {
     transform: none;
+    border-color: var(--p);
+    background: #fdfbf7;
 }
 
 button.topUserAvatarBtn:hover .topUserAvatar {
-    box-shadow: 0 0 0 3px rgba(102, 117, 76, 0.25);
+    box-shadow: 0 0 0 2px rgba(102, 117, 76, 0.2);
 }
 
 .topAccountDropdown {
@@ -4122,26 +4219,60 @@ button.accountModalTabBtn.active {
 
 .dashActivityScroll {
     flex: 1;
-    max-height: 460px;
+    max-height: 515px;
     overflow-y: auto;
     padding-right: 6px;
 }
 
-.dashActivityScroll::-webkit-scrollbar {
-    width: 5px;
+.dashStockoutScroll {
+    max-height: 460px;
+    overflow-x: auto;
+    overflow-y: auto;
+    padding-right: 4px;
+    -webkit-overflow-scrolling: touch;
 }
 
-.dashActivityScroll::-webkit-scrollbar-track {
+.dashStockoutScroll table thead th {
+    position: sticky;
+    top: 0;
+    background: var(--cd);
+    z-index: 3;
+}
+
+.dashStockoutScroll table thead th:first-child {
+    z-index: 4;
+}
+
+.dashStockoutScroll table th,
+.dashStockoutScroll table td {
+    text-align: center;
+}
+
+.dashStockoutScroll table th:first-child,
+.dashStockoutScroll table td:first-child {
+    text-align: left;
+}
+
+.dashActivityScroll::-webkit-scrollbar,
+.dashStockoutScroll::-webkit-scrollbar {
+    width: 5px;
+    height: 5px;
+}
+
+.dashActivityScroll::-webkit-scrollbar-track,
+.dashStockoutScroll::-webkit-scrollbar-track {
     background: #f5f0e3;
     border-radius: 4px;
 }
 
-.dashActivityScroll::-webkit-scrollbar-thumb {
+.dashActivityScroll::-webkit-scrollbar-thumb,
+.dashStockoutScroll::-webkit-scrollbar-thumb {
     background: #e7dfca;
     border-radius: 4px;
 }
 
-.dashActivityScroll::-webkit-scrollbar-thumb:hover {
+.dashActivityScroll::-webkit-scrollbar-thumb:hover,
+.dashStockoutScroll::-webkit-scrollbar-thumb:hover {
     background: #d4caa8;
 }
 

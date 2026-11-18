@@ -3,7 +3,7 @@ from flask import Flask, redirect, url_for
 from production import productionBlueprint
 
 app = Flask(__name__)
-app.secret_key = os.getenv("SECRET_KEY", "fallback_secret_key_for_development")
+app.secret_key = os.getenv("SECRET_KEY", "")
 app.register_blueprint(productionBlueprint, url_prefix="/production")
 
 @app.route("/")

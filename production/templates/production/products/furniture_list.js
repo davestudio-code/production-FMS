@@ -31,8 +31,8 @@ window.setFurnitureCategoryTab = function (btn, category) {
     window.filterFurnitureTable(true);
 };
 
-let currentFurniturePage = 1;
-let furniturePageSize = 10;
+var currentFurniturePage = 1;
+var furniturePageSize = 10;
 
 window.filterFurnitureTable = function (resetPage = true) {
     if (resetPage) {
@@ -144,12 +144,18 @@ window.resetFurnitureFilter = function () {
     window.filterFurnitureTable(true);
 };
 
-if (document.readyState === 'loading') {
-    document.addEventListener('DOMContentLoaded', function () {
-        window.filterFurnitureTable(true);
-    });
-} else {
+function initFurnitureWorkspace() {
+    const sizeSelect = document.getElementById('furniturePageSize');
+    const parsedSize = sizeSelect ? parseInt(sizeSelect.value, 10) : 10;
+    furniturePageSize = (!isNaN(parsedSize) && parsedSize > 0) ? parsedSize : 10;
+    currentFurniturePage = 1;
     window.filterFurnitureTable(true);
+}
+
+if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', initFurnitureWorkspace);
+} else {
+    initFurnitureWorkspace();
 }
 window.addEventListener('pageshow', function () {
     window.filterFurnitureTable(false);

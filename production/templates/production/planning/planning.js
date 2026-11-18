@@ -62,7 +62,7 @@ function openScheduleModal(orderID, productName, startDate, dueDate, assignedTo)
     openModal('scheduleModal');
 }
 
-window.openScheduleFromDataset = function(btn) {
+window.openScheduleFromDataset = function (btn) {
     if (!btn) return;
     openScheduleModal(
         btn.getAttribute('data-oid') || '',
@@ -73,7 +73,7 @@ window.openScheduleFromDataset = function(btn) {
     );
 };
 
-window.setPlanningView = function(viewMode) {
+window.setPlanningView = function (viewMode) {
     const mode = viewMode === 'list' ? 'list' : 'timeline';
     const viewInput = document.getElementById('planningViewSelect');
     const listSec = document.getElementById('planningListSection');
@@ -81,7 +81,7 @@ window.setPlanningView = function(viewMode) {
     if (viewInput) viewInput.value = mode;
 
     const viewBtns = document.querySelectorAll('.viewModeBtn[data-planview]');
-    viewBtns.forEach(function(btn) {
+    viewBtns.forEach(function (btn) {
         if ((btn.getAttribute('data-planview') || '') === mode) {
             btn.classList.add('active');
         } else {
@@ -101,10 +101,11 @@ window.setPlanningView = function(viewMode) {
     } else {
         if (listSec) listSec.style.display = 'block';
         if (timeSec) timeSec.style.display = 'none';
+        window.filterPlanningTable(false);
     }
 };
 
-window.shiftPlanningTimeline = function(deltaDays) {
+window.shiftPlanningTimeline = function (deltaDays) {
     if (deltaDays === 0) {
         planningTimelineOffsetDays = 0;
     } else {
@@ -113,7 +114,7 @@ window.shiftPlanningTimeline = function(deltaDays) {
     window.renderPlanningTimeline();
 };
 
-window.renderPlanningTimeline = function() {
+window.renderPlanningTimeline = function () {
     const gridContainer = document.getElementById('ganttGridContainer');
     const rangeLabel = document.getElementById('ganttRangeLabel');
     const todayLoadPill = document.getElementById('ganttTodayLoadPill');
@@ -132,7 +133,7 @@ window.renderPlanningTimeline = function() {
     }
 
     const allRows = Array.from(document.querySelectorAll('tr.planningRow'));
-    const matchingRows = allRows.filter(function(r) {
+    const matchingRows = allRows.filter(function (r) {
         return r.dataset.filteredOut !== '1';
     });
 
@@ -140,7 +141,7 @@ window.renderPlanningTimeline = function() {
     let toProduceCount = 0;
     let toProduceUnits = 0;
 
-    matchingRows.forEach(function(row) {
+    matchingRows.forEach(function (row) {
         const item = {
             orderId: row.dataset.orderId || '',
             product: row.dataset.product || '',
@@ -200,7 +201,7 @@ window.renderPlanningTimeline = function() {
 
     let html = '<div class="ganttGrid" style="grid-template-columns: 220px repeat(7, minmax(76px, 1fr)); min-width: 752px;">';
     html += '<div class="ganttCornerHead" style="grid-column: 1;">Production Order</div>';
-    days.forEach(function(day) {
+    days.forEach(function (day) {
         const cls = 'ganttDayHead' + (day.isWeekend ? ' isWeekend' : '') + (day.isToday ? ' isToday' : '');
         html += '<div class="' + cls + '">' +
             '<span class="ganttDayDow">' + day.dowLabel + '</span>' +
@@ -213,7 +214,7 @@ window.renderPlanningTimeline = function() {
             (allRows.length === 0 ? 'No production orders created yet.' : 'No planned orders match your current search or filter.') +
             '</div>';
     } else {
-        items.forEach(function(item) {
+        items.forEach(function (item) {
             const unitWord = item.qty === 1 ? 'unit' : 'units';
             const dotCls = item.health === 'Overdue' ? 'overdue' : (item.status === 'Completed' ? 'completed' : (item.status === 'In Progress' ? 'inProgress' : (item.status === 'Released' ? 'released' : 'draft')));
             const staffLineHtml = item.assignedName
@@ -230,7 +231,7 @@ window.renderPlanningTimeline = function() {
                 '</div>';
 
             html += '<div class="ganttTrackRow" style="grid-column: 2 / span 7; grid-template-columns: repeat(7, 1fr);">';
-            days.forEach(function(day) {
+            days.forEach(function (day) {
                 const bgCls = 'ganttBgCell' + (day.isWeekend ? ' isWeekend' : '') + (day.isToday ? ' isToday' : '');
                 html += '<div class="' + bgCls + '"></div>';
             });
@@ -293,9 +294,9 @@ window.renderPlanningTimeline = function() {
     gridContainer.innerHTML = html;
 };
 
-window.syncPlanningHealthTabs = function(healthVal) {
+window.syncPlanningHealthTabs = function (healthVal) {
     const tabs = document.querySelectorAll('.workspaceFilterTabs .workspaceTabBtn[data-health]');
-    tabs.forEach(function(tab) {
+    tabs.forEach(function (tab) {
         if ((tab.getAttribute('data-health') || '') === healthVal) {
             tab.classList.add('active');
         } else {
@@ -304,7 +305,7 @@ window.syncPlanningHealthTabs = function(healthVal) {
     });
 };
 
-window.setPlanningHealthTab = function(healthVal) {
+window.setPlanningHealthTab = function (healthVal) {
     const nextVal = healthVal || '';
     const healthInput = document.getElementById('planningHealthSelect');
     if (healthInput) {
@@ -314,13 +315,19 @@ window.setPlanningHealthTab = function(healthVal) {
     window.filterPlanningTable();
 };
 
-window.filterPlanningTable = function() {
+var currentPlanningPage = 1;
+var planningPageSize = 10;
+
+window.filterPlanningTable = function (resetPage = true) {
+    if (resetPage) {
+        currentPlanningPage = 1;
+    }
     const q = (document.getElementById('globalTabSearchInput')?.value || '').toLowerCase().trim();
     const status = (document.getElementById('planningStatusSelect')?.value || '').trim();
     const health = (document.getElementById('planningHealthSelect')?.value || '').trim();
-    const rows = document.querySelectorAll('tr.planningRow');
-    let visibleCount = 0;
-    rows.forEach(function(row) {
+    const allRows = Array.from(document.querySelectorAll('tr.planningRow'));
+    const matchingRows = [];
+    allRows.forEach(function (row) {
         const rowStatus = row.dataset.status || '';
         const rowHealth = row.dataset.health || '';
         const rowSearch = row.dataset.search || '';
@@ -328,24 +335,83 @@ window.filterPlanningTable = function() {
         const matchHealth = !health || rowHealth === health;
         const matchSearch = !q || rowSearch.includes(q);
         if (matchStatus && matchHealth && matchSearch) {
-            row.style.display = '';
             row.dataset.filteredOut = '0';
-            visibleCount++;
+            matchingRows.push(row);
         } else {
-            row.style.display = 'none';
             row.dataset.filteredOut = '1';
         }
+        row.style.display = 'none';
     });
+
+    const totalCount = matchingRows.length;
+    const totalPages = Math.ceil(totalCount / planningPageSize) || 1;
+    if (currentPlanningPage > totalPages) currentPlanningPage = totalPages;
+    if (currentPlanningPage < 1) currentPlanningPage = 1;
+
+    const startIndex = (currentPlanningPage - 1) * planningPageSize;
+    const endIndex = Math.min(startIndex + planningPageSize, totalCount);
+    for (let i = startIndex; i < endIndex; i++) {
+        matchingRows[i].style.display = '';
+    }
+
     const emptyRow = document.getElementById('planningEmptyRow');
     if (emptyRow) {
-        emptyRow.style.display = (visibleCount === 0 && rows.length > 0) ? '' : 'none';
+        emptyRow.style.display = (totalCount === 0 && allRows.length > 0) ? '' : 'none';
     }
+
+    const pageInfo = document.getElementById('planningPageInfo');
+    if (pageInfo) {
+        if (totalCount === 0) {
+            pageInfo.textContent = 'Showing 0 orders';
+        } else {
+            pageInfo.textContent = `Showing ${startIndex + 1}–${endIndex} of ${totalCount} order${totalCount === 1 ? '' : 's'}`;
+        }
+    }
+
+    const pageIndicator = document.getElementById('planningPageIndicator');
+    if (pageIndicator) {
+        pageIndicator.textContent = `Page ${currentPlanningPage} of ${totalPages}`;
+    }
+
+    const prevBtn = document.getElementById('planningPrevBtn');
+    if (prevBtn) {
+        prevBtn.disabled = currentPlanningPage <= 1;
+        prevBtn.style.opacity = currentPlanningPage <= 1 ? '0.5' : '1';
+        prevBtn.style.cursor = currentPlanningPage <= 1 ? 'default' : 'pointer';
+    }
+
+    const nextBtn = document.getElementById('planningNextBtn');
+    if (nextBtn) {
+        nextBtn.disabled = currentPlanningPage >= totalPages;
+        nextBtn.style.opacity = currentPlanningPage >= totalPages ? '0.5' : '1';
+        nextBtn.style.cursor = currentPlanningPage >= totalPages ? 'default' : 'pointer';
+    }
+
+    const paginationContainer = document.getElementById('planningPagination');
+    if (paginationContainer) {
+        paginationContainer.style.display = allRows.length === 0 ? 'none' : 'flex';
+    }
+
     if (document.getElementById('planningViewSelect')?.value === 'timeline') {
         window.renderPlanningTimeline();
     }
 };
 
-window.resetPlanningFilter = function() {
+window.changePlanningPage = function (delta) {
+    currentPlanningPage += delta;
+    window.filterPlanningTable(false);
+};
+
+window.changePlanningPageSize = function (newSize) {
+    const parsed = parseInt(newSize, 10);
+    if (!isNaN(parsed) && parsed > 0) {
+        planningPageSize = parsed;
+        currentPlanningPage = 1;
+        window.filterPlanningTable(false);
+    }
+};
+
+window.resetPlanningFilter = function () {
     const qInput = document.getElementById('globalTabSearchInput');
     const statusSelect = document.getElementById('planningStatusSelect');
     const healthInput = document.getElementById('planningHealthSelect');
@@ -356,13 +422,20 @@ window.resetPlanningFilter = function() {
     if (statusSelect) statusSelect.value = '';
     if (healthInput) healthInput.value = '';
     window.syncPlanningHealthTabs('');
-    window.filterPlanningTable();
+    currentPlanningPage = 1;
+    window.filterPlanningTable(true);
 };
 
+function initPlanningWorkspace() {
+    const sizeSelect = document.getElementById('planningPageSize');
+    const parsedSize = sizeSelect ? parseInt(sizeSelect.value, 10) : 10;
+    planningPageSize = (!isNaN(parsedSize) && parsedSize > 0) ? parsedSize : 10;
+    currentPlanningPage = 1;
+    window.filterPlanningTable(true);
+}
+
 if (document.readyState === 'loading') {
-    document.addEventListener('DOMContentLoaded', function() {
-        window.filterPlanningTable();
-    });
+    document.addEventListener('DOMContentLoaded', initPlanningWorkspace);
 } else {
-    window.filterPlanningTable();
+    initPlanningWorkspace();
 }

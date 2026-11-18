@@ -896,6 +896,14 @@
     };
 
     function _initQATabFromUrl() {
+        var histSel = document.getElementById('qaHistoryPageSize');
+        var rewSel = document.getElementById('qaReworkPageSize');
+        var histSize = histSel ? parseInt(histSel.value, 10) : 10;
+        var rewSize = rewSel ? parseInt(rewSel.value, 10) : 10;
+        qaPagerState.history.size = (!isNaN(histSize) && histSize > 0) ? histSize : 10;
+        qaPagerState.history.page = 1;
+        qaPagerState.rework.size = (!isNaN(rewSize) && rewSize > 0) ? rewSize : 10;
+        qaPagerState.rework.page = 1;
         var params = new URLSearchParams(window.location.search);
         var tabParam = (params.get('tab') || '').toLowerCase();
         if (tabParam === 'rework') {

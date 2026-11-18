@@ -214,14 +214,14 @@
                 </button>
             </div>
         </div>
-        <div class="tableContainer">
+        <div class="tableContainer dashStockoutScroll">
             <table>
                 <thead>
                     <tr>
                         <th>Product</th>
-                        <th style="text-align: right; width: 85px;">Stock</th>
+                        <th style="width: 85px;">Stock</th>
                         <th style="width: 125px;">BOM</th>
-                        <th style="text-align: right; width: 165px;">Restock / Action</th>
+                        <th style="width: 165px;">Action</th>
                     </tr>
                 </thead>
                 <tbody>
@@ -235,41 +235,33 @@
                                 {{ item.furniture_type }}
                             </span>
                         </td>
-                        <td style="text-align: right;">
+                        <td>
                             <span style="font-weight: 700; color: var(--rd); font-size: 12px;">{{ item.current_stock }}
                                 units</span>
                         </td>
                         <td>
                             {% if item.bom_item_count > 0 %}
-                            <span class="dashPillBadge completed"
-                                style="font-size: 10.5px; padding: 0 8px; height: 21px;">
-                                BOM Ready ({{ item.bom_item_count }})
-                            </span>
+                            <span style="font-size: 12px; font-weight: 600; color: var(--p);">Ready ({{
+                                item.bom_item_count }})</span>
                             {% else %}
-                            <span class="dashPillBadge draft" style="font-size: 10.5px; padding: 0 8px; height: 21px;">
-                                No BOM
-                            </span>
+                            <span style="font-size: 12px; font-weight: 600; color: var(--mt);">No BOM</span>
                             {% endif %}
                         </td>
-                        <td style="text-align: right;">
+                        <td>
                             {% if item.active_order_id %}
-                            <a href="/production/orders/{{ item.active_order_id }}" class="dashPillBadge inProgress"
-                                style="text-decoration: none; font-size: 11px; padding: 0 8px; height: 22px;">
-                                #PO-{{ item.active_order_id }} ({{ item.active_order_status }})
+                            <a href="/production/orders/{{ item.active_order_id }}" class="actionButton secondary"
+                                style="padding: 3px 9px; font-size: 11px; text-decoration: none; display: inline-block; white-space: nowrap;">
+                                View #PO-{{ item.active_order_id }}
                             </a>
-                            <span style="display: block; font-size: 10.5px; color: var(--mt); margin-top: 2px;">
-                                {{ item.total_incoming_qty }} unit{{ '' if item.total_incoming_qty == 1 else 's' }} in
-                                {{ item.active_order_count }} order{{ '' if item.active_order_count == 1 else 's' }}
-                            </span>
                             {% elif item.bom_item_count == 0 %}
                             <a href="/production/bom?furniture_id={{ item.furniture_id }}"
                                 class="actionButton secondary"
-                                style="padding: 3px 9px; font-size: 11px; text-decoration: none; display: inline-block;">
+                                style="padding: 3px 9px; font-size: 11px; text-decoration: none; display: inline-block; white-space: nowrap;">
                                 + Configure BOM
                             </a>
                             {% else %}
                             <a href="/production/orders?stockouts=1" class="actionButton"
-                                style="padding: 3px 9px; font-size: 11px; text-decoration: none; display: inline-block;">
+                                style="padding: 3px 9px; font-size: 11px; text-decoration: none; display: inline-block; white-space: nowrap;">
                                 + Restock Order
                             </a>
                             {% endif %}
@@ -341,7 +333,8 @@
                         {% else %}
                         {{ act.title }}
                         {% endif %}
-                        <span>{% if isManager and act.actor %}By {{ act.actor|mail_link }}{% if act.rawMeta %} · {{ act.rawMeta }}{% endif %}{% else %}{{ act.meta }}{% endif %}</span>
+                        <span>{% if isManager and act.actor %}By {{ act.actor|mail_link }}{% if act.rawMeta %} · {{
+                            act.rawMeta }}{% endif %}{% else %}{{ act.meta }}{% endif %}</span>
                     </div>
                 </li>
                 {% endfor %}

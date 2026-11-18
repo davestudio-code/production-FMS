@@ -98,8 +98,7 @@
     #toastContainer,
     #reportPageHeader,
     #reportWorkspaceToolbar,
-    .auditPagination,
-    #reportSectionDispatches {
+    .auditPagination {
         display: none !important;
     }
 
@@ -202,13 +201,15 @@
     }
 
     #reportSectionOrders,
-    #reportSectionMaterials {
+    #reportSectionMaterials,
+    #reportSectionDispatches {
         display: block !important;
         margin-bottom: 22px !important;
     }
 
     #reportSectionOrders tr.reportOrderRow,
-    #reportSectionMaterials tr.reportMaterialRow {
+    #reportSectionMaterials tr.reportMaterialRow,
+    #reportSectionDispatches tr.dispatchRow {
         display: table-row !important;
     }
 

@@ -448,7 +448,7 @@ def getLiveNotificationsForUser(employeeID=None, isManager=False, isProdStaff=Fa
                     items.append({
                         "notifKey": f"staff-active-{oid}",
                         "title": f"Workshop Assembly — Order #PO-{oid}",
-                        "message": f"Materials dispatched for {fname} ({qty} units) · Currently at {int(round(prog))}%.",
+                        "message": f"Materials issued for {fname} ({qty} units) · Currently at {int(round(prog))}%.",
                         "targetUrl": "/production/monitoring",
                         "timeLabel": f"Due {dueFmt} · Update Progress →"
                     })

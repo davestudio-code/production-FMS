@@ -46,7 +46,7 @@
         </form>
         {% elif order.status == 'Released' and isManager %}
         <a href="/production/issuance" class="actionButton"
-            style="padding: 7px 14px; font-size: 12.5px; text-decoration: none; white-space: nowrap;">Dispatch Materials
+            style="padding: 7px 14px; font-size: 12.5px; text-decoration: none; white-space: nowrap;">Issue Materials
             &rarr;</a>
         {% elif order.status == 'In Progress' %}
         {% if isManager and monitoring and monitoring.reworkCount > 0 and monitoring.progress < 90 %} <a
@@ -142,12 +142,12 @@
             {% if isManager %}
             <a href="/production/issuance"
                 style="font-size: 12px; font-weight: 600; color: var(--tx); text-decoration: none;">
-                {{ 'Dispatched' if order.status in ['In Progress', 'Completed'] else ('Dispatch Now →' if order.status
+                {{ 'Issued' if order.status in ['In Progress', 'Completed'] else ('Issue Now →' if order.status
                 == 'Released' else 'Pending Release') }}
             </a>
             {% else %}
             <span style="font-size: 12px; font-weight: 600; color: var(--tx);">
-                {{ 'Dispatched' if order.status in ['In Progress', 'Completed'] else 'Pending Release' }}
+                {{ 'Issued' if order.status in ['In Progress', 'Completed'] else 'Pending Release' }}
             </span>
             {% endif %}
         </div>
@@ -284,7 +284,7 @@
             <span style="font-size: 11.5px; color: var(--mt);">
                 {% if progVal >= 100 %}QC Passed &amp; Stocked{% elif progVal >= 90 %}Stage 4: Ready for QC{% elif
                 progVal >= 75 %}Stage 3: Sanding &amp; Finishing{% elif progVal >= 50 %}Stage 2: Joinery &amp;
-                Assembly{% elif progVal >= 25 %}Stage 1: Cutting &amp; Sizing{% else %}Dispatched to Workshop{% endif %}
+                Assembly{% elif progVal >= 25 %}Stage 1: Cutting &amp; Sizing{% else %}Issued to Workshop{% endif %}
                 {% if monitoring and monitoring.reworkCount > 0 %} &middot; Rework {{ monitoring.reworkCount }}/2{%
                 endif %}
             </span>
@@ -345,7 +345,7 @@
 
         <div class="workspaceMetaGroup">
             {% if order.status in ('In Progress', 'Completed') %}
-            <span class="workspaceMetaPill success">Materials Dispatched</span>
+            <span class="workspaceMetaPill success">Materials Issued</span>
             {% elif shortageCount > 0 %}
             <span class="workspaceMetaPill warn"><b>{{ shortageCount }}</b> Deficit{{ 's' if shortageCount != 1 else ''
                 }}</span>
@@ -363,7 +363,7 @@
                         <th>Material Component</th>
                         <th>Per Unit</th>
                         <th>Batch Required</th>
-                        <th>{{ 'Dispatched' if order.status in ('In Progress', 'Completed') else 'Available Net' }}</th>
+                        <th>{{ 'Issued' if order.status in ('In Progress', 'Completed') else 'Available Net' }}</th>
                         {% if isManager %}
                         <th>Unit Cost</th>
                         <th>Est. Line Cost</th>
@@ -409,7 +409,7 @@
                         {% endif %}
                         <td>
                             {% if order.status in ('In Progress', 'Completed') %}
-                            <span class="statusBadge completed">Dispatched</span>
+                            <span class="statusBadge completed">Issued</span>
                             {% elif req.isShort %}
                             <span class="statusBadge alert">Short -{{
                                 "{:,.2f}".format(req.shortageQuantity).rstrip('0').rstrip('.') }} {{ req.unit }}</span>
@@ -449,7 +449,7 @@
                 </div>
                 <span
                     class="statusBadge {{ 'completed' if order.status == 'Completed' else ('inProgress' if monitoring else 'draft') }}">
-                    {% if monitoring %}{{ monitoring.progress|round|int }}% Complete{% else %}Not Dispatched{% endif %}
+                    {% if monitoring %}{{ monitoring.progress|round|int }}% Complete{% else %}Not Issued{% endif %}
                 </span>
             </div>
 
@@ -503,7 +503,7 @@
             <div>
                 <div
                     style="display: flex; justify-content: space-between; align-items: center; gap: 10px; margin-bottom: 8px; flex-wrap: wrap;">
-                    <h4 style="margin: 0; font-size: 13.5px; color: var(--tx);">Initial Material Dispatch ({{
+                    <h4 style="margin: 0; font-size: 13.5px; color: var(--tx);">Initial Material Issuance ({{
                         initialIssuances|length }})</h4>
                     {% if isManager and initialIssuances %}
                     <span style="font-size: 12px; color: var(--mt);">Initial Material Cost: <b
@@ -520,7 +520,7 @@
                                 {% if isManager %}
                                 <th style="text-align: right;">Line Cost</th>
                                 {% endif %}
-                                <th>Dispatched By</th>
+                                <th>Issued By</th>
                             </tr>
                         </thead>
                         <tbody>
@@ -539,7 +539,7 @@
                             <tr>
                                 <td colspan="{{ '5' if isManager else '4' }}"
                                     style="text-align: center; color: var(--mt); padding: 18px;">No initial raw
-                                    materials dispatched yet.</td>
+                                    materials issued yet.</td>
                             </tr>
                             {% endfor %}
                         </tbody>
@@ -570,7 +570,7 @@
                                 {% if isManager %}
                                 <th style="text-align: right;">Cost Added</th>
                                 {% endif %}
-                                <th>Dispatched By</th>
+                                <th>Issued By</th>
                             </tr>
                         </thead>
                         <tbody>

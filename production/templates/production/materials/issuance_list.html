@@ -14,7 +14,7 @@
         <div class="workspaceFilterTabs" role="tablist" id="issuanceFilterTabs">
             <button type="button" class="workspaceTabBtn {{ 'active' if activeIssuanceTab in ('all', '') else '' }}"
                 data-issuance-tab="all" onclick="setIssuanceTab(this, 'all')">
-                <span>Awaiting Dispatch</span>
+                <span>Awaiting Issuance</span>
                 <span class="workspaceTabCount">{{ issuanceSummary.queueCount }}</span>
             </button>
             <button type="button" class="workspaceTabBtn {{ 'active' if activeIssuanceTab == 'ready' else '' }}"
@@ -40,7 +40,7 @@
             <button type="button" class="workspaceTabBtn {{ 'active' if activeIssuanceTab == 'history' else '' }}"
                 data-issuance-tab="history" onclick="setIssuanceTab(this, 'history')">
                 <span class="tabStatusDot released"></span>
-                <span>Dispatch History</span>
+                <span>Issuance History</span>
                 <span class="workspaceTabCount">{{ issuanceSummary.historyCount }}</span>
             </button>
         </div>
@@ -105,7 +105,7 @@
                         {% endif %}
                         {% else %}
                         <span style="font-size: 12px; color: var(--mt); font-style: italic;">Awaiting Manager
-                            Dispatch</span>
+                            Issuance</span>
                         {% endif %}
                     </div>
                 </div>
@@ -414,7 +414,7 @@
                     {% endif %}
                     {% else %}
                     <span style="font-size: 12px; color: var(--mt); font-style: italic;">Awaiting Manager Replacement
-                        Dispatch</span>
+                        Issuance</span>
                     {% endif %}
                     {% endif %}
                 </div>
@@ -488,7 +488,7 @@
                     {% endfor %}
                     <tr id="issuanceHistoryEmptyFilter" style="display: none;">
                         <td colspan="8" style="text-align: center; color: var(--mt); padding: 26px; font-size: 13px;">
-                            No dispatch records match your search.
+                            No issuance records match your search.
                         </td>
                     </tr>
                 </tbody>

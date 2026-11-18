@@ -177,6 +177,28 @@
                 </tbody>
             </table>
         </div>
+        <div class="auditPagination" id="planningPagination"
+            style="margin-top: 14px; padding-top: 12px; border-top: 1px solid var(--bd);">
+            <div style="display: flex; align-items: center; gap: 12px; flex-wrap: wrap;">
+                <span class="auditPaginationInfo" id="planningPageInfo"></span>
+                <div style="display: inline-flex; align-items: center; gap: 6px;">
+                    <label style="font-size: 12px; color: var(--mt);">Per page:</label>
+                    <select id="planningPageSize" onchange="changePlanningPageSize(this.value)"
+                        style="padding: 4px 8px; font-size: 12px; border-radius: 6px;">
+                        <option value="10" selected>10</option>
+                        <option value="25">25</option>
+                        <option value="50">50</option>
+                    </select>
+                </div>
+            </div>
+            <div class="auditPaginationControls">
+                <button type="button" class="actionButton secondary" id="planningPrevBtn"
+                    onclick="changePlanningPage(-1)" style="padding: 5px 12px; font-size: 12px;">&larr; Prev</button>
+                <span id="planningPageIndicator" style="font-size: 12.5px; font-weight: 600; color: var(--tx);"></span>
+                <button type="button" class="actionButton secondary" id="planningNextBtn"
+                    onclick="changePlanningPage(1)" style="padding: 5px 12px; font-size: 12px;">Next &rarr;</button>
+            </div>
+        </div>
     </div>
 
     <div id="planningTimelineSection" style="{{ '' if initialView == 'timeline' else 'display: none;' }}">
@@ -242,5 +264,5 @@
 {% endcall %}
 {% endif %}
 
-<script src="/production/feature-static/planning/planning.js?v=20261116a"></script>
+<script src="/production/feature-static/planning/planning.js?v=20261118a"></script>
 {% endblock %}
