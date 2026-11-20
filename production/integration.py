@@ -178,7 +178,6 @@ def add_finished_goods_stock(furnitureID, quantity, warehouseID=None, orderID=No
         VALUES (%s, %s, %s, %s)
         ON CONFLICT (item_id)
         DO UPDATE SET quantity = finished_goods.quantity + EXCLUDED.quantity,
-                      unit_price = EXCLUDED.unit_price,
                       product_name = EXCLUDED.product_name
         RETURNING finished_goods_id, item_id, product_name, quantity, unit_price
     """, (itemID, furnName, addQty, furnPrice), conn=conn)
