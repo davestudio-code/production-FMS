@@ -14,7 +14,8 @@ _DERIVED_KEYS = (
     "bom_items_by_furniture",
     "staff_roster",
     "db_status_ok",
-    "reports_data"
+    "reports_data",
+    "warehouses_active"
 )
 _DERIVED_PREFIXES = (
     "live_notifs:",

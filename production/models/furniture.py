@@ -8,7 +8,6 @@ class Furniture:
             self.furnitureID = data.get("furniture_id")
             self.furnitureName = data.get("furniture_name")
             self.furnitureType = data.get("furniture_type")
-            self.sellingPrice = Decimal("0.00")
             rawBomCost = data.get("bom_material_cost")
             self.bomCost = Decimal(str(rawBomCost)) if rawBomCost is not None else Decimal("0.00")
             self.componentCount = int(data.get("component_count") or 0)
@@ -18,7 +17,6 @@ class Furniture:
             self.furnitureID = None
             self.furnitureName = ""
             self.furnitureType = ""
-            self.sellingPrice = Decimal("0.00")
             self.bomCost = Decimal("0.00")
             self.componentCount = 0
             self.hasBOM = False
@@ -98,7 +96,7 @@ class Furniture:
         return fetchOne(sql, params, conn=conn) is not None
 
     @classmethod
-    def addFurniture(cls, furnitureName, furnitureType, sellingPrice=None, conn=None):
+    def addFurniture(cls, furnitureName, furnitureType, conn=None):
         cleanName = furnitureName.strip()
         cleanType = furnitureType.strip()
         sql = "INSERT INTO prod_furniture (furniture_name, furniture_type) VALUES (%s, %s) RETURNING furniture_id, furniture_name, furniture_type"
@@ -107,7 +105,7 @@ class Furniture:
         return cls(row)
 
     @classmethod
-    def updateFurniture(cls, furnitureID, furnitureName, furnitureType, sellingPrice=None, conn=None):
+    def updateFurniture(cls, furnitureID, furnitureName, furnitureType, conn=None):
         cleanName = furnitureName.strip()
         cleanType = furnitureType.strip()
         sql = "UPDATE prod_furniture SET furniture_name = %s, furniture_type = %s WHERE furniture_id = %s RETURNING furniture_id, furniture_name, furniture_type"

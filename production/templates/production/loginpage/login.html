@@ -4,7 +4,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Login - Velmora Co. Manufacturing & Production</title>
+  <title>Login - Velmora Co.</title>
   <link rel="icon" type="image/png" href="/production/static/images/velmora-logo.png">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -20,8 +20,7 @@
   <div class="login-container">
     <div class="hero-panel">
       <div class="hero-content">
-        <img src="/production/static/images/velmora-logo.png" alt="Velmora Co."
-          class="brand-logo-img">
+        <img src="/production/static/images/velmora-logo.png" alt="Velmora Co." class="brand-logo-img">
         <h1 class="brand-title">velmora co.</h1>
         <p class="brand-tagline">Better Furniture, A Brighter Tomorrow</p>
       </div>
@@ -34,15 +33,18 @@
       </div>
 
       {% if ban_status and (ban_status.get('status') == 'banned' or ban_status.get('action') == 'banned') %}
-      <div class="flash-alert flash-danger" id="ipBanAlertBox" style="background: rgba(186, 73, 58, 0.12); border: 1.5px solid #ba493a; color: #ba493a; padding: 12px 14px; border-radius: 8px; margin-bottom: 16px; display: flex; align-items: flex-start; gap: 10px;">
+      <div class="flash-alert flash-danger" id="ipBanAlertBox"
+        style="background: rgba(186, 73, 58, 0.12); border: 1.5px solid #ba493a; color: #ba493a; padding: 12px 14px; border-radius: 8px; margin-bottom: 16px; display: flex; align-items: flex-start; gap: 10px;">
         <i class="fas fa-ban" style="font-size: 16px; margin-top: 3px; flex-shrink: 0;"></i>
         <div>
-          <b style="display: block; font-size: 13.5px; margin-bottom: 3px;">Access Restricted &middot; IP Banned for 1 Day</b>
+          <b style="display: block; font-size: 13.5px; margin-bottom: 3px;">Access Restricted &middot; IP Banned for 1
+            Day</b>
           <span style="font-size: 12.5px; line-height: 1.4;">{{ ban_status.get('message') }}</span>
         </div>
       </div>
       {% elif ban_status and (ban_status.get('status') == 'blocked' or ban_status.get('action') == 'blocked') %}
-      <div class="flash-alert flash-danger" id="ipBlockAlertBox" style="background: rgba(181, 143, 85, 0.15); border: 1.5px solid #8e622a; color: #8e622a; padding: 12px 14px; border-radius: 8px; margin-bottom: 16px; display: flex; align-items: flex-start; gap: 10px;">
+      <div class="flash-alert flash-danger" id="ipBlockAlertBox"
+        style="background: rgba(181, 143, 85, 0.15); border: 1.5px solid #8e622a; color: #8e622a; padding: 12px 14px; border-radius: 8px; margin-bottom: 16px; display: flex; align-items: flex-start; gap: 10px;">
         <i class="fas fa-clock" style="font-size: 16px; margin-top: 3px; flex-shrink: 0;"></i>
         <div>
           <b style="display: block; font-size: 13.5px; margin-bottom: 3px;">Temporary Security Block</b>
@@ -67,7 +69,8 @@
           <label class="input-label" for="loginEmail">Email Address</label>
           <div class="input-pill">
             <i class="fas fa-envelope input-icon"></i>
-            <input type="email" id="loginEmail" name="email" class="input-field" placeholder="Email Address" required autofocus>
+            <input type="email" id="loginEmail" name="email" class="input-field" placeholder="Email Address" required
+              autofocus>
           </div>
         </div>
 
@@ -97,8 +100,7 @@
         <div class="footer-company">Velmora Co.</div>
         <div class="footer-sub">Manufacturing & Production System</div>
         <div class="ornament-container">
-          <img src="/production/static/images/ornament-divider.png" alt="Divider"
-            class="ornament-img">
+          <img src="/production/static/images/ornament-divider.png" alt="Divider" class="ornament-img">
         </div>
       </div>
     </div>

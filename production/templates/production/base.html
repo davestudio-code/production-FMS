@@ -6,7 +6,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>Velmora Co.</title>
     <link rel="icon" type="image/png" href="/production/static/images/velmora-logo.png">
-    <link rel="stylesheet" href="/production/static/css/style.css?v=20261118i">
+    <link rel="stylesheet" href="/production/static/css/style.css?v=20261120c">
 </head>
 
 <body>
@@ -318,6 +318,7 @@
     <div id="toastContainer" class="toastContainer" aria-live="polite"></div>
 
     {% from "production/components/modal.html" import modal %}
+    {% from "production/components/field_label.html" import field_label %}
 
     {% call modal("globalProofLightbox", title="Attachment", title_id="proofLightboxTitle",
     subtitle_id="proofLightboxMeta", max_width="640px", z_index="2500", close_fn="window.closeProofLightbox()") %}
@@ -357,25 +358,25 @@
                 <form id="accountProfileForm" onsubmit="return window.submitProfileUpdate(event)">
                     <div class="formRowGrid">
                         <div class="formGroup">
-                            <label for="acctFirstNameInput">First Name</label>
+                            {{ field_label("First Name", for_id="acctFirstNameInput") }}
                             <input type="text" id="acctFirstNameInput" name="first_name"
                                 value="{{ session.get('first_name') or (session.get('employee_name') or '').split(' ')[0] }}"
                                 maxlength="60" required>
                         </div>
                         <div class="formGroup">
-                            <label for="acctLastNameInput">Last Name</label>
+                            {{ field_label("Last Name", for_id="acctLastNameInput") }}
                             <input type="text" id="acctLastNameInput" name="last_name"
                                 value="{{ session.get('last_name') or ((session.get('employee_name') or '').split(' ')[1:]|join(' ')) }}"
                                 maxlength="60" required>
                         </div>
                     </div>
                     <div class="formGroup" style="margin-top: 12px;">
-                        <label for="acctPhoneInput">Phone Number</label>
+                        {{ field_label("Phone Number", for_id="acctPhoneInput") }}
                         <input type="text" id="acctPhoneInput" name="phone" value="{{ session.get('phone') or '' }}"
                             maxlength="25" placeholder="e.g. 09123456789">
                     </div>
                     <div class="formGroup" style="margin-top: 12px;">
-                        <label>Work Email (Read-Only)</label>
+                        {{ field_label("Work Email", hint="Read-Only") }}
                         <input type="email" value="{{ session.get('email') or '' }}" disabled
                             style="background: #f3efe4; color: var(--mt); cursor: not-allowed;">
                     </div>
@@ -394,17 +395,17 @@
                         For account security, your password can be updated once every <b>30 days</b>.
                     </div>
                     <div class="formGroup" style="margin-top: 12px;">
-                        <label for="acctCurrentPasswordInput">Current Password</label>
+                        {{ field_label("Current Password", for_id="acctCurrentPasswordInput") }}
                         <input type="password" id="acctCurrentPasswordInput" name="current_password" required
                             autocomplete="current-password" placeholder="Enter your current password">
                     </div>
                     <div class="formGroup" style="margin-top: 12px;">
-                        <label for="acctNewPasswordInput">New Password (Min. 8 characters)</label>
+                        {{ field_label("New Password", for_id="acctNewPasswordInput", hint="Min. 8 characters") }}
                         <input type="password" id="acctNewPasswordInput" name="new_password" minlength="8" required
                             autocomplete="new-password" placeholder="At least 8 characters">
                     </div>
                     <div class="formGroup" style="margin-top: 12px;">
-                        <label for="acctConfirmPasswordInput">Confirm New Password</label>
+                        {{ field_label("Confirm New Password", for_id="acctConfirmPasswordInput") }}
                         <input type="password" id="acctConfirmPasswordInput" name="confirm_password" minlength="8"
                             required autocomplete="new-password" placeholder="Re-enter new password">
                     </div>

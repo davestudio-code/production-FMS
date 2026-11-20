@@ -1,6 +1,7 @@
 {% extends "production/base.html" %}
 
 {% block content %}
+{% from "production/components/field_label.html" import field_label %}
 <div class="headerRow">
     <div>
         <h2>Material Issuance</h2>
@@ -157,11 +158,10 @@
                             </thead>
                             <tbody>
                                 {% for req in order.requirements %}
-                                {% set perUnitStr = "{:,.3f}".format(req.quantityRequired).rstrip('0').rstrip('.') or
-                                '0' %}
-                                {% set batchStr = "{:,.3f}".format(req.batchQuantity).rstrip('0').rstrip('.') or '0' %}
-                                {% set onHandStr = "{:,.3f}".format(req.onHand).rstrip('0').rstrip('.') or '0' %}
-                                {% set deficitStr = "{:,.3f}".format(req.deficit).rstrip('0').rstrip('.') or '0' %}
+                                {% set perUnitStr = req.quantityRequired|qty_fmt %}
+                                {% set batchStr = req.batchQuantity|qty_fmt %}
+                                {% set onHandStr = req.onHand|qty_fmt %}
+                                {% set deficitStr = req.deficit|qty_fmt %}
                                 <tr>
                                     <td>
                                         <b>{{ req.materialName }}</b>
@@ -311,12 +311,11 @@
                             </thead>
                             <tbody>
                                 {% for comp in order.reworkComponents %}
-                                {% set puStr = "{:,.3f}".format(comp.perUnitQty).rstrip('0').rstrip('.') or '0' %}
-                                {% set capStr = "{:,.3f}".format(comp.roundCap).rstrip('0').rstrip('.') or '0' %}
-                                {% set issStr = "{:,.3f}".format(comp.alreadyIssuedRound).rstrip('0').rstrip('.') or '0'
-                                %}
-                                {% set remStr = "{:,.3f}".format(comp.remainingCap).rstrip('0').rstrip('.') or '0' %}
-                                {% set ohStr = "{:,.3f}".format(comp.onHand).rstrip('0').rstrip('.') or '0' %}
+                                {% set puStr = comp.perUnitQty|qty_fmt %}
+                                {% set capStr = comp.roundCap|qty_fmt %}
+                                {% set issStr = comp.alreadyIssuedRound|qty_fmt %}
+                                {% set remStr = comp.remainingCap|qty_fmt %}
+                                {% set ohStr = comp.onHand|qty_fmt %}
                                 <tr>
                                     <td>
                                         <b>{{ comp.materialName }}</b>
@@ -355,16 +354,13 @@
                         <div
                             style="display: grid; grid-template-columns: minmax(180px, 1.4fr) minmax(110px, 0.7fr) minmax(200px, 1.8fr) auto; gap: 10px; align-items: end;">
                             <div>
-                                <label
-                                    style="display: block; font-size: 11px; font-weight: 700; text-transform: uppercase; color: var(--mt); margin-bottom: 4px;">BOM
-                                    Material</label>
+                                {{ field_label("BOM Material") }}
                                 <select name="materialID" required class="reworkMatSelect"
                                     onchange="window.updateReworkFormHint(this.form)"
                                     style="width: 100%; height: 36px; border: 1px solid var(--bd); border-radius: 7px; padding: 0 10px; background: #fff; font-size: 13px;">
                                     {% for comp in selectableComps %}
-                                    {% set remStr = "{:,.3f}".format(comp.remainingCap).rstrip('0').rstrip('.') or '0'
-                                    %}
-                                    {% set ohStr = "{:,.3f}".format(comp.onHand).rstrip('0').rstrip('.') or '0' %}
+                                    {% set remStr = comp.remainingCap|qty_fmt %}
+                                    {% set ohStr = comp.onHand|qty_fmt %}
                                     <option value="{{ comp.materialID }}" data-remaining="{{ comp.remainingCap }}"
                                         data-onhand="{{ comp.onHand }}" data-unit="{{ comp.unit }}"
                                         data-unitcost="{{ comp.unitCost }}" data-name="{{ comp.materialName }}">
@@ -375,9 +371,7 @@
                             </div>
 
                             <div>
-                                <label
-                                    style="display: block; font-size: 11px; font-weight: 700; text-transform: uppercase; color: var(--mt); margin-bottom: 4px;">Replace
-                                    Qty</label>
+                                {{ field_label("Replace Qty") }}
                                 <input type="number" name="quantity" step="0.001" min="0.001" required
                                     placeholder="0.00" class="reworkQtyInput"
                                     oninput="window.updateReworkFormHint(this.form)"
@@ -385,9 +379,7 @@
                             </div>
 
                             <div>
-                                <label
-                                    style="display: block; font-size: 11px; font-weight: 700; text-transform: uppercase; color: var(--mt); margin-bottom: 4px;">Reason
-                                    (Required, Max 255)</label>
+                                {{ field_label("Reason", hint="Required, Max 255") }}
                                 <input type="text" name="reason" maxlength="255" required
                                     placeholder="e.g. Replace cracked leg / single-use varnish for rework"
                                     style="width: 100%; height: 36px; border: 1px solid var(--bd); border-radius: 7px; padding: 0 10px; background: #fff; font-size: 13px; box-sizing: border-box;">
@@ -453,7 +445,7 @@
                 </thead>
                 <tbody>
                     {% for iss in issuances %}
-                    {% set issuedStr = "{:,.3f}".format(iss.quantityIssued).rstrip('0').rstrip('.') or '0' %}
+                    {% set issuedStr = iss.quantityIssued|qty_fmt %}
                     <tr class="issueHistoryRow"
                         data-search="iss-{{ iss.issuanceID }} po-{{ iss.orderID }} {{ iss.issuanceType|lower }} {{ iss.furnitureName|lower }} {{ iss.materialName|lower }} {{ (iss.reason or '')|lower }} {{ iss.recordedBy|lower }}">
                         <td><b style="color: var(--tx);">#ISS-{{ iss.issuanceID }}</b></td>

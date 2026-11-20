@@ -106,6 +106,10 @@ def _fmtQtyStr(val):
     s = f"{d:,.3f}".rstrip("0").rstrip(".")
     return s if s else "0"
 
+@productionBlueprint.app_template_filter("qty_fmt")
+def qtyFmtFilter(val):
+    return _fmtQtyStr(val)
+
 def _buildReservedMaterialMap(ordersList, excludeOrderID=None):
     reservedMap = {}
     for ro in ordersList:
@@ -385,6 +389,166 @@ def injectGlobalNavData():
         "totalNotifBadgeCount": totalBadgeCount
     }
 
+def _buildUpcomingDeadlines(uncompletedOrders, datedOrders, undatedOrders, today):
+    upcomingDeadlines = []
+    for o in datedOrders[:3]:
+        daysLeft = (o.dueDate - today).days
+        if daysLeft < 0:
+            urgency, tag = "overdue", f"{abs(daysLeft)}d overdue"
+        elif daysLeft == 0:
+            urgency, tag = "today", "Due today"
+        elif daysLeft <= 3:
+            urgency, tag = "urgent", f"Due in {daysLeft}d"
+        else:
+            urgency, tag = "normal", f"Due {o.dueDate.strftime('%b %d')}"
+        statusClass = "completed" if o.status == "Completed" else ("inProgress" if o.status == "In Progress" else ("released" if o.status == "Released" else "draft"))
+        upcomingDeadlines.append({
+            "orderID": o.orderID,
+            "furnitureName": o.furnitureName,
+            "plannedQuantity": o.plannedQuantity,
+            "hasDueDate": True,
+            "dueDateStr": o.dueDate.strftime("%b %d"),
+            "daysLeft": daysLeft,
+            "urgency": urgency,
+            "tag": tag,
+            "status": o.status,
+            "statusClass": statusClass
+        })
+    for o in undatedOrders[:max(0, 3 - len(upcomingDeadlines))]:
+        statusClass = "completed" if o.status == "Completed" else ("inProgress" if o.status == "In Progress" else ("released" if o.status == "Released" else "draft"))
+        upcomingDeadlines.append({
+            "orderID": o.orderID,
+            "furnitureName": o.furnitureName,
+            "plannedQuantity": o.plannedQuantity,
+            "hasDueDate": False,
+            "dueDateStr": "",
+            "daysLeft": 999,
+            "urgency": "unscheduled",
+            "tag": "Set Date",
+            "status": o.status,
+            "statusClass": statusClass
+        })
+    return upcomingDeadlines
+
+def _buildWeekActivity(scopedOrders, today, weekOffset):
+    targetDate = today + timedelta(days=weekOffset * 7)
+    monday = targetDate - timedelta(days=targetDate.weekday())
+    sunday = monday + timedelta(days=6)
+    dayNames = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"]
+    prevMonday = monday - timedelta(days=7)
+    prevSunday = monday - timedelta(days=1)
+
+    dailyActivityMap = {}
+    prevWeeklyBatches = 0
+    prevWeeklyUnits = 0
+    for o in scopedOrders:
+        orderDay = toManilaDate(getattr(o, "orderDate", None))
+        if not orderDay:
+            continue
+        qtyVal = int(getattr(o, "plannedQuantity", 0) or 0)
+        if monday <= orderDay <= sunday:
+            bucket = dailyActivityMap.setdefault(orderDay, {"orders": 0, "units": 0})
+            bucket["orders"] += 1
+            bucket["units"] += qtyVal
+        elif prevMonday <= orderDay <= prevSunday:
+            prevWeeklyBatches += 1
+            prevWeeklyUnits += qtyVal
+
+    maxDailyOrders = max([d["orders"] for d in dailyActivityMap.values()] + [5])
+    weekActivity = []
+    totalWeeklyBatches = 0
+    totalWeeklyUnits = 0
+    for i in range(7):
+        dayDate = monday + timedelta(days=i)
+        stats = dailyActivityMap.get(dayDate, {"orders": 0, "units": 0})
+        totalWeeklyBatches += stats["orders"]
+        totalWeeklyUnits += stats["units"]
+        heightPct = max(16, min(100, int((stats["orders"] / maxDailyOrders) * 100))) if stats["orders"] > 0 else 0
+        weekActivity.append({
+            "dayName": dayNames[i],
+            "dayNumber": dayDate.strftime("%d"),
+            "dateStr": dayDate.strftime("%b. %d"),
+            "isToday": dayDate == today,
+            "isFuture": dayDate > today,
+            "orders": stats["orders"],
+            "units": stats["units"],
+            "heightPct": heightPct
+        })
+    return {
+        "monday": monday,
+        "sunday": sunday,
+        "dayNames": dayNames,
+        "dailyActivityMap": dailyActivityMap,
+        "weekActivity": weekActivity,
+        "weekDateRangeStr": f"{monday.strftime('%b %d')} – {sunday.strftime('%b %d')}",
+        "totalWeeklyBatches": totalWeeklyBatches,
+        "totalWeeklyUnits": totalWeeklyUnits,
+        "prevWeeklyBatches": prevWeeklyBatches,
+        "prevWeeklyUnits": prevWeeklyUnits
+    }
+
+def _buildRecentOrderCard(o, mon, today):
+    rawProg = mon.progress if (mon and mon.progress is not None) else 0.0
+    prog = float(rawProg)
+    if o.status == "Completed":
+        stageLabel, prog = "QC Passed & Stocked", 100.0
+    elif o.status == "Draft":
+        stageLabel, prog = ("Draft · Unscheduled" if not o.dueDate else "Draft · Scheduled"), 0.0
+    elif o.status == "Released":
+        stageLabel, prog = "Released to Floor", 0.0
+    elif prog <= 25.0:
+        stageLabel = "Stage 1: Cutting & Sizing"
+    elif prog <= 50.0:
+        stageLabel = "Stage 2: Joinery & Assembly"
+    elif prog <= 75.0:
+        stageLabel = "Stage 3: Sanding & Finishing"
+    elif prog <= 90.0:
+        stageLabel = "Stage 4: Ready for QC"
+    else:
+        stageLabel = "QC Inspection"
+
+    daysLeft = (o.dueDate - today).days if o.dueDate else None
+    if daysLeft is None:
+        urgency, urgencyText = "unscheduled", "Unscheduled"
+    elif daysLeft < 0:
+        urgency, urgencyText = "overdue", f"{abs(daysLeft)} Days Overdue"
+    elif daysLeft == 0:
+        urgency, urgencyText = "today", "Due Today"
+    elif daysLeft <= 3:
+        urgency, urgencyText = "urgent", f"Due in {daysLeft}d"
+    else:
+        urgency, urgencyText = "normal", f"Due {o.dueDate.strftime('%b %d')}"
+
+    smartAction = {"label": "View", "url": f"/production/orders/{o.orderID}", "cls": "secondary", "icon": "fa-eye"}
+    if o.status == "Completed":
+        smartAction = {"label": "View QC", "url": "/production/finished-goods", "cls": "secondary", "icon": "fa-certificate"}
+    elif prog >= 90.0:
+        smartAction = {"label": "Inspect QC", "url": "/production/finished-goods", "cls": "primary", "icon": "fa-microscope"}
+    elif o.status == "In Progress":
+        smartAction = {"label": "Update Stage", "url": "/production/monitoring", "cls": "secondary", "icon": "fa-sliders"}
+    elif o.status == "Released":
+        smartAction = {"label": "Issue Materials", "url": "/production/issuance", "cls": "primary", "icon": "fa-dolly"}
+    elif o.status == "Draft" and (not o.dueDate or not getattr(o, "assignedTo", None)):
+        smartAction = {"label": "Plan & Assign", "url": "/production/planning", "cls": "warning", "icon": "fa-calendar-plus"}
+
+    return {
+        "orderID": o.orderID,
+        "furnitureName": o.furnitureName,
+        "furnitureType": getattr(o, "furnitureType", "") or "Furniture",
+        "plannedQuantity": o.plannedQuantity,
+        "status": o.status,
+        "dueDate": o.dueDate,
+        "dueDateStr": o.dueDate.strftime("%b %d, %Y") if o.dueDate else "",
+        "stageLabel": stageLabel,
+        "progress": int(round(prog)),
+        "urgency": urgency,
+        "urgencyText": urgencyText,
+        "hasDueDate": bool(o.dueDate),
+        "assignedStaffName": getattr(o, "assignedStaffName", "") or "Unassigned",
+        "hasProof": bool(mon and mon.progress and mon.progress >= 90),
+        "smartAction": smartAction
+    }
+
 @productionBlueprint.route("/")
 def index():
     databaseStatusMessage = getDatabaseStatus()
@@ -486,55 +650,9 @@ def index():
     dueTodayOrders = [o for o in uncompletedOrders if o.dueDate and o.dueDate == today]
     dueThisWeekOrders = [o for o in uncompletedOrders if o.dueDate and 0 < (o.dueDate - today).days <= 7]
 
-    datedOrders = [o for o in uncompletedOrders if o.dueDate]
-    datedOrders.sort(key=lambda o: o.dueDate)
+    datedOrders = sorted([o for o in uncompletedOrders if o.dueDate], key=lambda o: o.dueDate)
     undatedOrders = [o for o in uncompletedOrders if not o.dueDate]
-
-    upcomingDeadlines = []
-    for o in datedOrders[:3]:
-        daysLeft = (o.dueDate - today).days
-        if daysLeft < 0:
-            urgency = "overdue"
-            tag = f"{abs(daysLeft)}d overdue"
-        elif daysLeft == 0:
-            urgency = "today"
-            tag = "Due today"
-        elif daysLeft <= 3:
-            urgency = "urgent"
-            tag = f"Due in {daysLeft}d"
-        else:
-            urgency = "normal"
-            tag = f"Due {o.dueDate.strftime('%b %d')}"
-        statusClass = "completed" if o.status == "Completed" else ("inProgress" if o.status == "In Progress" else ("released" if o.status == "Released" else "draft"))
-        upcomingDeadlines.append({
-            "orderID": o.orderID,
-            "furnitureName": o.furnitureName,
-            "plannedQuantity": o.plannedQuantity,
-            "hasDueDate": True,
-            "dueDateStr": o.dueDate.strftime("%b %d"),
-            "daysLeft": daysLeft,
-            "urgency": urgency,
-            "tag": tag,
-            "status": o.status,
-            "statusClass": statusClass
-        })
-
-    remainingSlots = 3 - len(upcomingDeadlines)
-    if remainingSlots > 0:
-        for o in undatedOrders[:remainingSlots]:
-            statusClass = "completed" if o.status == "Completed" else ("inProgress" if o.status == "In Progress" else ("released" if o.status == "Released" else "draft"))
-            upcomingDeadlines.append({
-                "orderID": o.orderID,
-                "furnitureName": o.furnitureName,
-                "plannedQuantity": o.plannedQuantity,
-                "hasDueDate": False,
-                "dueDateStr": "",
-                "daysLeft": 999,
-                "urgency": "unscheduled",
-                "tag": "Set Date",
-                "status": o.status,
-                "statusClass": statusClass
-            })
+    upcomingDeadlines = _buildUpcomingDeadlines(uncompletedOrders, datedOrders, undatedOrders, today)
 
     onScheduleCount = len([o for o in uncompletedOrders if o.dueDate and o.dueDate >= today])
     scheduleTracker = {
@@ -552,166 +670,20 @@ def index():
     except (ValueError, TypeError):
         weekOffset = 0
 
-    targetDate = today + timedelta(days=weekOffset * 7)
-    monday = targetDate - timedelta(days=targetDate.weekday())
-    sunday = monday + timedelta(days=6)
-    dayNames = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"]
+    weekStats = _buildWeekActivity(scopedOrders, today, weekOffset)
+    monday = weekStats["monday"]
+    sunday = weekStats["sunday"]
+    dayNames = weekStats["dayNames"]
+    dailyActivityMap = weekStats["dailyActivityMap"]
+    weekActivity = weekStats["weekActivity"]
+    weekDateRangeStr = weekStats["weekDateRangeStr"]
+    totalWeeklyBatches = weekStats["totalWeeklyBatches"]
+    totalWeeklyUnits = weekStats["totalWeeklyUnits"]
+    prevWeeklyBatches = weekStats["prevWeeklyBatches"]
+    prevWeeklyUnits = weekStats["prevWeeklyUnits"]
 
-    prevMonday = monday - timedelta(days=7)
-    prevSunday = monday - timedelta(days=1)
-
-    dailyActivityMap = {}
-    prevWeeklyBatches = 0
-    prevWeeklyUnits = 0
-    for o in scopedOrders:
-        orderDay = toManilaDate(getattr(o, "orderDate", None))
-        if not orderDay:
-            continue
-        qtyVal = int(getattr(o, "plannedQuantity", 0) or 0)
-        if monday <= orderDay <= sunday:
-            if orderDay not in dailyActivityMap:
-                dailyActivityMap[orderDay] = {"orders": 0, "units": 0}
-            dailyActivityMap[orderDay]["orders"] += 1
-            dailyActivityMap[orderDay]["units"] += qtyVal
-        elif prevMonday <= orderDay <= prevSunday:
-            prevWeeklyBatches += 1
-            prevWeeklyUnits += qtyVal
-
-    dailyCapacityBenchmark = 5
-    maxDailyOrders = max([d["orders"] for d in dailyActivityMap.values()] + [dailyCapacityBenchmark])
-
-    weekActivity = []
-    totalWeeklyBatches = 0
-    totalWeeklyUnits = 0
-    for i in range(7):
-        currentDayDate = monday + timedelta(days=i)
-        stats = dailyActivityMap.get(currentDayDate, {"orders": 0, "units": 0})
-        totalWeeklyBatches += stats["orders"]
-        totalWeeklyUnits += stats["units"]
-        isToday = (currentDayDate == today)
-        isFuture = (currentDayDate > today)
-
-        if stats["orders"] > 0:
-            heightPct = max(16, min(100, int((stats["orders"] / maxDailyOrders) * 100)))
-        else:
-            heightPct = 0
-
-        weekActivity.append({
-            "dayName": dayNames[i],
-            "dayNumber": currentDayDate.strftime("%d"),
-            "dateStr": currentDayDate.strftime("%b. %d"),
-            "isToday": isToday,
-            "isFuture": isFuture,
-            "orders": stats["orders"],
-            "units": stats["units"],
-            "heightPct": heightPct
-        })
-
-    weekDateRangeStr = f"{monday.strftime('%b %d')} – {sunday.strftime('%b %d')}"
     monitoringMap = {m.orderID: m for m in allMonitoring}
-    recentOrdersList = []
-    for o in scopedOrders[:6]:
-        mon = monitoringMap.get(o.orderID)
-        rawProg = mon.progress if (mon and mon.progress is not None) else 0.0
-        prog = float(rawProg)
-
-        if o.status == "Completed":
-            stageLabel = "QC Passed & Stocked"
-            prog = 100.0
-        elif o.status == "Draft":
-            stageLabel = "Draft · Unscheduled" if not o.dueDate else "Draft · Scheduled"
-            prog = 0.0
-        elif o.status == "Released":
-            stageLabel = "Released to Floor"
-            prog = 0.0
-        elif prog <= 25.0:
-            stageLabel = "Stage 1: Cutting & Sizing"
-        elif prog <= 50.0:
-            stageLabel = "Stage 2: Joinery & Assembly"
-        elif prog <= 75.0:
-            stageLabel = "Stage 3: Sanding & Finishing"
-        elif prog <= 90.0:
-            stageLabel = "Stage 4: Ready for QC"
-        else:
-            stageLabel = "QC Inspection"
-
-        daysLeft = (o.dueDate - today).days if o.dueDate else None
-        if daysLeft is not None:
-            if daysLeft < 0:
-                urgency = "overdue"
-                urgencyText = f"{abs(daysLeft)} Days Overdue"
-            elif daysLeft == 0:
-                urgency = "today"
-                urgencyText = "Due Today"
-            elif daysLeft <= 3:
-                urgency = "urgent"
-                urgencyText = f"Due in {daysLeft}d"
-            else:
-                urgency = "normal"
-                urgencyText = f"Due {o.dueDate.strftime('%b %d')}"
-        else:
-            urgency = "unscheduled"
-            urgencyText = "Unscheduled"
-
-        smartAction = {
-            "label": "View",
-            "url": f"/production/orders/{o.orderID}",
-            "cls": "secondary",
-            "icon": "fa-eye"
-        }
-        if o.status == "Completed":
-            smartAction = {
-                "label": "View QC",
-                "url": "/production/finished-goods",
-                "cls": "secondary",
-                "icon": "fa-certificate"
-            }
-        elif prog >= 90.0:
-            smartAction = {
-                "label": "Inspect QC",
-                "url": "/production/finished-goods",
-                "cls": "primary",
-                "icon": "fa-microscope"
-            }
-        elif o.status == "In Progress":
-            smartAction = {
-                "label": "Update Stage",
-                "url": "/production/monitoring",
-                "cls": "secondary",
-                "icon": "fa-sliders"
-            }
-        elif o.status == "Released":
-            smartAction = {
-                "label": "Issue Materials",
-                "url": "/production/issuance",
-                "cls": "primary",
-                "icon": "fa-dolly"
-            }
-        elif o.status == "Draft" and (not o.dueDate or not getattr(o, "assignedTo", None)):
-            smartAction = {
-                "label": "Plan & Assign",
-                "url": "/production/planning",
-                "cls": "warning",
-                "icon": "fa-calendar-plus"
-            }
-
-        recentOrdersList.append({
-            "orderID": o.orderID,
-            "furnitureName": o.furnitureName,
-            "furnitureType": getattr(o, "furnitureType", "") or "Furniture",
-            "plannedQuantity": o.plannedQuantity,
-            "status": o.status,
-            "dueDate": o.dueDate,
-            "dueDateStr": o.dueDate.strftime("%b %d, %Y") if o.dueDate else "",
-            "stageLabel": stageLabel,
-            "progress": int(round(prog)),
-            "urgency": urgency,
-            "urgencyText": urgencyText,
-            "hasDueDate": bool(o.dueDate),
-            "assignedStaffName": getattr(o, "assignedStaffName", "") or "Unassigned",
-            "hasProof": bool(mon and mon.progress and mon.progress >= 90),
-            "smartAction": smartAction
-        })
+    recentOrdersList = [_buildRecentOrderCard(o, monitoringMap.get(o.orderID), today) for o in scopedOrders[:6]]
     integrationEventsList = []
 
     chartError = False
@@ -2211,7 +2183,12 @@ def issueOrderMaterials(orderID):
                 return redirect(url_for("production.issuanceList"))
 
             for r in reqs:
-                integration.deduct_material_stock(r["materialID"], r["batchQuantity"], conn=conn)
+                integration.deduct_material_stock(
+                    r["materialID"],
+                    r["batchQuantity"],
+                    remarks=f"Material issuance #PO-{orderID} (Initial)",
+                    conn=conn
+                )
                 MaterialIssuance.recordIssuance(
                     orderID,
                     r["materialID"],
@@ -2369,7 +2346,12 @@ def issueReworkReplacement(orderID):
                 )
 
             try:
-                integration.deduct_material_stock(materialID, qty, conn=conn)
+                integration.deduct_material_stock(
+                    materialID,
+                    qty,
+                    remarks=f"Rework #{reworkRound} replacement #PO-{orderID}",
+                    conn=conn
+                )
             except ValueError:
                 raise ValueError(
                     f"Insufficient stock for {matName}: requested {_fmtQtyStr(qty)} {unit}, warehouse stock could not cover the deduction. "
@@ -2606,6 +2588,7 @@ def finishedGoodsList():
             "failed": sum(1 for o in outputRecords if o.qualityStatus == "Failed"),
             "totalUnits": sum(o.quantity for o in outputRecords if o.qualityStatus == "Passed")
         }
+        warehouses = integration.get_warehouses()
     except Exception as err:
         flash(f"Failed to load quality inspection records: {str(err)}", "error")
         pendingOrders = []
@@ -2615,6 +2598,7 @@ def finishedGoodsList():
         latestReworkOutputIDMap = {}
         outputRecords = []
         summary = {"pending": 0, "passed": 0, "rework": 0, "failed": 0, "totalUnits": 0}
+        warehouses = []
 
     return render_template(
         "production/manufacturing/finished_goods_list.html",
@@ -2625,7 +2609,8 @@ def finishedGoodsList():
         reworkScrapMap=reworkScrapMap,
         latestReworkOutputIDMap=latestReworkOutputIDMap,
         outputRecords=outputRecords,
-        summary=summary
+        summary=summary,
+        warehouses=warehouses
     )
 
 @productionBlueprint.route("/finished-goods/inspect/<int:orderID>", methods=["POST"])
@@ -2636,6 +2621,12 @@ def recordInspection(orderID):
     reworkRaw = request.form.get("reworkQuantity", "").strip()
     reason = request.form.get("reason", "").strip()
     scrapConfirmed = request.form.get("scrapConfirmed", "").strip()
+    warehouseRaw = request.form.get("warehouseID", "").strip()
+
+    if warehouseRaw and (not warehouseRaw.isdecimal() or int(warehouseRaw) <= 0):
+        flash("Invalid warehouse selected.", "error")
+        return redirect(url_for("production.finishedGoodsList"))
+    warehouseID = int(warehouseRaw) if warehouseRaw else None
 
     for rawVal in [passedRaw, failedRaw, reworkRaw]:
         if rawVal and (len(rawVal) > 6 or not rawVal.isdecimal()):
@@ -2739,7 +2730,7 @@ def recordInspection(orderID):
                     inspectorID=inspectorID,
                     conn=conn
                 )
-                integration.add_finished_goods_stock(orderRow["furniture_id"], passedQty, conn=conn)
+                integration.add_finished_goods_stock(orderRow["furniture_id"], passedQty, warehouseID=warehouseID, orderID=orderID, conn=conn)
                 unitWordPassed = "unit" if passedQty == 1 else "units"
                 ActivityLog.record(
                     category="passed",
@@ -2983,6 +2974,31 @@ def saveOrderCost(orderID):
 
     return redirect(url_for("production.costingList"))
 
+def _groupDispatchesByOrder(issuances):
+    dispatchMap = {}
+    grouped = []
+    for iss in issuances:
+        oid = iss.orderID
+        if oid not in dispatchMap:
+            group = {
+                "orderID": oid,
+                "furnitureName": iss.furnitureName,
+                "materials": [],
+                "totalCost": Decimal("0.00"),
+                "latestIssueDate": iss.issueDate,
+                "latestIssueDateIso": iss.issueDateIso,
+                "actors": []
+            }
+            dispatchMap[oid] = group
+            grouped.append(group)
+        group = dispatchMap[oid]
+        group["materials"].append(iss)
+        group["totalCost"] = (group["totalCost"] + iss.lineCost).quantize(Decimal("0.01"))
+        actor = (iss.recordedBy or "").strip()
+        if actor and actor not in group["actors"]:
+            group["actors"].append(actor)
+    return grouped
+
 @productionBlueprint.route("/report")
 @productionBlueprint.route("/reports")
 @manager_required
@@ -3127,28 +3143,7 @@ def reportView():
         else:
             lastActivity = "-"
 
-        dispatchMap = {}
-        groupedDispatches = []
-        for iss in issuances:
-            oid = iss.orderID
-            if oid not in dispatchMap:
-                group = {
-                    "orderID": oid,
-                    "furnitureName": iss.furnitureName,
-                    "materials": [],
-                    "totalCost": Decimal("0.00"),
-                    "latestIssueDate": iss.issueDate,
-                    "latestIssueDateIso": iss.issueDateIso,
-                    "actors": []
-                }
-                dispatchMap[oid] = group
-                groupedDispatches.append(group)
-            group = dispatchMap[oid]
-            group["materials"].append(iss)
-            group["totalCost"] = (group["totalCost"] + iss.lineCost).quantize(Decimal("0.01"))
-            actor = (iss.recordedBy or "").strip()
-            if actor and actor not in group["actors"]:
-                group["actors"].append(actor)
+        groupedDispatches = _groupDispatchesByOrder(issuances)
 
     except Exception as err:
         flash(f"Failed to load production reports: {str(err)}", "error")

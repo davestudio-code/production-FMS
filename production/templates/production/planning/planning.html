@@ -1,6 +1,7 @@
 {% extends "production/base.html" %}
 
 {% block content %}
+{% from "production/components/field_label.html" import field_label %}
 {% from "production/components/modal.html" import modal %}
 {% from "production/components/page_header.html" import page_header %}
 {% from "production/components/badge.html" import badge %}
@@ -231,7 +232,7 @@
         <span id="scheduleOrderProduct" style="font-weight: 600; font-size: 14px;"></span>
     </div>
     <div class="formGroup">
-        <label>Assigned Workshop Staff</label>
+        {{ field_label("Assigned Workshop Staff", for_id="scheduleAssignedTo") }}
         <select id="scheduleAssignedTo" name="assignedTo" required>
             <option value="">Select Production Staff...</option>
             {% for staff in staffRoster %}
@@ -248,11 +249,11 @@
     </div>
     <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px;">
         <div class="formGroup">
-            <label>Planned Start Date</label>
+            {{ field_label("Planned Start Date", for_id="scheduleStartDate") }}
             <input type="date" id="scheduleStartDate" name="plannedStartDate" required>
         </div>
         <div class="formGroup">
-            <label>Target Due Date</label>
+            {{ field_label("Target Due Date", for_id="scheduleDueDate") }}
             <input type="date" id="scheduleDueDate" name="dueDate" required>
         </div>
     </div>

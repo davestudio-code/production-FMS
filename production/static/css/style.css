@@ -940,6 +940,24 @@ button.modalClose:hover {
     color: var(--mt);
 }
 
+label.fieldLabel,
+.qaFieldGroup label.fieldLabel,
+.recipeFieldLabel {
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--tx);
+    display: block;
+    margin-bottom: 6px;
+    text-transform: none;
+    letter-spacing: normal;
+}
+
+.formGroup > label.fieldLabel,
+.qaFieldGroup > label.fieldLabel,
+.qaFieldGroup label.fieldLabel {
+    margin-bottom: 0;
+}
+
 .modalActions {
     display: flex;
     justify-content: flex-end;

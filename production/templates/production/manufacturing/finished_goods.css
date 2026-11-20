@@ -194,6 +194,26 @@ button.qaPassAllLink:hover {
     box-sizing: border-box;
 }
 
+.qaSelectInput,
+select.qaSelectInput {
+    width: 100%;
+    height: 38px;
+    padding: 0 12px;
+    font-size: 13px;
+    font-weight: 500;
+    border-radius: 7px;
+    border: 1px solid var(--bd);
+    background: #ffffff;
+    color: var(--tx);
+    box-sizing: border-box;
+}
+
+select.qaSelectInput:focus {
+    border-color: var(--p);
+    box-shadow: 0 0 0 3px rgba(102, 117, 76, 0.14);
+    outline: none;
+}
+
 .qaScrapConfirmBox {
     background: #fbf0ee;
     border: 1px solid #e5c2bc;

@@ -200,19 +200,15 @@
                             <b>{{ req.materialName }}</b>
                         </td>
                         <td style="text-align: right;">
-                            {{ "{:,.3f}".format(req.quantityRequired).rstrip('0').rstrip('.') or '0' }} {{ req.unit }}
+                            {{ req.quantityRequired|qty_fmt }} {{ req.unit }}
                         </td>
                         <td style="text-align: right;">
-                            <b>{{ "{:,.3f}".format(req.requiredQuantity).rstrip('0').rstrip('.') or '0' }} {{ req.unit
-                                }}</b>
+                            <b>{{ req.requiredQuantity|qty_fmt }} {{ req.unit }}</b>
                         </td>
                         <td style="text-align: right;">
-                            <b>{{ "{:,.3f}".format(req.availableNet).rstrip('0').rstrip('.') or '0' }} {{ req.unit
-                                }}</b>
+                            <b>{{ req.availableNet|qty_fmt }} {{ req.unit }}</b>
                             {% if req.reservedQuantity > 0 %}
-                            <div style="font-size: 11px; color: var(--mt);">({{
-                                "{:,.3f}".format(req.onHandQuantity).rstrip('0').rstrip('.') }} on hand, {{
-                                "{:,.3f}".format(req.reservedQuantity).rstrip('0').rstrip('.') }} reserved)</div>
+                            <div style="font-size: 11px; color: var(--mt);">({{ req.onHandQuantity|qty_fmt }} on hand, {{ req.reservedQuantity|qty_fmt }} reserved)</div>
                             {% endif %}
                         </td>
                         <td style="text-align: right; color: var(--mt);">
@@ -225,8 +221,7 @@
                             {% if selectedOrder.status in ('In Progress', 'Completed') %}
                             <span class="statusBadge completed">Issued</span>
                             {% elif req.isShort %}
-                            <span class="statusBadge alert">Short {{
-                                "{:,.3f}".format(req.shortageQuantity).rstrip('0').rstrip('.') }} {{ req.unit }}</span>
+                            <span class="statusBadge alert">Short {{ req.shortageQuantity|qty_fmt }} {{ req.unit }}</span>
                             {% else %}
                             <span class="statusBadge passed">In Stock</span>
                             {% endif %}

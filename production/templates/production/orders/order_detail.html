@@ -380,17 +380,13 @@
                                 style="display: block; font-size: 11.5px; color: var(--mt); font-family: monospace;">{{
                                 req.itemCode }}</span>
                         </td>
-                        <td>{{ "{:,.3f}".format(req.quantityRequired).rstrip('0').rstrip('.') or '0' }} {{ req.unit }}
-                        </td>
-                        <td><b>{{ "{:,.3f}".format(req.batchQuantity).rstrip('0').rstrip('.') or '0' }} {{ req.unit
-                                }}</b></td>
+                        <td>{{ req.quantityRequired|qty_fmt }} {{ req.unit }}</td>
+                        <td><b>{{ req.batchQuantity|qty_fmt }} {{ req.unit }}</b></td>
                         <td>
                             {% if order.status in ('In Progress', 'Completed') %}
-                            {% set totIssStr = "{:,.3f}".format(req.issuedQuantity).rstrip('0').rstrip('.') or '0' %}
-                            {% set initIssStr = "{:,.3f}".format(req.initialIssuedQuantity).rstrip('0').rstrip('.') or
-                            '0' %}
-                            {% set repIssStr = "{:,.3f}".format(req.replacementIssuedQuantity).rstrip('0').rstrip('.')
-                            or '0' %}
+                            {% set totIssStr = req.issuedQuantity|qty_fmt %}
+                            {% set initIssStr = req.initialIssuedQuantity|qty_fmt %}
+                            {% set repIssStr = req.replacementIssuedQuantity|qty_fmt %}
                             <b>{{ totIssStr }} {{ req.unit }}</b>
                             {% if req.replacementIssuedQuantity > 0 %}
                             <span style="display: block; font-size: 11px; color: #8a5315;">{{ initIssStr }} initial + {{
@@ -399,7 +395,7 @@
                             {% else %}
                             <span
                                 style="color: {{ '#9a4a3a' if req.isShort else 'var(--tx)' }}; font-weight: {{ '700' if req.isShort else '500' }};">
-                                {{ "{:,.3f}".format(req.availableNet).rstrip('0').rstrip('.') or '0' }} {{ req.unit }}
+                                {{ req.availableNet|qty_fmt }} {{ req.unit }}
                             </span>
                             {% endif %}
                         </td>
@@ -411,8 +407,7 @@
                             {% if order.status in ('In Progress', 'Completed') %}
                             <span class="statusBadge completed">Issued</span>
                             {% elif req.isShort %}
-                            <span class="statusBadge alert">Short -{{
-                                "{:,.2f}".format(req.shortageQuantity).rstrip('0').rstrip('.') }} {{ req.unit }}</span>
+                            <span class="statusBadge alert">Short -{{ req.shortageQuantity|qty_fmt }} {{ req.unit }}</span>
                             {% else %}
                             <span class="statusBadge completed">In Stock</span>
                             {% endif %}
@@ -528,8 +523,7 @@
                             <tr>
                                 <td>{{ iss.formattedIssueDate }}</td>
                                 <td><b>{{ iss.materialName }}</b></td>
-                                <td><b>{{ "{:,.3f}".format(iss.quantityIssued).rstrip('0').rstrip('.') or '0' }} {{
-                                        iss.unit }}</b></td>
+                                <td><b>{{ iss.quantityIssued|qty_fmt }} {{ iss.unit }}</b></td>
                                 {% if isManager %}
                                 <td style="text-align: right;">₱{{ "{:,.2f}".format(iss.lineCost) }}</td>
                                 {% endif %}
@@ -580,8 +574,7 @@
                                 <td><span class="statusBadge inProgress" style="font-size: 11px;">Rework #{{
                                         iss.reworkRound }}</span></td>
                                 <td><b>{{ iss.materialName }}</b></td>
-                                <td><b>{{ "{:,.3f}".format(iss.quantityIssued).rstrip('0').rstrip('.') or '0' }} {{
-                                        iss.unit }}</b></td>
+                                <td><b>{{ iss.quantityIssued|qty_fmt }} {{ iss.unit }}</b></td>
                                 <td style="max-width: 240px;">{{ iss.reason or '—' }}</td>
                                 {% if isManager %}
                                 <td style="text-align: right; font-weight: 700; color: #8a5315;">+₱{{

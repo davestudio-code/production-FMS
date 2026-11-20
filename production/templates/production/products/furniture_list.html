@@ -1,6 +1,7 @@
 {% extends "production/base.html" %}
 
 {% block content %}
+{% from "production/components/field_label.html" import field_label %}
 {% from "production/components/modal.html" import modal %}
 {% from "production/components/page_header.html" import page_header %}
 {{ page_header("Product Master", "A list of all furnitures that can be produced in the workshop.") }}
@@ -254,11 +255,11 @@
 {% call modal("addFurnitureModal", "Add furniture to Product Master") %}
 <form method="POST" action="/production/furniture/add">
     <div class="formGroup">
-        <label>Product Name</label>
+        {{ field_label("Product Name") }}
         <input type="text" name="furnitureName" placeholder="e.g. Dining Chair" required autofocus>
     </div>
     <div class="formGroup">
-        <label>Product Category / Type</label>
+        {{ field_label("Product Category / Type") }}
         <select name="furnitureType" required>
             <option value="" disabled selected>Select category...</option>
             <option value="Seating">Seating</option>
@@ -278,11 +279,11 @@
 {% call modal("editFurnitureModal", "Edit Product") %}
 <form id="editFurnitureForm" method="POST" action="">
     <div class="formGroup">
-        <label>Product Name</label>
+        {{ field_label("Product Name", for_id="editFurnitureName") }}
         <input type="text" id="editFurnitureName" name="furnitureName" required>
     </div>
     <div class="formGroup">
-        <label>Product Category / Type</label>
+        {{ field_label("Product Category / Type", for_id="editFurnitureType") }}
         <select id="editFurnitureType" name="furnitureType" required>
             <option value="Seating">Seating</option>
             <option value="Table">Table</option>

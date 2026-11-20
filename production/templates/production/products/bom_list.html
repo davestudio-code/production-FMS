@@ -1,6 +1,7 @@
 {% extends "production/base.html" %}
 
 {% block content %}
+{% from "production/components/field_label.html" import field_label %}
 <div class="headerRow">
     <div>
         <h2>Bill of Materials (BOM)</h2>
@@ -66,14 +67,6 @@
         .recipeAddGrid {
             grid-template-columns: 1fr;
         }
-    }
-
-    .recipeFieldLabel {
-        font-size: 12px;
-        font-weight: 600;
-        color: var(--mt);
-        display: block;
-        margin-bottom: 6px;
     }
 
     .materialFieldWrap {
@@ -427,7 +420,7 @@
 
             <div class="recipeAddGrid">
                 <div class="formGroup" style="margin-bottom: 0;">
-                    <label class="recipeFieldLabel">Raw material</label>
+                    {{ field_label("Raw material") }}
                     <div class="materialFieldWrap" id="materialFieldWrap">
                         <input type="text" id="materialSearchInput" class="materialSearchInput"
                             placeholder="Type or click to select raw material..." autocomplete="off" required>
@@ -469,7 +462,7 @@
                 </div>
 
                 <div class="formGroup" style="margin-bottom: 0;">
-                    <label class="recipeFieldLabel">Qty per unit</label>
+                    {{ field_label("Qty per unit") }}
                     <div class="recipeQtyField">
                         <input type="number" name="quantityRequired" id="bomQuantityRequired" placeholder="0.000"
                             min="0.001" step="0.001" required class="recipeQtyInput">
@@ -512,7 +505,7 @@
                 <tr>
                     <td><span style="font-family: monospace; font-size: 12.5px; font-weight: 600;">{{ item.itemCode }}</span></td>
                     <td><b>{{ item.materialName }}</b></td>
-                    <td style="text-align: right;">{{ "{:,.3f}".format(item.quantityRequired).rstrip('0').rstrip('.') or '0' }} {{ item.unit }}</td>
+                    <td style="text-align: right;">{{ item.quantityRequired|qty_fmt }} {{ item.unit }}</td>
                     {% if isManager %}
                     <td style="text-align: right; color: var(--mt);">₱{{ "{:,.2f}".format(item.unitCost) }}</td>
                     <td style="text-align: right;"><b>₱{{ "{:,.2f}".format(item.quantityRequired * item.unitCost) }}</b></td>

@@ -1,13 +1,13 @@
 {% extends "production/base.html" %}
 
 {% block content %}
-<link rel="stylesheet" href="/production/feature-static/reports/report.css?v=20261118a">
+<link rel="stylesheet" href="/production/feature-static/reports/report.css?v=20261120a">
 
 <div class="printDocumentHeader">
     <div class="printHeaderMain">
         <div class="printCompany">
             <h1 class="printCompanyName">velmora co.</h1>
-            <div class="printDepartment">Manufacturing &amp; Production</div>
+            <div class="printDepartment">Production</div>
             <div class="printAddress">San Pablo City, Laguna, Philippines</div>
         </div>
         <div class="printMeta">
@@ -312,7 +312,8 @@
                         data-date="{{ d.latestIssueDateIso }}">
                         <td data-label="Order Reference">
                             <a href="/production/orders/{{ d.orderID }}"
-                                style="color: var(--tx); font-weight: 700; text-decoration: none;">#PO-{{ d.orderID }}</a>
+                                style="color: var(--tx); font-weight: 700; text-decoration: none;">#PO-{{ d.orderID
+                                }}</a>
                             <div style="color: var(--mt); font-size: 12px; margin-top: 2px;">{{ d.furnitureName }}</div>
                         </td>
                         <td data-label="Materials Issued">
@@ -321,11 +322,13 @@
                                 <div style="font-size: 12.5px; line-height: 1.35;">
                                     <b>{{ iss.materialName }}</b>
                                     <span style="color: var(--mt);">&middot;</span>
-                                    <span>{{ "{:,.3f}".format(iss.quantityIssued).rstrip('0').rstrip('.') or '0' }} {{ iss.unit }}</span>
+                                    <span>{{ iss.quantityIssued|qty_fmt }} {{ iss.unit }}</span>
                                     {% if iss.isReworkReplacement %}
-                                    <span class="statusBadge inProgress" style="font-size: 10px; margin-left: 4px;">Rework #{{ iss.reworkRound }}</span>
+                                    <span class="statusBadge inProgress"
+                                        style="font-size: 10px; margin-left: 4px;">Rework #{{ iss.reworkRound }}</span>
                                     {% if iss.reason %}
-                                    <span style="font-size: 11px; color: var(--mt); margin-left: 4px;">({{ iss.reason }})</span>
+                                    <span style="font-size: 11px; color: var(--mt); margin-left: 4px;">({{ iss.reason
+                                        }})</span>
                                     {% endif %}
                                     {% endif %}
                                 </div>
@@ -334,7 +337,8 @@
                         </td>
                         <td data-label="Total Issued Cost">
                             <b style="color: var(--tx); font-size: 13.5px;">₱{{ "{:,.2f}".format(d.totalCost) }}</b>
-                            <div style="font-size: 11.5px; color: var(--mt); margin-top: 2px;">{{ d.materials|length }} material{{ '' if d.materials|length == 1 else 's' }}</div>
+                            <div style="font-size: 11.5px; color: var(--mt); margin-top: 2px;">{{ d.materials|length }}
+                                material{{ '' if d.materials|length == 1 else 's' }}</div>
                         </td>
                         <td data-label="Issue Date">{{ d.latestIssueDate|date_fmt }}</td>
                         <td data-label="Issued By">
@@ -342,7 +346,8 @@
                                 {% for actor in d.actors %}
                                 <span style="font-weight: 500; color: var(--tx);">{{ actor|mail_link }}</span>
                                 {% else %}
-                                <span style="color: var(--mt);">{{ (session.get('email') or 'Dave Cagalitan')|mail_link }}</span>
+                                <span style="color: var(--mt);">{{ (session.get('email') or 'Dave Cagalitan')|mail_link
+                                    }}</span>
                                 {% endfor %}
                             </div>
                         </td>

@@ -1,6 +1,7 @@
 {% extends "production/base.html" %}
 
 {% block content %}
+{% from "production/components/field_label.html" import field_label %}
 {% from "production/components/modal.html" import modal %}
 {% from "production/components/page_header.html" import page_header %}
 {% from "production/components/badge.html" import badge %}
@@ -235,7 +236,7 @@
 border-box; overflow-x: hidden;") %}
 <form method="POST" action="/production/orders/create">
     <div class="formGroup">
-        <label>Product (Must have configured BOM)</label>
+        {{ field_label("Product", for_id="modalFurnitureSelect", hint="Must have configured BOM") }}
         <select name="furnitureID" id="modalFurnitureSelect" onchange="updateLiveMrpCheck()" required>
             <option value="">Select Product...</option>
             {% for f in furnitureItems %}
@@ -244,7 +245,7 @@ border-box; overflow-x: hidden;") %}
         </select>
     </div>
     <div class="formGroup">
-        <label>Quantity (Whole Number)</label>
+        {{ field_label("Quantity", for_id="modalQuantityInput", hint="Whole Number") }}
         <input type="number" name="plannedQuantity" id="modalQuantityInput" placeholder="e.g. 4" min="1" max="100000"
             step="1" oninput="updateLiveMrpCheck()" required>
     </div>

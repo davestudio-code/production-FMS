@@ -91,6 +91,103 @@ def _sync_employee_auth_links(cur, emp_id, auth_uid, pos_id):
     return access_lvl
 
 
+def _validate_existing_auth_user(cur, record):
+    if not record["password_matches"]:
+        return None, "Invalid email or password."
+    if not record.get("employee_id") or not record.get("is_active"):
+        return None, "Your account has been disabled. Please contact hr suppot."
+    if not is_authorized_production_employee(
+        record.get("department_id"),
+        record.get("position_id"),
+        record.get("is_active")
+    ):
+        return None, "[403] Forbidden Access."
+    if record.get("module_active") is False:
+        return None, "Your account has been disabled. Please contact hr support."
+    record["access_level"] = _sync_employee_auth_links(
+        cur,
+        record["employee_id"],
+        record["auth_user_id"],
+        record["position_id"],
+    )
+    return record, None
+
+
+def _provision_auth_user(cur, emp_record, cleaned_email, password):
+    if not is_authorized_production_employee(
+        emp_record.get("department_id"),
+        emp_record.get("position_id"),
+        emp_record.get("is_active")
+    ):
+        return None, "[403] Forbidden Access."
+    new_auth_uid = str(uuid.uuid4())
+    app_meta = json.dumps({"provider": "email", "providers": ["email"]})
+    user_meta = json.dumps({"email_verified": True})
+    cur.execute(
+        """
+        INSERT INTO auth.users (
+            instance_id, id, aud, role, email, encrypted_password,
+            email_confirmed_at, confirmation_token, recovery_token,
+            email_change_token_new, email_change, raw_app_meta_data,
+            raw_user_meta_data, created_at, updated_at, phone_change,
+            phone_change_token, email_change_token_current,
+            email_change_confirm_status, reauthentication_token,
+            is_sso_user, is_anonymous
+        ) VALUES (
+            '00000000-0000-0000-0000-000000000000', %s, 'authenticated', 'authenticated', %s,
+            extensions.crypt(%s, extensions.gen_salt('bf')),
+            NOW() - INTERVAL '31 days', '', '', '', '',
+            %s::jsonb, %s::jsonb,
+            NOW() - INTERVAL '31 days', NOW() - INTERVAL '31 days',
+            '', '', '', 0, '', FALSE, FALSE
+        )
+        """,
+        (new_auth_uid, cleaned_email, password, app_meta, user_meta),
+    )
+    emp_record["auth_user_id"] = new_auth_uid
+    emp_record["access_level"] = _sync_employee_auth_links(
+        cur,
+        emp_record["employee_id"],
+        new_auth_uid,
+        emp_record["position_id"],
+    )
+    emp_record["password_matches"] = True
+    return emp_record, None
+
+
+def _lookup_session_employee(cur, emp_id, email, user_id):
+    base_from = """
+        SELECT e.employee_id, e.name, e.last_name, e.email, e.phone,
+               e.department_id, e.position_id, e.is_active, p.position_name,
+               COALESCE(ea.auth_user_id, u.auth_user_id) AS auth_user_id,
+               ema.access_level, ema.is_active AS module_active
+        FROM public.employee e
+        LEFT JOIN public.position p ON p.position_id = e.position_id
+        LEFT JOIN public.employee_auth ea ON ea.employee_id = e.employee_id AND ea.is_active = TRUE
+        LEFT JOIN public.users u ON u.employee_id = e.employee_id
+        LEFT JOIN public.employee_module_access ema
+            ON ema.auth_user_id = COALESCE(ea.auth_user_id, u.auth_user_id)
+           AND ema.module_code = %s
+    """
+    if emp_id and str(emp_id).isdigit():
+        cur.execute(base_from + " WHERE e.employee_id = %s LIMIT 1", (PRODUCTION_MODULE_CODE, int(emp_id)))
+        row = cur.fetchone()
+        if row:
+            return row
+    if email:
+        cur.execute(
+            base_from + " WHERE LOWER(TRIM(e.email)) = LOWER(TRIM(%s)) ORDER BY (e.is_active IS TRUE) DESC, (e.department_id = %s) DESC, e.employee_id DESC LIMIT 1",
+            (PRODUCTION_MODULE_CODE, email, PRODUCTION_DEPARTMENT_ID),
+        )
+        row = cur.fetchone()
+        if row:
+            return row
+    if user_id and str(user_id).isdigit():
+        cur.execute(base_from + " WHERE u.user_id = %s LIMIT 1", (PRODUCTION_MODULE_CODE, int(user_id)))
+        return cur.fetchone()
+    return None
+
+
 def authenticate_credentials(email, password):
     if not email or not password:
         return None, "Invalid email or password."
@@ -160,73 +257,13 @@ def authenticate_credentials(email, password):
             with conn.cursor() as cur:
                 cur.execute(auth_query, (password, PRODUCTION_MODULE_CODE, cleaned_email, PRODUCTION_DEPARTMENT_ID))
                 record = cur.fetchone()
-
                 if record:
-                    if not record["password_matches"]:
-                        return None, "Invalid email or password."
-                    if not record.get("employee_id") or not record.get("is_active"):
-                        return None, "Your account has been disabled. Please contact hr suppot."
-                    if not is_authorized_production_employee(
-                        record.get("department_id"),
-                        record.get("position_id"),
-                        record.get("is_active")
-                    ):
-                        return None, "[403] Forbidden Access."
-                    if record.get("module_active") is False:
-                        return None, "Your account has been disabled. Please contact hr support."
-                    access_lvl = _sync_employee_auth_links(
-                        cur,
-                        record["employee_id"],
-                        record["auth_user_id"],
-                        record["position_id"],
-                    )
-                    record["access_level"] = access_lvl
-                    return record, None
+                    return _validate_existing_auth_user(cur, record)
 
                 cur.execute(unprovisioned_emp_query, (cleaned_email, PRODUCTION_DEPARTMENT_ID))
                 emp_record = cur.fetchone()
-
                 if emp_record and not emp_record.get("existing_auth_user_id") and password == "velmora123":
-                    if not is_authorized_production_employee(
-                        emp_record.get("department_id"),
-                        emp_record.get("position_id"),
-                        emp_record.get("is_active")
-                    ):
-                        return None, "[403] Forbidden Access."
-                    new_auth_uid = str(uuid.uuid4())
-                    app_meta = json.dumps({"provider": "email", "providers": ["email"]})
-                    user_meta = json.dumps({"email_verified": True})
-                    cur.execute(
-                        """
-                        INSERT INTO auth.users (
-                            instance_id, id, aud, role, email, encrypted_password,
-                            email_confirmed_at, confirmation_token, recovery_token,
-                            email_change_token_new, email_change, raw_app_meta_data,
-                            raw_user_meta_data, created_at, updated_at, phone_change,
-                            phone_change_token, email_change_token_current,
-                            email_change_confirm_status, reauthentication_token,
-                            is_sso_user, is_anonymous
-                        ) VALUES (
-                            '00000000-0000-0000-0000-000000000000', %s, 'authenticated', 'authenticated', %s,
-                            extensions.crypt(%s, extensions.gen_salt('bf')),
-                            NOW() - INTERVAL '31 days', '', '', '', '',
-                            %s::jsonb, %s::jsonb,
-                            NOW() - INTERVAL '31 days', NOW() - INTERVAL '31 days',
-                            '', '', '', 0, '', FALSE, FALSE
-                        )
-                        """,
-                        (new_auth_uid, cleaned_email, password, app_meta, user_meta),
-                    )
-                    access_lvl = _sync_employee_auth_links(
-                        cur,
-                        emp_record["employee_id"],
-                        new_auth_uid,
-                        emp_record["position_id"],
-                    )
-                    emp_record["auth_user_id"] = new_auth_uid
-                    emp_record["access_level"] = access_lvl
-                    emp_record["password_matches"] = True
-                    return emp_record, None
+                    return _provision_auth_user(cur, emp_record, cleaned_email, password)
 
         return None, "Invalid email or password."
     except Exception as err:
@@ -248,71 +285,7 @@ def sync_and_verify_session():
     try:
         with openTransaction() as conn:
             with conn.cursor() as cur:
-                row = None
-                if emp_id and str(emp_id).isdigit():
-                    cur.execute(
-                        """
-                        SELECT e.employee_id, e.name, e.last_name, e.email, e.phone,
-                               e.department_id, e.position_id, e.is_active, p.position_name,
-                               COALESCE(ea.auth_user_id, u.auth_user_id) AS auth_user_id,
-                               ema.access_level, ema.is_active AS module_active
-                        FROM public.employee e
-                        LEFT JOIN public.position p ON p.position_id = e.position_id
-                        LEFT JOIN public.employee_auth ea ON ea.employee_id = e.employee_id AND ea.is_active = TRUE
-                        LEFT JOIN public.users u ON u.employee_id = e.employee_id
-                        LEFT JOIN public.employee_module_access ema
-                            ON ema.auth_user_id = COALESCE(ea.auth_user_id, u.auth_user_id)
-                           AND ema.module_code = %s
-                        WHERE e.employee_id = %s
-                        LIMIT 1
-                        """,
-                        (PRODUCTION_MODULE_CODE, int(emp_id))
-                    )
-                    row = cur.fetchone()
-
-                if not row and session.get("email"):
-                    cur.execute(
-                        """
-                        SELECT e.employee_id, e.name, e.last_name, e.email, e.phone,
-                               e.department_id, e.position_id, e.is_active, p.position_name,
-                               COALESCE(ea.auth_user_id, u.auth_user_id) AS auth_user_id,
-                               ema.access_level, ema.is_active AS module_active
-                        FROM public.employee e
-                        LEFT JOIN public.position p ON p.position_id = e.position_id
-                        LEFT JOIN public.employee_auth ea ON ea.employee_id = e.employee_id AND ea.is_active = TRUE
-                        LEFT JOIN public.users u ON u.employee_id = e.employee_id
-                        LEFT JOIN public.employee_module_access ema
-                            ON ema.auth_user_id = COALESCE(ea.auth_user_id, u.auth_user_id)
-                           AND ema.module_code = %s
-                        WHERE LOWER(TRIM(e.email)) = LOWER(TRIM(%s))
-                        ORDER BY (e.is_active IS TRUE) DESC, (e.department_id = %s) DESC, e.employee_id DESC
-                        LIMIT 1
-                        """,
-                        (PRODUCTION_MODULE_CODE, session.get("email"), PRODUCTION_DEPARTMENT_ID)
-                    )
-                    row = cur.fetchone()
-
-                if not row and session.get("user_id") and str(session.get("user_id")).isdigit():
-                    uid = int(session.get("user_id"))
-                    cur.execute(
-                        """
-                        SELECT e.employee_id, e.name, e.last_name, e.email, e.phone,
-                               e.department_id, e.position_id, e.is_active, p.position_name,
-                               COALESCE(ea.auth_user_id, u.auth_user_id) AS auth_user_id,
-                               ema.access_level, ema.is_active AS module_active
-                        FROM public.users u
-                        JOIN public.employee e ON e.employee_id = u.employee_id
-                        LEFT JOIN public.position p ON p.position_id = e.position_id
-                        LEFT JOIN public.employee_auth ea ON ea.employee_id = e.employee_id AND ea.is_active = TRUE
-                        LEFT JOIN public.employee_module_access ema
-                            ON ema.auth_user_id = COALESCE(ea.auth_user_id, u.auth_user_id)
-                           AND ema.module_code = %s
-                        WHERE u.user_id = %s
-                        LIMIT 1
-                        """,
-                        (PRODUCTION_MODULE_CODE, uid)
-                    )
-                    row = cur.fetchone()
+                row = _lookup_session_employee(cur, emp_id, session.get("email"), session.get("user_id"))
 
                 if (
                     not row
